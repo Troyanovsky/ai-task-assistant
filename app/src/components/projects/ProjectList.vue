@@ -24,7 +24,7 @@
         v-for="project in projects"
         :key="project.id"
         :project="project"
-        :is-selected="selectedProjectId === project.id"
+        :is-selected="selectedProject && selectedProject.id === project.id"
         @click="selectProject(project)"
         @edit="editProject(project)"
         @delete="deleteProject(project.id)"
@@ -32,6 +32,16 @@
     </div>
     <div v-else class="text-gray-500 text-sm mt-2">
       No projects found. Create your first project.
+    </div>
+    
+    <!-- Loading Indicator -->
+    <div v-if="isLoading" class="mt-4 text-center">
+      <span class="text-gray-500">Loading projects...</span>
+    </div>
+    
+    <!-- Error Message -->
+    <div v-if="error" class="mt-4 text-center">
+      <span class="text-red-500">{{ error }}</span>
     </div>
   </div>
 </template>
@@ -51,24 +61,27 @@ export default {
   emits: ['project-selected'],
   setup(props, { emit }) {
     const store = useStore();
-    const projects = computed(() => store.state.projects.items);
-    const selectedProjectId = ref(null);
     const showAddProjectForm = ref(false);
     const editingProject = ref(null);
 
+    // Get data from store using getters
+    const projects = computed(() => store.getters['projects/allProjects']);
+    const selectedProject = computed(() => store.getters['projects/selectedProject']);
+    const isLoading = computed(() => store.getters['projects/isLoading']);
+    const error = computed(() => store.getters['projects/error']);
+
     onMounted(async () => {
-      if (store.state.projects.items.length === 0) {
-        await store.dispatch('projects/fetchProjects');
-      }
+      // Fetch projects on component mount
+      await store.dispatch('projects/fetchProjects');
       
-      // Select first project by default if available
-      if (projects.value.length > 0 && !selectedProjectId.value) {
+      // Select first project by default if available and none is selected
+      if (projects.value.length > 0 && !selectedProject.value) {
         selectProject(projects.value[0]);
       }
     });
 
     const selectProject = (project) => {
-      selectedProjectId.value = project.id;
+      store.dispatch('projects/selectProject', project);
       emit('project-selected', project);
     };
 
@@ -86,8 +99,7 @@ export default {
         await store.dispatch('projects/deleteProject', projectId);
         
         // If deleted project was selected, select another project
-        if (selectedProjectId.value === projectId) {
-          selectedProjectId.value = null;
+        if (selectedProject.value && selectedProject.value.id === projectId) {
           if (projects.value.length > 0) {
             selectProject(projects.value[0]);
           }
@@ -97,9 +109,11 @@ export default {
 
     return {
       projects,
-      selectedProjectId,
+      selectedProject,
       showAddProjectForm,
       editingProject,
+      isLoading,
+      error,
       selectProject,
       addProject,
       editProject,

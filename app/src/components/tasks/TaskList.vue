@@ -58,6 +58,16 @@
     <div v-else class="text-gray-500 text-sm mt-2">
       Select a project to view and manage tasks.
     </div>
+    
+    <!-- Loading Indicator -->
+    <div v-if="isLoading" class="mt-4 text-center">
+      <span class="text-gray-500">Loading tasks...</span>
+    </div>
+    
+    <!-- Error Message -->
+    <div v-if="error" class="mt-4 text-center">
+      <span class="text-red-500">{{ error }}</span>
+    </div>
   </div>
 </template>
 
@@ -91,11 +101,14 @@ export default {
       search: ''
     });
 
-    // Get tasks from store
+    // Get data from store using getters
     const tasks = computed(() => {
       if (!props.selectedProject) return [];
-      return store.getters['tasks/getTasksByProject'](props.selectedProject.id);
+      return store.getters['tasks/tasksByProject'](props.selectedProject.id);
     });
+    
+    const isLoading = computed(() => store.getters['tasks/isLoading']);
+    const error = computed(() => store.getters['tasks/error']);
 
     // Apply filters to tasks
     const filteredTasks = computed(() => {
@@ -146,7 +159,11 @@ export default {
     };
 
     const updateTaskStatus = async (taskId, newStatus) => {
-      await store.dispatch('tasks/updateTaskStatus', { id: taskId, status: newStatus });
+      await store.dispatch('tasks/updateTaskStatus', {
+        taskId,
+        status: newStatus,
+        projectId: props.selectedProject ? props.selectedProject.id : null
+      });
     };
 
     const editTask = (task) => {
@@ -155,17 +172,23 @@ export default {
 
     const deleteTask = async (taskId) => {
       if (confirm('Are you sure you want to delete this task?')) {
-        await store.dispatch('tasks/deleteTask', taskId);
+        await store.dispatch('tasks/deleteTask', {
+          taskId,
+          projectId: props.selectedProject ? props.selectedProject.id : null
+        });
       }
     };
 
     const updateFilters = (newFilters) => {
       filters.value = { ...newFilters };
+      store.dispatch('tasks/filterTasks', newFilters);
     };
 
     return {
       tasks,
       filteredTasks,
+      isLoading,
+      error,
       showAddTaskForm,
       editingTask,
       filters,

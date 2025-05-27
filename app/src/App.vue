@@ -13,12 +13,23 @@
 </template>
 
 <script>
+import { onMounted } from 'vue';
+import { useStore } from 'vuex';
 import AppHeader from './components/layout/AppHeader.vue';
 
 export default {
   name: 'App',
   components: {
     AppHeader
+  },
+  setup() {
+    const store = useStore();
+    
+    onMounted(() => {
+      // Start watchers for real-time updates
+      store.dispatch('projects/watchProjects');
+      store.dispatch('tasks/watchTasks');
+    });
   }
 };
 </script>

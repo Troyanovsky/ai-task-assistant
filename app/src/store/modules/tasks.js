@@ -4,7 +4,11 @@ import { Task, STATUS } from '../../models/Task';
 const state = {
   tasks: [],
   filteredTasks: [],
-  currentFilter: 'all',
+  currentFilter: {
+    status: 'all',
+    priority: 'all',
+    search: ''
+  },
   loading: false,
   error: null
 };
@@ -17,12 +21,13 @@ const getters = {
     return state.tasks.filter((task) => task.projectId === projectId);
   },
   isLoading: (state) => state.loading,
-  error: (state) => state.error
+  error: (state) => state.error,
+  currentFilter: (state) => state.currentFilter
 };
 
 // Actions
 const actions = {
-  async fetchTasks({ commit }) {
+  async fetchTasks({ commit, dispatch }) {
     commit('setLoading', true);
     commit('setError', null);
     
@@ -32,6 +37,7 @@ const actions = {
       const tasks = tasksData.map(data => Task.fromDatabase(data));
       
       commit('setTasks', tasks);
+      dispatch('applyFilters');
     } catch (error) {
       console.error('Error fetching tasks:', error);
       commit('setError', 'Failed to load tasks');
@@ -40,7 +46,7 @@ const actions = {
     }
   },
   
-  async fetchTasksByProject({ commit }, projectId) {
+  async fetchTasksByProject({ commit, dispatch }, projectId) {
     commit('setLoading', true);
     commit('setError', null);
     
@@ -50,6 +56,7 @@ const actions = {
       const tasks = tasksData.map(data => Task.fromDatabase(data));
       
       commit('setTasks', tasks);
+      dispatch('applyFilters');
     } catch (error) {
       console.error(`Error fetching tasks for project ${projectId}:`, error);
       commit('setError', 'Failed to load tasks');
@@ -58,15 +65,33 @@ const actions = {
     }
   },
   
-  filterTasks({ commit, state }, filter) {
+  filterTasks({ commit, dispatch }, filter) {
     commit('setCurrentFilter', filter);
-    
+    dispatch('applyFilters');
+  },
+  
+  applyFilters({ commit, state }) {
     let filtered = [...state.tasks];
+    const filter = state.currentFilter;
     
-    if (filter === 'active') {
-      filtered = filtered.filter((task) => task.status !== STATUS.DONE);
-    } else if (filter === 'completed') {
-      filtered = filtered.filter((task) => task.status === STATUS.DONE);
+    // Filter by status
+    if (filter.status !== 'all') {
+      filtered = filtered.filter((task) => task.status === filter.status);
+    }
+    
+    // Filter by priority
+    if (filter.priority !== 'all') {
+      filtered = filtered.filter((task) => task.priority === filter.priority);
+    }
+    
+    // Filter by search term
+    if (filter.search) {
+      const searchTerm = filter.search.toLowerCase();
+      filtered = filtered.filter(
+        task => 
+          task.name.toLowerCase().includes(searchTerm) || 
+          (task.description && task.description.toLowerCase().includes(searchTerm))
+      );
     }
     
     commit('setFilteredTasks', filtered);
@@ -176,6 +201,22 @@ const actions = {
     } finally {
       commit('setLoading', false);
     }
+  },
+  
+  // Watcher for real-time updates
+  watchTasks({ dispatch, state }) {
+    // In a real implementation, this would set up a listener
+    // for database changes or server-sent events
+    
+    // For now, just set up a polling mechanism for demo purposes
+    const pollInterval = 30000; // 30 seconds
+    
+    setInterval(() => {
+      // Only refresh if there are tasks to avoid unnecessary polling
+      if (state.tasks.length > 0) {
+        dispatch('fetchTasks');
+      }
+    }, pollInterval);
   }
 };
 
@@ -189,7 +230,7 @@ const mutations = {
     state.filteredTasks = tasks;
   },
   setCurrentFilter(state, filter) {
-    state.currentFilter = filter;
+    state.currentFilter = { ...state.currentFilter, ...filter };
   },
   setLoading(state, loading) {
     state.loading = loading;

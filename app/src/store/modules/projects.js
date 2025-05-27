@@ -87,7 +87,7 @@ const actions = {
     }
   },
   
-  async deleteProject({ commit, dispatch }, projectId) {
+  async deleteProject({ commit, dispatch, state }, projectId) {
     commit('setLoading', true);
     commit('setError', null);
     
@@ -96,6 +96,11 @@ const actions = {
       const success = window.electron ? await window.electron.deleteProject(projectId) : false;
       
       if (success) {
+        // If the deleted project was selected, deselect it
+        if (state.selectedProject && state.selectedProject.id === projectId) {
+          commit('setSelectedProject', null);
+        }
+        
         // Refresh the projects list
         dispatch('fetchProjects');
       } else {
@@ -107,6 +112,19 @@ const actions = {
     } finally {
       commit('setLoading', false);
     }
+  },
+  
+  // Watcher for real-time updates
+  watchProjects({ dispatch }) {
+    // In a real implementation, this would set up a listener
+    // for database changes or server-sent events
+    
+    // For now, just set up a polling mechanism for demo purposes
+    const pollInterval = 30000; // 30 seconds
+    
+    setInterval(() => {
+      dispatch('fetchProjects');
+    }, pollInterval);
   }
 };
 

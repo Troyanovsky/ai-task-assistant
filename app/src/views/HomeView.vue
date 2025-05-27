@@ -24,7 +24,8 @@
 </template>
 
 <script>
-import { ref } from 'vue';
+import { computed } from 'vue';
+import { useStore } from 'vuex';
 import AppSidebar from '../components/layout/AppSidebar.vue';
 import ProjectList from '../components/projects/ProjectList.vue';
 import TaskList from '../components/tasks/TaskList.vue';
@@ -37,10 +38,14 @@ export default {
     TaskList
   },
   setup() {
-    const selectedProject = ref(null);
+    const store = useStore();
+    
+    // Get selected project from store
+    const selectedProject = computed(() => store.getters['projects/selectedProject']);
 
+    // Dispatch action to select project
     const selectProject = (project) => {
-      selectedProject.value = project;
+      store.dispatch('projects/selectProject', project);
     };
 
     return {
