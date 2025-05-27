@@ -1,10 +1,29 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const url = require('url');
+const databaseService = require('./src/services/database');
+const notificationService = require('./src/services/notification');
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow;
+
+/**
+ * Initialize the application services
+ */
+async function initServices() {
+  try {
+    // Initialize database
+    await databaseService.init();
+    console.log('Database initialized');
+    
+    // Initialize notification service
+    notificationService.init();
+    console.log('Notification service initialized');
+  } catch (error) {
+    console.error('Error initializing services:', error);
+  }
+}
 
 function createWindow() {
   // Create the browser window.
@@ -45,17 +64,29 @@ function createWindow() {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  await initServices();
+  createWindow();
+});
 
 // Quit when all windows are closed.
 app.on('window-all-closed', function() {
   // On macOS it is common for applications and their menu bar
   // to stay active until the user quits explicitly with Cmd + Q
-  if (process.platform !== 'darwin') app.quit();
+  if (process.platform !== 'darwin') {
+    // Close database connection
+    databaseService.close();
+    app.quit();
+  }
 });
 
 app.on('activate', function() {
   // On macOS it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
   if (mainWindow === null) createWindow();
+});
+
+// Close database connection when app is about to quit
+app.on('before-quit', () => {
+  databaseService.close();
 }); 
