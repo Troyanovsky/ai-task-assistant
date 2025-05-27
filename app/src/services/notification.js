@@ -1,13 +1,13 @@
 /**
  * Notification Service
- * Handles task notifications
+ * Handles notification-related operations
  */
 
-const databaseService = require('./database');
-const { Notification, TYPE } = require('../models/Notification');
-const { ipcMain } = require('electron');
+import databaseService from './database.js';
+import { Notification, TYPE } from '../models/Notification.js';
+import { ipcMain } from 'electron';
 
-class NotificationService {
+class NotificationManager {
   constructor() {
     this.scheduledNotifications = new Map();
   }
@@ -191,15 +191,15 @@ class NotificationService {
   }
 
   /**
-   * Send a notification
-   * @param {Notification} notification - Notification instance
-   */
+ * Send a notification
+ * @param {Notification} notification - Notification instance
+ */
   sendNotification(notification) {
     try {
       // Emit event to renderer process
       if (ipcMain) {
-        ipcMain.emit('notification', notification);
-      }
+      ipcMain.emit('notification', notification);
+    }
       
       console.log(`Sent notification ${notification.id}: ${notification.message}`);
     } catch (error) {
@@ -209,6 +209,6 @@ class NotificationService {
 }
 
 // Create singleton instance
-const notificationService = new NotificationService();
+const notificationService = new NotificationManager();
 
-module.exports = notificationService; 
+export default notificationService;

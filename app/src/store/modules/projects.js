@@ -1,4 +1,6 @@
-import Project from '../../models/Project';
+// Import Project model - handle both ES modules and CommonJS modules
+import ProjectModule from '../../models/Project';
+const Project = ProjectModule.default || ProjectModule;
 
 // Initial state
 const state = {

@@ -3,8 +3,8 @@
  * Handles task-related operations
  */
 
-const databaseService = require('./database');
-const { Task, STATUS, PRIORITY } = require('../models/Task');
+import databaseService from './database.js';
+import { Task, STATUS, PRIORITY } from '../models/Task.js';
 
 class TaskManager {
   /**
@@ -43,10 +43,12 @@ class TaskManager {
    */
   async getTasksByProject(projectId) {
     try {
+      console.log(`Querying tasks for project_id: ${projectId}`);
       const tasks = databaseService.query(
         'SELECT * FROM tasks WHERE project_id = ? ORDER BY created_at DESC',
         [projectId]
       );
+      console.log(`Found ${tasks.length} tasks for project ${projectId}`);
       return tasks.map(task => Task.fromDatabase(task));
     } catch (error) {
       console.error(`Error getting tasks for project ${projectId}:`, error);
@@ -56,17 +58,41 @@ class TaskManager {
 
   /**
    * Add a new task
-   * @param {Task} task - Task instance
+   * @param {Object} taskData - Task data
    * @returns {boolean} - Success status
    */
-  async addTask(task) {
+  async addTask(taskData) {
     try {
+      console.log('Adding task with original data:', taskData);
+      
+      // Make sure project_id is correctly set
+      if (!taskData.project_id && taskData.projectId) {
+        taskData.project_id = taskData.projectId;
+      }
+      
+      console.log('Task data after project_id check:', taskData);
+      
+      // Create a Task instance from the data
+      const task = new Task(taskData);
+      
+      console.log('Task instance created:', task);
+      console.log('Task project ID:', task.projectId);
+      
+      // Validate the task
       if (!task.validate()) {
-        console.error('Invalid task data');
+        console.error('Invalid task data - validation failed');
+        console.error('Task validation details:');
+        console.error('- Name:', task.name, task.name && task.name.trim() !== '');
+        console.error('- Project ID:', task.projectId, !!task.projectId);
+        console.error('- Status:', task.status, Object.values(STATUS).includes(task.status));
+        console.error('- Priority:', task.priority, Object.values(PRIORITY).includes(task.priority));
         return false;
       }
-
+      
       const data = task.toDatabase();
+      console.log('Adding task with database data:', data);
+      console.log('Database project_id:', data.project_id);
+      
       const result = databaseService.insert(
         `INSERT INTO tasks (
           id, name, description, duration, due_date, project_id, 
@@ -78,7 +104,8 @@ class TaskManager {
           data.priority, data.created_at, data.updated_at
         ]
       );
-
+      
+      console.log('Task insert result:', result);
       return result && result.changes > 0;
     } catch (error) {
       console.error('Error adding task:', error);
@@ -88,17 +115,28 @@ class TaskManager {
 
   /**
    * Update an existing task
-   * @param {Task} task - Task instance
+   * @param {Object} taskData - Task data
    * @returns {boolean} - Success status
    */
-  async updateTask(task) {
+  async updateTask(taskData) {
     try {
+      // Make sure project_id is correctly set
+      if (!taskData.project_id && taskData.projectId) {
+        taskData.project_id = taskData.projectId;
+      }
+      
+      // Create a Task instance from the data
+      const task = new Task(taskData);
+      
+      // Validate the task
       if (!task.validate()) {
-        console.error('Invalid task data');
+        console.error('Invalid task data - validation failed');
         return false;
       }
-
+      
       const data = task.toDatabase();
+      console.log('Updating task with data:', data);
+      
       const result = databaseService.update(
         `UPDATE tasks SET 
           name = ?, description = ?, duration = ?, due_date = ?, 
@@ -114,7 +152,7 @@ class TaskManager {
 
       return result && result.changes > 0;
     } catch (error) {
-      console.error(`Error updating task ${task.id}:`, error);
+      console.error(`Error updating task ${taskData.id}:`, error);
       return false;
     }
   }
@@ -305,7 +343,6 @@ class TaskManager {
   }
 }
 
-// Create singleton instance
+// Export a singleton instance
 const taskManager = new TaskManager();
-
-module.exports = taskManager; 
+export default taskManager;

@@ -2,7 +2,7 @@
  * Initial database migration
  */
 
-const schema = require('../schema');
+import schema from '../schema.js';
 
 async function up(db) {
   try {
@@ -20,4 +20,4 @@ async function up(db) {
   }
 }
 
-module.exports = { up }; 
+export { up };

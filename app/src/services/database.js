@@ -3,11 +3,11 @@
  * Handles all database operations using better-sqlite3
  */
 
-const Database = require('better-sqlite3');
-const path = require('path');
-const fs = require('fs');
-const { app } = require('electron');
-const initialMigration = require('../../database/migrations/initial');
+import Database from 'better-sqlite3';
+import path from 'path';
+import fs from 'fs';
+import { app } from 'electron';
+import * as initialMigration from '../../database/migrations/initial.js';
 
 class DatabaseService {
   constructor() {
@@ -170,4 +170,4 @@ class DatabaseService {
 // Create singleton instance
 const databaseService = new DatabaseService();
 
-module.exports = databaseService; 
+export default databaseService;

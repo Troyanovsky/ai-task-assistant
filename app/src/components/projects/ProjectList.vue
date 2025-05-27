@@ -1,7 +1,7 @@
 <template>
   <div class="project-list">
     <div class="mb-4 flex justify-between items-center">
-      <h3 class="text-lg font-semibold">Projects</h3>
+      <!-- <h3 class="text-lg font-semibold">Projects</h3> -->
       <button
         @click="showAddProjectForm = true"
         class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-sm"

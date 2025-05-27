@@ -53,6 +53,7 @@ const actions = {
     try {
       // In Electron, we would use IPC to communicate with the main process
       const tasksData = window.electron ? await window.electron.getTasksByProject(projectId) : [];
+      console.log(`Fetched ${tasksData.length} tasks for project ${projectId}:`, tasksData);
       const tasks = tasksData.map(data => Task.fromDatabase(data));
       
       commit('setTasks', tasks);
@@ -102,15 +103,29 @@ const actions = {
     commit('setError', null);
     
     try {
+      console.log('Adding task with original data:', taskData);
+      
+      // Create a Task instance
       const task = new Task(taskData);
       
+      // Convert to database format and ensure project_id is set
+      const dbData = task.toDatabase();
+      
+      // Ensure project_id is set correctly
+      if (!dbData.project_id && taskData.projectId) {
+        dbData.project_id = taskData.projectId;
+      }
+      
+      console.log('Task data to be saved:', dbData);
+      
       // In Electron, we would use IPC to communicate with the main process
-      const success = window.electron ? await window.electron.addTask(task.toDatabase()) : false;
+      const success = window.electron ? await window.electron.addTask(dbData) : false;
       
       if (success) {
+        console.log('Task added successfully, refreshing tasks for project:', dbData.project_id);
         // Refresh the tasks list
-        if (task.projectId) {
-          dispatch('fetchTasksByProject', task.projectId);
+        if (dbData.project_id) {
+          dispatch('fetchTasksByProject', dbData.project_id);
         } else {
           dispatch('fetchTasks');
         }
@@ -130,13 +145,26 @@ const actions = {
     commit('setError', null);
     
     try {
+      console.log('Updating task:', task);
+      
+      // Convert to database format and ensure project_id is set
+      const dbData = task.toDatabase();
+      
+      // Ensure project_id is set correctly
+      if (!dbData.project_id && task.projectId) {
+        dbData.project_id = task.projectId;
+      }
+      
+      console.log('Task data to be updated:', dbData);
+      
       // In Electron, we would use IPC to communicate with the main process
-      const success = window.electron ? await window.electron.updateTask(task.toDatabase()) : false;
+      const success = window.electron ? await window.electron.updateTask(dbData) : false;
       
       if (success) {
+        console.log('Task updated successfully, refreshing tasks for project:', dbData.project_id);
         // Refresh the tasks list
-        if (task.projectId) {
-          dispatch('fetchTasksByProject', task.projectId);
+        if (dbData.project_id) {
+          dispatch('fetchTasksByProject', dbData.project_id);
         } else {
           dispatch('fetchTasks');
         }

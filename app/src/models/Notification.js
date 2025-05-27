@@ -2,10 +2,10 @@
  * Notification Model
  */
 
-const { v4: uuidv4 } = require('uuid');
+import { v4 as uuidv4 } from 'uuid';
 
 // Notification type constants
-const TYPE = {
+export const TYPE = {
   REMINDER: 'reminder',
   DUE_DATE: 'due_date',
   STATUS_CHANGE: 'status_change'
@@ -78,8 +78,4 @@ class Notification {
   }
 }
 
-// Export constants and class
-module.exports = {
-  Notification,
-  TYPE
-}; 
+export { Notification };

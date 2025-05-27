@@ -2,10 +2,10 @@
  * RecurrenceRule Model
  */
 
-const { v4: uuidv4 } = require('uuid');
+import { v4 as uuidv4 } from 'uuid';
 
 // Frequency constants
-const FREQUENCY = {
+export const FREQUENCY = {
   DAILY: 'daily',
   WEEKLY: 'weekly',
   MONTHLY: 'monthly',
@@ -121,8 +121,4 @@ class RecurrenceRule {
   }
 }
 
-// Export constants and class
-module.exports = {
-  RecurrenceRule,
-  FREQUENCY
-}; 
+export { RecurrenceRule };

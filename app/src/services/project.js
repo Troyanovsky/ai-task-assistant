@@ -3,8 +3,8 @@
  * Handles project-related operations
  */
 
-const databaseService = require('./database');
-const Project = require('../models/Project');
+import databaseService from './database.js';
+import Project from '../models/Project.js';
 
 class ProjectManager {
   /**
@@ -137,4 +137,4 @@ class ProjectManager {
 // Create singleton instance
 const projectManager = new ProjectManager();
 
-module.exports = projectManager; 
+export default projectManager;

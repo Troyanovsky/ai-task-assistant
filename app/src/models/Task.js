@@ -2,17 +2,17 @@
  * Task Model
  */
 
-const { v4: uuidv4 } = require('uuid');
+import { v4 as uuidv4 } from 'uuid';
 
 // Task status constants
-const STATUS = {
+export const STATUS = {
   PLANNING: 'planning',
   DOING: 'doing',
   DONE: 'done'
 };
 
 // Task priority constants
-const PRIORITY = {
+export const PRIORITY = {
   LOW: 'low',
   MEDIUM: 'medium',
   HIGH: 'high'
@@ -29,7 +29,7 @@ class Task {
     this.description = data.description || '';
     this.duration = data.duration || null;
     this.dueDate = data.due_date ? new Date(data.due_date) : null;
-    this.projectId = data.project_id || '';
+    this.projectId = data.project_id || data.projectId || '';
     this.dependencies = data.dependencies ? this.parseDependencies(data.dependencies) : [];
     this.status = data.status || STATUS.PLANNING;
     this.labels = data.labels ? this.parseLabels(data.labels) : [];
@@ -117,7 +117,10 @@ class Task {
    * @returns {Task} - Task instance
    */
   static fromDatabase(data) {
-    return new Task(data);
+    console.log('Creating Task from database data:', data);
+    const task = new Task(data);
+    console.log('Task created with projectId:', task.projectId);
+    return task;
   }
 
   /**
@@ -138,9 +141,4 @@ class Task {
   }
 }
 
-// Export constants and class
-module.exports = {
-  Task,
-  STATUS,
-  PRIORITY
-}; 
+export { Task };
