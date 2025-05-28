@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- This is an electron project with vite, always run npm run electron:dev at the end of your final response to check if your changes work.

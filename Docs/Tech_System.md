@@ -50,14 +50,14 @@ classDiagram
         +loadProjects()
         +loadTasks()
     }
-    
+
     class ProjectManager {
         +getProjects()
         +addProject()
         +updateProject()
         +deleteProject()
     }
-    
+
     class TaskManager {
         +getTasks()
         +addTask()
@@ -66,7 +66,7 @@ classDiagram
         +getTasksByProject()
         +prioritizeTasks()
     }
-    
+
     class AIService {
         +processUserInput()
         +generateTaskActions()
@@ -74,13 +74,13 @@ classDiagram
         +estimateTime()
         +breakdownTasks()
     }
-    
+
     class NotificationService {
         +scheduleNotification()
         +sendNotification()
         +cancelNotification()
     }
-    
+
     class DatabaseService {
         +connect()
         +query()
@@ -88,7 +88,7 @@ classDiagram
         +update()
         +delete()
     }
-    
+
     Application --> ProjectManager
     Application --> TaskManager
     TaskManager --> AIService
@@ -111,7 +111,7 @@ classDiagram
         +createdAt: Date
         +updatedAt: Date
     }
-    
+
     class Task {
         +id: string
         +name: string
@@ -128,7 +128,7 @@ classDiagram
         +createdAt: Date
         +updatedAt: Date
     }
-    
+
     class Notification {
         +id: string
         +taskId: string
@@ -136,14 +136,14 @@ classDiagram
         +type: string
         +message: string
     }
-    
+
     class RecurrenceRule {
         +frequency: string
         +interval: number
         +endDate: Date
         +count: number
     }
-    
+
     Project "1" -- "many" Task
     Task "1" -- "many" Notification
     Task "1" -- "0..1" RecurrenceRule
@@ -156,7 +156,7 @@ classDiagram
     class App {
         +render()
     }
-    
+
     class ProjectsPanel {
         +projects: Project[]
         +selectedProject: Project
@@ -164,7 +164,7 @@ classDiagram
         +selectProject()
         +createProject()
     }
-    
+
     class TaskListPanel {
         +tasks: Task[]
         +filteredTasks: Task[]
@@ -172,14 +172,14 @@ classDiagram
         +filterTasks()
         +sortTasks()
     }
-    
+
     class AIChatPanel {
         +chatHistory: Message[]
         +render()
         +sendMessage()
         +processResponse()
     }
-    
+
     class TaskItem {
         +task: Task
         +render()
@@ -187,7 +187,7 @@ classDiagram
         +editTask()
         +deleteTask()
     }
-    
+
     App --> ProjectsPanel
     App --> TaskListPanel
     App --> AIChatPanel
@@ -204,7 +204,7 @@ sequenceDiagram
     participant LLM as LLM API
     participant TaskManager
     participant DB as Database
-    
+
     User->>UI: Enter natural language input
     UI->>AIService: processUserInput(text)
     AIService->>LLM: callLLMWithFunctions(text, schema)
@@ -232,7 +232,7 @@ erDiagram
         datetime created_at
         datetime updated_at
     }
-    
+
     TASKS {
         string id PK
         string name
@@ -247,7 +247,7 @@ erDiagram
         datetime created_at
         datetime updated_at
     }
-    
+
     NOTIFICATIONS {
         string id PK
         string task_id FK
@@ -255,7 +255,7 @@ erDiagram
         string type
         string message
     }
-    
+
     RECURRENCE_RULES {
         string id PK
         string task_id FK
@@ -264,7 +264,7 @@ erDiagram
         datetime end_date
         number count
     }
-    
+
     PROJECTS ||--o{ TASKS : contains
     TASKS ||--o{ NOTIFICATIONS : has
     TASKS ||--o{ RECURRENCE_RULES : has
@@ -275,8 +275,10 @@ erDiagram
 ```
 ai-task-assistant/
 ├── package.json
-├── electron.js                 # Electron main process
-├── preload.js                  # Electron preload script
+├── electron.js                 # Electron main process - Window creation and app lifecycle
+├── ipcHandlers.js              # IPC handlers for projects, tasks, and AI
+├── aiService.js                # AI-related functions (LLM processing, function execution)
+├── preload.cjs                 # Electron preload script
 ├── src/
 │   ├── main.js                 # Vue application entry
 │   ├── App.vue                 # Root Vue component
@@ -404,7 +406,7 @@ sequenceDiagram
     participant NotificationService
     participant ElectronNotification
     participant OS as Operating System
-    
+
     TaskManager->>NotificationService: scheduleNotification(task)
     NotificationService->>NotificationService: calculateNotificationTime(task)
     NotificationService->>ElectronNotification: new Notification(options)
@@ -458,3 +460,57 @@ flowchart TD
 2. **Database Indexing**: Properly index the SQLite database for faster queries
 3. **Lazy Loading**: Implement lazy loading for components and routes
 4. **Caching**: Cache AI responses for similar queries to reduce API calls
+
+## 11. Proposed Modularization of Electron.js
+
+To improve the readability and maintainability of `electron.js`, we propose the following modularization:
+
+### 11.1. New Module Structure
+
+```mermaid
+graph LR
+    A[electron.js] --> B(ipcHandlers.js);
+    A --> C(aiService.js);
+    A --> D(preload.cjs);
+    subgraph Main Process
+        A
+        B
+        C
+    end
+    D --> E[Renderer Process];
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style B fill:#ccf,stroke:#333,stroke-width:2px
+    style C fill:#ccf,stroke:#333,stroke-width:2px
+    style D fill:#ccf,stroke:#333,stroke-width:2px
+    style E fill:#ffc,stroke:#333,stroke-width:2px
+```
+
+### 11.2. Module Responsibilities
+
+1.  **`electron.js` (Main Process):**
+    *   Responsible for creating and managing the main application window.
+    *   Handles the application lifecycle events (e.g., `app.on('ready')`, `app.on('window-all-closed')`).
+    *   Initializes services (database, notifications).
+    *   Orchestrates the application.
+
+2.  **`ipcHandlers.js` (Main Process):**
+    *   Contains all `ipcMain.handle` calls for communication between the main process and the renderer process.
+    *   Separates handlers by functionality (projects, tasks, AI) to improve organization.
+
+3.  **`aiService.js` (Main Process):**
+    *   Contains AI-related functions, including `processWithLLM` and `executeFunctionCall`.
+    *   Handles communication with the LLM API.
+    *   Manages AI configuration and chat history.
+
+4.  **`preload.cjs` (Preload Script):**
+    *   Exposes a safe API to the renderer process using `contextBridge`.
+    *   Provides access to project, task, and AI-related methods.
+
+### 11.3. Rationale
+
+This modularization improves readability and maintainability by:
+
+*   Separating concerns into distinct modules.
+*   Reducing the size and complexity of `electron.js`.
+*   Making it easier to test and update individual modules.
+*   Improving the overall structure and organization of the codebase.
