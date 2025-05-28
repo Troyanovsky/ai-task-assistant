@@ -28,9 +28,34 @@ An intelligent application to manage to-do items and calendars by offloading tas
 
 ## V1 Features
 
-- Calendar-based UI
-- Voice input
+- Calendar-based UI for tasks/days
+- Voice input for AI
 - Enhanced AI features
   - Task breakdown
   - Time estimation
 - Other notifications: email
+- Keyboard shortcut buttons
+- Default list: Input/Backlog
+- Planned date for tasks
+- Daily progress bar
+- Dragging tasks
+
+## Future
+- Settings
+  - Time zone
+  - Time format
+  - Start of week
+  - Daily workload
+  - Daily working time
+  - Hide/show completed tasks
+  - Light/Dark mode switches
+  - Scheduling gap (if any)
+  - i18n
+  - Alert settings
+- Rituals
+  - Daily planning time (if any)
+  - Daily review time (if any)
+  - Weekly planning time (if any)
+  - Weekly review time (if any, or combined with planning)
+- Focus mode with time tracking
+- Integrations
