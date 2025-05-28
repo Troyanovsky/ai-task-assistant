@@ -61,8 +61,12 @@ function setupIpcHandlers() {
 
   ipcMain.handle('projects:update', async (_, projectData) => {
     try {
+      console.log('Received project update request:', projectData);
       const project = new Project(projectData);
-      return await projectManager.updateProject(project);
+      console.log('Created project instance:', project);
+      const result = await projectManager.updateProject(project);
+      console.log('Update result:', result);
+      return result;
     } catch (error) {
       console.error('IPC Error - updateProject:', error);
       return false;
@@ -182,6 +186,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    minWidth: 1050,
+    minHeight: 750,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -255,4 +261,4 @@ app.on('activate', function() {
 // Close database connection when app is about to quit
 app.on('before-quit', () => {
   databaseService.close();
-}); 
+});

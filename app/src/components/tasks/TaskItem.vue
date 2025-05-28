@@ -3,24 +3,26 @@
     <div class="flex items-start gap-3">
       <!-- Status Checkbox -->
       <div class="mt-0.5">
-        <button
+        <div
           @click="toggleStatus"
-          class="w-5 h-5 rounded-full border flex items-center justify-center"
+          class="w-5 h-5 rounded-full border flex items-center justify-center cursor-pointer"
           :class="statusClasses"
         >
-          <svg v-if="task.status === 'done'" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+          <svg v-if="task.status === 'done'" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
           </svg>
-        </button>
+          <div v-else-if="task.status === 'doing'" class="w-2.5 h-2.5 rounded-full bg-yellow-500"></div>
+          <div v-else-if="task.status === 'planning'" class="w-2.5 h-2.5 rounded-full"></div>
+        </div>
       </div>
 
       <!-- Task Content -->
-      <div class="flex-1">
+      <div class="flex-1 min-w-0"><!-- Added min-w-0 to allow truncation -->
         <div class="flex justify-between">
-          <h4 class="font-medium" :class="{ 'line-through text-gray-500': task.status === 'done' }">
+          <h4 class="font-medium truncate max-w-[calc(100%-60px)]" :class="{ 'line-through text-gray-500': task.status === 'done' }">
             {{ task.name }}
           </h4>
-          <div class="flex space-x-2">
+          <div class="flex space-x-2 flex-shrink-0"><!-- Added flex-shrink-0 -->
             <button 
               @click="$emit('edit', task)" 
               class="text-gray-500 hover:text-blue-500"
@@ -40,7 +42,7 @@
           </div>
         </div>
         
-        <p v-if="task.description" class="text-sm text-gray-600 mt-1">
+        <p v-if="task.description" class="text-sm text-gray-600 mt-1 line-clamp-2"><!-- Added line-clamp-2 -->
           {{ task.description }}
         </p>
         
@@ -94,7 +96,7 @@ export default {
         case 'doing':
           return 'border-yellow-500 text-yellow-500';
         case 'done':
-          return 'border-green-500 bg-green-500 text-white';
+          return 'border-green-500 bg-green-500';
         default:
           return 'border-gray-500 text-gray-500';
       }
@@ -159,4 +161,4 @@ export default {
     };
   }
 };
-</script> 
+</script>

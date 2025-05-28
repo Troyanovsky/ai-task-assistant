@@ -78,6 +78,9 @@ import TaskItem from './TaskItem.vue';
 import TaskForm from './TaskForm.vue';
 import TaskFilter from './TaskFilter.vue';
 
+// Add this import at the top of your file
+import { Task } from '../../models/Task.js';
+
 export default {
   name: 'TaskList',
   components: {
@@ -154,7 +157,9 @@ export default {
     };
 
     const updateTask = async (taskData) => {
-      await store.dispatch('tasks/updateTask', taskData);
+      // Create a Task instance from the plain object
+      const taskInstance = new Task(taskData);
+      await store.dispatch('tasks/updateTask', taskInstance);
       editingTask.value = null;
     };
 
@@ -201,4 +206,4 @@ export default {
     };
   }
 };
-</script> 
+</script>

@@ -73,7 +73,9 @@ const actions = {
     
     try {
       // In Electron, we would use IPC to communicate with the main process
-      const success = window.electron ? await window.electron.updateProject(project.toDatabase()) : false;
+      // Make sure we're passing the correct data format
+      const projectData = project.toDatabase ? project.toDatabase() : project;
+      const success = window.electron ? await window.electron.updateProject(projectData) : false;
       
       if (success) {
         // Refresh the projects list

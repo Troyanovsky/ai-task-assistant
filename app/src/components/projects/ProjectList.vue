@@ -10,11 +10,20 @@
       </button>
     </div>
 
-    <!-- Project Form Dialog -->
+    <!-- Project Form Dialog for Add -->
     <div v-if="showAddProjectForm" class="mb-4 p-3 bg-white rounded shadow-md">
       <project-form
         @save="addProject"
         @cancel="showAddProjectForm = false"
+      />
+    </div>
+
+    <!-- Project Form Dialog for Edit -->
+    <div v-if="editingProject" class="mb-4 p-3 bg-white rounded shadow-md">
+      <project-form
+        :project="editingProject"
+        @save="updateProject"
+        @cancel="editingProject = null"
       />
     </div>
 
@@ -51,6 +60,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useStore } from 'vuex';
 import ProjectItem from './ProjectItem.vue';
 import ProjectForm from './ProjectForm.vue';
+import Project from '../../models/Project.js';
 
 export default {
   name: 'ProjectList',
@@ -90,6 +100,11 @@ export default {
       showAddProjectForm.value = false;
     };
 
+    const updateProject = async (projectData) => {
+      await store.dispatch('projects/updateProject', new Project(projectData));
+      editingProject.value = null;
+    };
+
     const editProject = (project) => {
       editingProject.value = project;
     };
@@ -116,6 +131,7 @@ export default {
       error,
       selectProject,
       addProject,
+      updateProject,
       editProject,
       deleteProject
     };

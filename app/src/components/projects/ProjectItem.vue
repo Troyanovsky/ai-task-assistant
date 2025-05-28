@@ -4,13 +4,13 @@
     class="project-item p-3 rounded cursor-pointer flex justify-between items-center"
     :class="isSelected ? 'bg-blue-100 border-blue-300 border' : 'bg-white border-gray-200 border hover:bg-gray-50'"
   >
-    <div>
-      <h4 class="font-medium">{{ project.name }}</h4>
+    <div class="flex-1 min-w-0 mr-2"><!-- Added flex-1, min-w-0, and mr-2 -->
+      <h4 class="font-medium truncate">{{ project.name }}</h4><!-- Added truncate -->
       <p v-if="project.description" class="text-sm text-gray-600 truncate max-w-xs">
         {{ project.description }}
       </p>
     </div>
-    <div class="flex space-x-2">
+    <div class="flex space-x-2 flex-shrink-0"><!-- Added flex-shrink-0 -->
       <button 
         @click.stop="$emit('edit')" 
         class="text-gray-500 hover:text-blue-500"
@@ -48,4 +48,4 @@ export default {
   },
   emits: ['click', 'edit', 'delete']
 };
-</script> 
+</script>

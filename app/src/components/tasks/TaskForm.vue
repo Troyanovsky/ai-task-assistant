@@ -58,7 +58,7 @@
             id="dueDate"
             v-model="formData.dueDate"
             type="date"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 date-input"
           />
         </div>
         
@@ -171,4 +171,12 @@ export default {
     };
   }
 };
-</script> 
+</script>
+
+<style>
+/* Fix for date picker icon visibility */
+.date-input::-webkit-calendar-picker-indicator {
+  filter: invert(0.5);
+  cursor: pointer;
+}
+</style>
