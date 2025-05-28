@@ -207,6 +207,9 @@ function setupIpcHandlers() {
         timestamp: new Date()
       };
       aiState.chatHistory.push(userMessage);
+      
+      // Send updated chat history to frontend immediately after user message
+      mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
 
       // Check if AI is configured
       if (!aiState.isConfigured) {
@@ -216,6 +219,7 @@ function setupIpcHandlers() {
           timestamp: new Date()
         };
         aiState.chatHistory.push(errorMessage);
+        mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
         return { success: false, error: 'AI service not configured', chatHistory: aiState.chatHistory };
       }
 
@@ -230,18 +234,122 @@ function setupIpcHandlers() {
         functionCall: response.functionCall
       };
       aiState.chatHistory.push(aiMessage);
+      
+      // Send updated chat history to frontend immediately after AI response
+      mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
 
       // Handle function calls if present
       if (response.functionCall) {
+        // Add a message indicating function execution is in progress
+        const executingMessage = {
+          text: `Executing: ${response.functionCall.name}`,
+          sender: 'system',
+          timestamp: new Date(),
+          isExecutionProgress: true
+        };
+        aiState.chatHistory.push(executingMessage);
+        mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
+        
+        // Execute the function
         const result = await executeFunctionCall(response.functionCall);
         
+        // Add function result to chat history
         if (result && result.message) {
           const resultMessage = {
             text: result.message,
-            sender: 'ai',
-            timestamp: new Date()
+            sender: 'system',
+            timestamp: new Date(),
+            isExecutionResult: true
           };
           aiState.chatHistory.push(resultMessage);
+          // Send updated chat history to frontend immediately after function execution
+          mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
+          
+          // Trigger UI updates if needed based on function type
+          if (response.functionCall.name === 'addProject' || response.functionCall.name === 'updateProject' || response.functionCall.name === 'deleteProject') {
+            mainWindow.webContents.send('projects:refresh');
+          }
+          
+          if (response.functionCall.name === 'addTask' || response.functionCall.name === 'updateTask' || response.functionCall.name === 'deleteTask') {
+            mainWindow.webContents.send('tasks:refresh');
+          }
+        }
+        
+        // Process the function result with LLM to get a new response
+        const functionResult = {
+          functionName: response.functionCall.name,
+          data: result
+        };
+        
+        // Get AI's response to the function result
+        const followUpResponse = await processWithLLM(null, functionResult);
+        
+        // Add the follow-up response to chat history
+        const followUpMessage = {
+          text: followUpResponse.text,
+          sender: 'ai',
+          timestamp: new Date(),
+          functionCall: followUpResponse.functionCall
+        };
+        aiState.chatHistory.push(followUpMessage);
+        // Send updated chat history to frontend immediately after follow-up response
+        mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
+        
+        // Handle nested function calls if present (one level deep)
+        if (followUpResponse.functionCall) {
+          // Add a message indicating nested function execution is in progress
+          const nestedExecutingMessage = {
+            text: `Executing: ${followUpResponse.functionCall.name}`,
+            sender: 'system',
+            timestamp: new Date(),
+            isExecutionProgress: true
+          };
+          aiState.chatHistory.push(nestedExecutingMessage);
+          mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
+          
+          const nestedResult = await executeFunctionCall(followUpResponse.functionCall);
+          
+          // Add nested function result to chat history
+          if (nestedResult && nestedResult.message) {
+            const nestedResultMessage = {
+              text: nestedResult.message,
+              sender: 'system',
+              timestamp: new Date(),
+              isExecutionResult: true
+            };
+            aiState.chatHistory.push(nestedResultMessage);
+            // Send updated chat history to frontend after nested function execution
+            mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
+            
+            // Trigger UI updates if needed based on function type
+            if (followUpResponse.functionCall.name === 'addProject' || followUpResponse.functionCall.name === 'updateProject' || followUpResponse.functionCall.name === 'deleteProject') {
+              mainWindow.webContents.send('projects:refresh');
+            }
+            
+            if (followUpResponse.functionCall.name === 'addTask' || followUpResponse.functionCall.name === 'updateTask' || followUpResponse.functionCall.name === 'deleteTask') {
+              mainWindow.webContents.send('tasks:refresh');
+            }
+          }
+          
+          // Process the nested function result with LLM
+          const nestedFunctionResult = {
+            functionName: followUpResponse.functionCall.name,
+            data: nestedResult
+          };
+          
+          // Get AI's final response to the nested function result
+          const finalResponse = await processWithLLM(null, nestedFunctionResult);
+          
+          // Add the final response to chat history
+          const finalMessage = {
+            text: finalResponse.text,
+            sender: 'ai',
+            timestamp: new Date(),
+            functionCall: finalResponse.functionCall
+          };
+          aiState.chatHistory.push(finalMessage);
+          // Send final updated chat history to frontend
+          mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
         }
       }
 
@@ -256,6 +364,8 @@ function setupIpcHandlers() {
         timestamp: new Date()
       };
       aiState.chatHistory.push(errorMessage);
+      // Send error update to frontend
+      mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
       
       return { 
         success: false, 
@@ -269,9 +379,10 @@ function setupIpcHandlers() {
 /**
  * Process user input with LLM API
  * @param {string} userInput - User's message
+ * @param {Object} functionResult - Result from a previous function call, if any
  * @returns {Object} - AI response
  */
-async function processWithLLM(userInput) {
+async function processWithLLM(userInput, functionResult = null) {
   try {
     // Import function schemas
     const functionSchemasModule = await import('./src/services/functionSchemas.js');
@@ -283,10 +394,28 @@ async function processWithLLM(userInput) {
         .filter((msg, index) => index < aiState.chatHistory.length - 1) // Exclude the just added user message
         .map(msg => ({
           role: msg.sender === 'user' ? 'user' : 'assistant',
-          content: msg.text
-        })),
-      { role: 'user', content: userInput }
+          content: msg.text,
+          // Include function call information for assistant messages if present
+          ...(msg.sender === 'ai' && msg.functionCall ? {
+            function_call: {
+              name: msg.functionCall.name,
+              arguments: JSON.stringify(msg.functionCall.arguments)
+            }
+          } : {})
+        }))
     ];
+    
+    // Add the function result if provided
+    if (functionResult) {
+      messages.push({
+        role: 'function',
+        name: functionResult.functionName,
+        content: JSON.stringify(functionResult.data)
+      });
+    } else {
+      // If no function result, add the user message
+      messages.push({ role: 'user', content: userInput });
+    }
 
     // Make API request
     const response = await axios.post(
@@ -340,6 +469,29 @@ async function executeFunctionCall(functionCall) {
   try {
     switch (name) {
       case 'addTask':
+        // Check if the project ID is actually a project name
+        if (args.projectId && typeof args.projectId === 'string') {
+          // Check if this is a project name rather than ID
+          if (!args.projectId.includes('-')) {
+            console.log(`Looking up project ID for project name: ${args.projectId}`);
+            // It's likely a project name, look up the project by name
+            const projects = await projectManager.getProjects();
+            const project = projects.find(p => p.name.toLowerCase() === args.projectId.toLowerCase());
+            
+            if (project) {
+              console.log(`Found project with name "${args.projectId}": ${project.id}`);
+              args.projectId = project.id;
+            } else {
+              console.log(`No project found with name "${args.projectId}"`);
+              return {
+                success: false,
+                error: `Project "${args.projectId}" not found`,
+                message: `I couldn't find a project named "${args.projectId}". Please specify a valid project name or ID.`
+              };
+            }
+          }
+        }
+        
         const task = await taskManager.addTask(args);
         return { 
           success: true, 
@@ -365,6 +517,23 @@ async function executeFunctionCall(functionCall) {
         let tasks = await taskManager.getTasks();
         
         if (args.projectId) {
+          // Check if this is a project name rather than ID
+          if (typeof args.projectId === 'string' && !args.projectId.includes('-')) {
+            // It's likely a project name, look up the project by name
+            const projects = await projectManager.getProjects();
+            const project = projects.find(p => p.name.toLowerCase() === args.projectId.toLowerCase());
+            
+            if (project) {
+              args.projectId = project.id;
+            } else {
+              return {
+                success: false,
+                error: `Project "${args.projectId}" not found`,
+                message: `I couldn't find a project named "${args.projectId}". Please specify a valid project name or ID.`
+              };
+            }
+          }
+          
           tasks = tasks.filter(task => task.projectId === args.projectId);
         }
         

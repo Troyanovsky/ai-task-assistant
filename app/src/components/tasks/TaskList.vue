@@ -72,7 +72,7 @@
 </template>
 
 <script>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useStore } from 'vuex';
 import TaskItem from './TaskItem.vue';
 import TaskForm from './TaskForm.vue';
@@ -112,6 +112,26 @@ export default {
     
     const isLoading = computed(() => store.getters['tasks/isLoading']);
     const error = computed(() => store.getters['tasks/error']);
+
+    // Function to fetch tasks for the current project
+    const fetchTasks = async () => {
+      if (props.selectedProject) {
+        await store.dispatch('tasks/fetchTasksByProject', props.selectedProject.id);
+      }
+    };
+
+    onMounted(() => {
+      // Listen for task refresh events from main process
+      window.electron.receive('tasks:refresh', async () => {
+        console.log('Received tasks:refresh event');
+        await fetchTasks();
+      });
+    });
+
+    onBeforeUnmount(() => {
+      // Remove event listener when component is unmounted
+      window.electron.removeAllListeners('tasks:refresh');
+    });
 
     // Apply filters to tasks
     const filteredTasks = computed(() => {

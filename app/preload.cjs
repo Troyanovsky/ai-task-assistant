@@ -39,6 +39,28 @@ contextBridge.exposeInMainWorld(
     configureAI: (config) => ipcRenderer.invoke('ai:configure', config),
     sendMessage: (message) => ipcRenderer.invoke('ai:sendMessage', message),
     getChatHistory: () => ipcRenderer.invoke('ai:getChatHistory'),
-    clearChatHistory: () => ipcRenderer.invoke('ai:clearHistory')
+    clearChatHistory: () => ipcRenderer.invoke('ai:clearHistory'),
+    
+    // Event handling
+    receive: (channel, func) => {
+      const validChannels = [
+        'projects:refresh', 
+        'tasks:refresh', 
+        'ai:chatHistoryUpdate'
+      ];
+      if (validChannels.includes(channel)) {
+        ipcRenderer.on(channel, (event, ...args) => func(...args));
+      }
+    },
+    removeAllListeners: (channel) => {
+      const validChannels = [
+        'projects:refresh', 
+        'tasks:refresh', 
+        'ai:chatHistoryUpdate'
+      ];
+      if (validChannels.includes(channel)) {
+        ipcRenderer.removeAllListeners(channel);
+      }
+    }
   }
 );

@@ -43,7 +43,7 @@
 </template>
 
 <script>
-import { computed, watch, nextTick, ref, onMounted } from 'vue';
+import { computed, watch, nextTick, ref, onMounted, onBeforeUnmount } from 'vue';
 import { useStore } from 'vuex';
 import ChatMessage from './ChatMessage.vue';
 import ChatInput from './ChatInput.vue';
@@ -82,10 +82,25 @@ export default {
       }
     });
     
+    // Handle real-time chat history updates
+    const handleChatHistoryUpdate = (updatedHistory) => {
+      if (updatedHistory && Array.isArray(updatedHistory)) {
+        store.commit('ai/setChatHistory', updatedHistory);
+      }
+    };
+    
     // Load chat history when component is mounted
     onMounted(() => {
       store.dispatch('ai/loadChatHistory');
       store.dispatch('ai/loadSettings');
+      
+      // Listen for real-time chat history updates
+      window.electron.receive('ai:chatHistoryUpdate', handleChatHistoryUpdate);
+    });
+    
+    onBeforeUnmount(() => {
+      // Remove event listener when component is unmounted
+      window.electron.removeAllListeners('ai:chatHistoryUpdate');
     });
     
     return {

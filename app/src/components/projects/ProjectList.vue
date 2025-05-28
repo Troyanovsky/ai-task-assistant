@@ -56,7 +56,7 @@
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, onBeforeUnmount } from 'vue';
 import { useStore } from 'vuex';
 import ProjectItem from './ProjectItem.vue';
 import ProjectForm from './ProjectForm.vue';
@@ -80,14 +80,30 @@ export default {
     const isLoading = computed(() => store.getters['projects/isLoading']);
     const error = computed(() => store.getters['projects/error']);
 
-    onMounted(async () => {
-      // Fetch projects on component mount
+    // Function to fetch projects
+    const fetchProjects = async () => {
       await store.dispatch('projects/fetchProjects');
       
       // Select first project by default if available and none is selected
       if (projects.value.length > 0 && !selectedProject.value) {
         selectProject(projects.value[0]);
       }
+    };
+
+    onMounted(async () => {
+      // Fetch projects on component mount
+      await fetchProjects();
+      
+      // Listen for project refresh events from main process
+      window.electron.receive('projects:refresh', async () => {
+        console.log('Received projects:refresh event');
+        await fetchProjects();
+      });
+    });
+    
+    onBeforeUnmount(() => {
+      // Remove event listener when component is unmounted
+      window.electron.removeAllListeners('projects:refresh');
     });
 
     const selectProject = (project) => {
