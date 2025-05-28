@@ -20,5 +20,14 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html')
       }
     }
+  },
+  optimizeDeps: {
+    exclude: ['better-sqlite3']
+  },
+  // Prevent Vite from attempting to handle Node.js modules
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src')
+    }
   }
 })

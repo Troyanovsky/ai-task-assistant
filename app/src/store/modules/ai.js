@@ -2,83 +2,100 @@
 const state = {
   chatHistory: [],
   isProcessing: false,
-  error: null
+  error: null,
+  isConfigured: false,
+  apiKey: '',
+  apiUrl: 'https://api.openai.com/v1/chat/completions',
+  model: 'gpt-4o-mini'
 };
 
 // Getters
 const getters = {
   chatHistory: (state) => state.chatHistory,
   isProcessing: (state) => state.isProcessing,
-  error: (state) => state.error
+  error: (state) => state.error,
+  isConfigured: (state) => state.isConfigured,
+  apiKey: (state) => state.apiKey,
+  apiUrl: (state) => state.apiUrl,
+  model: (state) => state.model
 };
 
 // Actions
 const actions = {
-  async sendMessage({ commit, dispatch, rootState }, message) {
-    commit('addMessage', { text: message, sender: 'user', timestamp: new Date() });
+  async configureAI({ commit }, config) {
+    try {
+      // Use IPC bridge instead of direct service call
+      const result = await window.electron.configureAI(config);
+      
+      if (result.success) {
+        commit('setApiKey', result.apiKey);
+        commit('setApiUrl', result.apiUrl);
+        commit('setModel', result.model);
+        commit('setConfigured', result.isConfigured);
+        return true;
+      } else {
+        throw new Error(result.error || 'Failed to configure AI service');
+      }
+    } catch (error) {
+      console.error('Error configuring AI service:', error);
+      commit('setError', 'Failed to configure AI service');
+      commit('setConfigured', false);
+      return false;
+    }
+  },
+  
+  async sendMessage({ commit, dispatch, state }, message) {
     commit('setProcessing', true);
     commit('setError', null);
     
     try {
-      // This will be implemented in Phase 4 when we have the AI service
-      // For now, just simulate a response
+      // Use IPC bridge instead of direct service call
+      const result = await window.electron.sendMessage(message);
       
-      // Check if message contains keywords for basic task operations
-      if (message.toLowerCase().includes('add task') || message.toLowerCase().includes('create task')) {
-        // Simulate adding a task
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        commit('addMessage', { 
-          text: 'I would create a task here. In Phase 4, I\'ll be able to actually create tasks for you through natural language!', 
-          sender: 'ai', 
-          timestamp: new Date() 
-        });
-      } else if (message.toLowerCase().includes('show tasks') || message.toLowerCase().includes('list tasks')) {
-        // Get current project tasks
-        const currentProject = rootState.projects.selectedProject;
-        const tasks = currentProject 
-          ? rootState.tasks.tasks.filter(task => task.projectId === currentProject.id)
-          : [];
-        
-        if (tasks.length > 0) {
-          const taskList = tasks.map(task => `- ${task.name} (${task.status})`).join('\n');
-          commit('addMessage', { 
-            text: `Here are your tasks in the current project:\n\n${taskList}`, 
-            sender: 'ai', 
-            timestamp: new Date() 
-          });
-        } else {
-          commit('addMessage', { 
-            text: 'I don\'t see any tasks in the current project.', 
-            sender: 'ai', 
-            timestamp: new Date() 
-          });
-        }
+      if (result.success) {
+        // Update chat history from the main process
+        commit('setChatHistory', result.chatHistory);
       } else {
-        // Generic response
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        commit('addMessage', { 
-          text: `I understand you want to "${message}". In Phase 4, I'll be able to help you with that!`, 
-          sender: 'ai', 
-          timestamp: new Date() 
-        });
+        throw new Error(result.error || 'Failed to process message');
       }
     } catch (error) {
       console.error('Error processing message:', error);
-      commit('setError', 'Failed to process message');
-      commit('addMessage', { 
-        text: 'Sorry, I encountered an error processing your request.', 
-        sender: 'ai', 
-        timestamp: new Date() 
-      });
+      commit('setError', error.message || 'Failed to process message');
     } finally {
       commit('setProcessing', false);
     }
   },
   
-  clearHistory({ commit }) {
-    commit('clearChatHistory');
+  async loadChatHistory({ commit }) {
+    try {
+      const chatHistory = await window.electron.getChatHistory();
+      commit('setChatHistory', chatHistory);
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+    }
+  },
+  
+  async loadSettings({ commit }) {
+    try {
+      const result = await window.electron.configureAI({});
+      if (result.success) {
+        commit('setApiKey', result.apiKey);
+        commit('setApiUrl', result.apiUrl);
+        commit('setModel', result.model);
+        commit('setConfigured', result.isConfigured);
+      }
+    } catch (error) {
+      console.error('Error loading AI settings:', error);
+    }
+  },
+  
+  async clearHistory({ commit }) {
+    try {
+      await window.electron.clearChatHistory();
+      commit('clearChatHistory');
+    } catch (error) {
+      console.error('Error clearing chat history:', error);
+    }
   },
 };
 
@@ -86,6 +103,9 @@ const actions = {
 const mutations = {
   addMessage(state, message) {
     state.chatHistory.push(message);
+  },
+  setChatHistory(state, chatHistory) {
+    state.chatHistory = chatHistory;
   },
   setProcessing(state, isProcessing) {
     state.isProcessing = isProcessing;
@@ -95,6 +115,18 @@ const mutations = {
   },
   setError(state, error) {
     state.error = error;
+  },
+  setConfigured(state, isConfigured) {
+    state.isConfigured = isConfigured;
+  },
+  setApiKey(state, apiKey) {
+    state.apiKey = apiKey;
+  },
+  setApiUrl(state, apiUrl) {
+    state.apiUrl = apiUrl;
+  },
+  setModel(state, model) {
+    state.model = model;
   }
 };
 

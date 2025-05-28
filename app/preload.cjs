@@ -34,6 +34,11 @@ contextBridge.exposeInMainWorld(
     addTask: (task) => ipcRenderer.invoke('tasks:add', task),
     updateTask: (task) => ipcRenderer.invoke('tasks:update', task),
     deleteTask: (taskId) => ipcRenderer.invoke('tasks:delete', taskId),
-    updateTaskStatus: (taskId, status) => ipcRenderer.invoke('tasks:updateStatus', taskId, status)
+    updateTaskStatus: (taskId, status) => ipcRenderer.invoke('tasks:updateStatus', taskId, status),
+    
+    configureAI: (config) => ipcRenderer.invoke('ai:configure', config),
+    sendMessage: (message) => ipcRenderer.invoke('ai:sendMessage', message),
+    getChatHistory: () => ipcRenderer.invoke('ai:getChatHistory'),
+    clearChatHistory: () => ipcRenderer.invoke('ai:clearHistory')
   }
 );
