@@ -273,63 +273,80 @@ erDiagram
 ## 6. Project Structure
 
 ```
-ai-task-assistant/
-├── package.json
-├── electron.js                 # Electron main process - Window creation and app lifecycle
-├── ipcHandlers.js              # IPC handlers for projects, tasks, and AI
-├── aiService.js                # AI-related functions (LLM processing, function execution)
-├── preload.cjs                 # Electron preload script
-├── src/
-│   ├── main.js                 # Vue application entry
-│   ├── App.vue                 # Root Vue component
-│   ├── assets/                 # Static assets
-│   │   ├── layout/             # Layout components
-│   │   │   ├── AppHeader.vue
-│   │   │   └── AppSidebar.vue
-│   │   ├── projects/           # Project-related components
-│   │   │   ├── ProjectList.vue
-│   │   │   ├── ProjectItem.vue
-│   │   │   └── ProjectForm.vue
-│   │   ├── tasks/              # Task-related components
-│   │   │   ├── TaskList.vue
-│   │   │   ├── TaskItem.vue
-│   │   │   ├── TaskForm.vue
-│   │   │   └── TaskFilter.vue
-│   │   └── ai/                 # AI-related components
-│   │       ├── ChatBox.vue
-│   │       ├── ChatMessage.vue
-│   │       └── ChatInput.vue
-│   ├── views/                  # Page views
-│   │   ├── HomeView.vue
-│   │   └── SettingsView.vue
-│   ├── store/                  # Vuex store
-│   │   ├── index.js
-│   │   ├── modules/
-│   │   │   ├── projects.js
-│   │   │   ├── tasks.js
-│   │   │   └── ai.js
-│   ├── services/               # Service layer
-│   │   ├── database.js         # Database service
-│   │   ├── project.js          # Project service
-│   │   ├── task.js             # Task service
-│   │   ├── ai.js               # AI service
-│   │   └── notification.js     # Notification service
-│   ├── models/                 # Data models
-│   │   ├── Project.js
-│   │   ├── Task.js
-│   │   ├── Notification.js
-│   │   └── RecurrenceRule.js
-│   ├── utils/                  # Utility functions
-│   │   ├── dateUtils.js
-│   │   ├── priorityUtils.js
-│   │   └── validationUtils.js
-│   └── router/                 # Vue Router
-│       └── index.js
-├── database/                   # Database setup
-│   ├── migrations/
-│   │   └── initial.js
-│   └── schema.js
-└── public/                     # Public assets
+└── 📁app
+    └── 📁.vscode
+        └── extensions.json
+    └── 📁database
+        └── 📁migrations
+            └── initial.js
+        └── README.md
+        └── schema.js
+    └── 📁public
+        └── vite.svg
+    └── 📁src
+        └── App.vue
+        └── 📁assets
+            └── vue.svg
+        └── 📁components
+            └── 📁ai
+                └── ChatBox.vue
+                └── ChatInput.vue
+                └── ChatMessage.vue
+            └── 📁layout
+                └── AppSidebar.vue
+            └── 📁projects
+                └── ProjectForm.vue
+                └── ProjectItem.vue
+                └── ProjectList.vue
+            └── 📁tasks
+                └── TaskFilter.vue
+                └── TaskForm.vue
+                └── TaskItem.vue
+                └── TaskList.vue
+        └── main.js
+        └── 📁models
+            └── Notification.js
+            └── Project.js
+            └── RecurrenceRule.js
+            └── Task.js
+        └── 📁router
+            └── index.js
+        └── 📁services
+            └── 📁__tests__
+                └── ai.test.js
+            └── ai.js
+            └── database.js
+            └── functionSchemas.js
+            └── notification.js
+            └── project.js
+            └── task.js
+        └── 📁store
+            └── index.js
+            └── 📁modules
+                └── 📁__tests__
+                    └── ai.test.js
+                └── ai.js
+                └── projects.js
+                └── tasks.js
+        └── style.css
+        └── 📁views
+            └── HomeView.vue
+            └── SettingsView.vue
+    └── 📁electron-main
+        └── ipcHandlers.js
+        └── aiService.js
+    └── .eslintrc.cjs
+    └── .eslintrc.js
+    └── .prettierrc
+    └── electron.js
+    └── index.html
+    └── package-lock.json
+    └── package.json
+    └── postcss.config.js
+    └── preload.cjs
+    └── README.md
+    └── tailwind.config.js
+    └── vite.config.js
 ```
 
 ## 7. Implementation Details

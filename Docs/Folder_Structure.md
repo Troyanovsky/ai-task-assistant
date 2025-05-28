@@ -1,8 +1,11 @@
 This documentation is automatically generated folder structure for the project, you may use this as a reference to find the files you need.
 
+```
 └── 📁ai-task-assistant
+    └── 📁.cursor
+        └── 📁rules
+            └── electron-rule.mdc
     └── 📁app
-        └── .DS_Store
         └── .eslintrc.cjs
         └── .eslintrc.js
         └── .prettierrc
@@ -18,7 +21,7 @@ This documentation is automatically generated folder structure for the project, 
         └── package-lock.json
         └── package.json
         └── postcss.config.js
-        └── preload.js
+        └── preload.cjs
         └── 📁public
             └── vite.svg
         └── README.md
@@ -28,8 +31,10 @@ This documentation is automatically generated folder structure for the project, 
                 └── vue.svg
             └── 📁components
                 └── 📁ai
+                    └── ChatBox.vue
+                    └── ChatInput.vue
+                    └── ChatMessage.vue
                 └── 📁layout
-                    └── AppHeader.vue
                     └── AppSidebar.vue
                 └── 📁projects
                     └── ProjectForm.vue
@@ -49,27 +54,37 @@ This documentation is automatically generated folder structure for the project, 
             └── 📁router
                 └── index.js
             └── 📁services
+                └── 📁__tests__
+                    └── ai.test.js
+                └── ai.js
                 └── database.js
+                └── functionSchemas.js
                 └── notification.js
                 └── project.js
                 └── task.js
             └── 📁store
                 └── index.js
                 └── 📁modules
+                    └── 📁__tests__
+                        └── ai.test.js
                     └── ai.js
                     └── projects.js
                     └── tasks.js
             └── style.css
-            └── 📁utils
             └── 📁views
                 └── HomeView.vue
                 └── SettingsView.vue
         └── tailwind.config.js
         └── vite.config.js
     └── 📁Docs
+        └── Folder_Structure.md
         └── Implementation_Plan.md
+        └── Issue_Tracker.md
         └── PRD.md
         └── Tech_System.md
     └── .gitignore
     └── LICENSE
+    └── package-lock.json
+    └── package.json
     └── README.md
+```
