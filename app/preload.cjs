@@ -52,7 +52,9 @@ contextBridge.exposeInMainWorld(
         'projects:refresh', 
         'tasks:refresh', 
         'ai:chatHistoryUpdate',
-        'notification:received'
+        'notification:received',
+        'notifications:changed',
+        'notifications:refresh'
       ];
       if (validChannels.includes(channel)) {
         ipcRenderer.on(channel, (event, ...args) => func(...args));
@@ -63,7 +65,9 @@ contextBridge.exposeInMainWorld(
         'projects:refresh', 
         'tasks:refresh', 
         'ai:chatHistoryUpdate',
-        'notification:received'
+        'notification:received',
+        'notifications:changed',
+        'notifications:refresh'
       ];
       if (validChannels.includes(channel)) {
         ipcRenderer.removeAllListeners(channel);

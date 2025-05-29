@@ -1,5 +1,5 @@
 <template>
-  <div class="task-item p-3 rounded border bg-white hover:bg-gray-50">
+  <div class="task-item p-3 rounded border-gray-200 border bg-white hover:bg-gray-50">
     <div class="flex items-start gap-3">
       <!-- Status Checkbox -->
       <div class="mt-0.5">
@@ -85,7 +85,7 @@
 </template>
 
 <script>
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
 
 export default {
   name: 'TaskItem',
@@ -99,7 +99,8 @@ export default {
   setup(props, { emit }) {
     const notificationCount = ref(0);
     
-    onMounted(async () => {
+    // Function to fetch notifications count
+    const fetchNotifications = async () => {
       try {
         // Fetch notifications for this task
         const notifications = await window.electron.getNotificationsByTask(props.task.id);
@@ -107,6 +108,22 @@ export default {
       } catch (error) {
         console.error('Error fetching task notifications:', error);
       }
+    };
+    
+    onMounted(async () => {
+      await fetchNotifications();
+      
+      // Listen for notification changes
+      window.electron.receive('notifications:changed', async (taskId) => {
+        if (taskId === props.task.id) {
+          await fetchNotifications();
+        }
+      });
+    });
+    
+    onBeforeUnmount(() => {
+      // Remove event listener when component is unmounted
+      window.electron.removeAllListeners('notifications:changed');
     });
 
     const statusClasses = computed(() => {

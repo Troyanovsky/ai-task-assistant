@@ -38,14 +38,15 @@
 
     <!-- Tasks List -->
     <div v-if="filteredTasks.length > 0" class="space-y-3">
-      <task-item
-        v-for="task in filteredTasks"
-        :key="task.id"
-        :task="task"
-        @status-change="updateTaskStatus"
-        @edit="editTask"
-        @delete="deleteTask"
-      />
+      <template v-for="task in filteredTasks" :key="task.id">
+        <task-item
+          v-if="!isTaskBeingEdited(task)"
+          :task="task"
+          @status-change="updateTaskStatus"
+          @edit="editTask"
+          @delete="deleteTask"
+        />
+      </template>
     </div>
     <div v-else-if="tasks.length > 0" class="text-gray-500 text-sm mt-2 text-center">
       No tasks match your filters.
@@ -111,6 +112,11 @@ export default {
     const isLoading = computed(() => store.getters['tasks/isLoading']);
     const error = computed(() => store.getters['tasks/error']);
 
+    // Function to check if a task is currently being edited
+    const isTaskBeingEdited = (task) => {
+      return editingTask.value && task && editingTask.value.id === task.id;
+    };
+
     // Function to fetch tasks for the current project
     const fetchTasks = async () => {
       if (props.selectedProject) {
@@ -124,11 +130,18 @@ export default {
         console.log('Received tasks:refresh event');
         await fetchTasks();
       });
+      
+      // Listen for notification changes to refresh tasks
+      window.electron.receive('notifications:refresh', async () => {
+        console.log('Received notifications:refresh event');
+        await fetchTasks();
+      });
     });
 
     onBeforeUnmount(() => {
-      // Remove event listener when component is unmounted
+      // Remove event listeners when component is unmounted
       window.electron.removeAllListeners('tasks:refresh');
+      window.electron.removeAllListeners('notifications:refresh');
     });
 
     // Apply filters to tasks
@@ -228,6 +241,7 @@ export default {
       showAddTaskForm,
       editingTask,
       filters,
+      isTaskBeingEdited,
       addTask,
       updateTask,
       updateTaskStatus,

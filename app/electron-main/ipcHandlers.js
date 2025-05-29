@@ -121,7 +121,13 @@ export function setupIpcHandlers(mainWindow, aiService) {
 
   ipcMain.handle('notifications:add', async (_, notificationData) => {
     try {
-      return await notificationService.addNotification(notificationData);
+      const result = await notificationService.addNotification(notificationData);
+      if (result) {
+        // Emit notification changed event with the task ID
+        mainWindow.webContents.send('notifications:changed', notificationData.taskId || notificationData.task_id);
+        mainWindow.webContents.send('notifications:refresh');
+      }
+      return result;
     } catch (error) {
       console.error('IPC Error - addNotification:', error);
       return false;
@@ -130,7 +136,13 @@ export function setupIpcHandlers(mainWindow, aiService) {
 
   ipcMain.handle('notifications:update', async (_, notificationData) => {
     try {
-      return await notificationService.updateNotification(notificationData);
+      const result = await notificationService.updateNotification(notificationData);
+      if (result) {
+        // Emit notification changed event with the task ID
+        mainWindow.webContents.send('notifications:changed', notificationData.taskId || notificationData.task_id);
+        mainWindow.webContents.send('notifications:refresh');
+      }
+      return result;
     } catch (error) {
       console.error(`IPC Error - updateNotification for ${notificationData.id}:`, error);
       return false;
@@ -139,7 +151,18 @@ export function setupIpcHandlers(mainWindow, aiService) {
 
   ipcMain.handle('notifications:delete', async (_, notificationId) => {
     try {
-      return await notificationService.deleteNotification(notificationId);
+      // First get the notification to know which task it belongs to
+      const notifications = await notificationService.getNotifications();
+      const notification = notifications.find(n => n.id === notificationId);
+      const taskId = notification ? notification.taskId || notification.task_id : null;
+      
+      const result = await notificationService.deleteNotification(notificationId);
+      if (result && taskId) {
+        // Emit notification changed event with the task ID
+        mainWindow.webContents.send('notifications:changed', taskId);
+        mainWindow.webContents.send('notifications:refresh');
+      }
+      return result;
     } catch (error) {
       console.error(`IPC Error - deleteNotification for ${notificationId}:`, error);
       return false;
