@@ -10,7 +10,8 @@ const state = {
     search: ''
   },
   loading: false,
-  error: null
+  error: null,
+  currentProjectTasks: []
 };
 
 // Getters
@@ -20,9 +21,13 @@ const getters = {
   tasksByProject: (state) => (projectId) => {
     return state.tasks.filter((task) => task.projectId === projectId);
   },
+  taskById: (state) => (taskId) => {
+    return state.tasks.find((task) => task.id === taskId);
+  },
   isLoading: (state) => state.loading,
   error: (state) => state.error,
-  currentFilter: (state) => state.currentFilter
+  currentFilter: (state) => state.currentFilter,
+  currentProjectTasks: (state) => state.currentProjectTasks
 };
 
 // Actions
@@ -57,6 +62,7 @@ const actions = {
       const tasks = tasksData.map(data => Task.fromDatabase(data));
       
       commit('setTasks', tasks);
+      commit('setCurrentProjectTasks', tasks);
       dispatch('applyFilters');
     } catch (error) {
       console.error(`Error fetching tasks for project ${projectId}:`, error);
@@ -129,12 +135,17 @@ const actions = {
         } else {
           dispatch('fetchTasks');
         }
+        
+        // Return the task data with ID for the callback
+        return dbData;
       } else {
         commit('setError', 'Failed to add task');
+        return null;
       }
     } catch (error) {
       console.error('Error adding task:', error);
       commit('setError', 'Failed to add task');
+      return null;
     } finally {
       commit('setLoading', false);
     }
@@ -147,12 +158,20 @@ const actions = {
     try {
       console.log('Updating task:', task);
       
-      // Convert to database format and ensure project_id is set
-      const dbData = task.toDatabase();
+      // Ensure we're working with a Task instance
+      const taskInstance = task instanceof Task ? task : new Task(task);
+      
+      // Convert to database format
+      const dbData = taskInstance.toDatabase();
       
       // Ensure project_id is set correctly
       if (!dbData.project_id && task.projectId) {
         dbData.project_id = task.projectId;
+      }
+      
+      // Ensure due_date is explicitly set, even if null
+      if (task.dueDate !== undefined) {
+        dbData.due_date = task.dueDate ? new Date(task.dueDate).toISOString() : null;
       }
       
       console.log('Task data to be updated:', dbData);
@@ -185,6 +204,7 @@ const actions = {
     
     try {
       // In Electron, we would use IPC to communicate with the main process
+      // This will also delete all associated notifications for the task
       const success = window.electron ? await window.electron.deleteTask(taskId) : false;
       
       if (success) {
@@ -231,6 +251,31 @@ const actions = {
     }
   },
   
+  async getTaskById({ commit, getters }, taskId) {
+    // First check if the task is already in the state
+    let task = getters.taskById(taskId);
+    
+    if (task) {
+      return task;
+    }
+    
+    // If not, fetch all tasks and then find the task
+    try {
+      commit('setLoading', true);
+      const tasks = await window.electron.getTasks();
+      commit('setTasks', tasks);
+      
+      // Find the task in the updated state
+      task = tasks.find(t => t.id === taskId);
+      return task || null;
+    } catch (error) {
+      commit('setError', error.message);
+      return null;
+    } finally {
+      commit('setLoading', false);
+    }
+  },
+  
   // Watcher for real-time updates
   watchTasks({ dispatch, state }) {
     // In a real implementation, this would set up a listener
@@ -265,6 +310,9 @@ const mutations = {
   },
   setError(state, error) {
     state.error = error;
+  },
+  setCurrentProjectTasks(state, tasks) {
+    state.currentProjectTasks = tasks;
   }
 };
 

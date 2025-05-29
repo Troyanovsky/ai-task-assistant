@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import taskManager from '../task.js';
 import databaseService from '../database.js';
+import notificationService from '../notification.js';
 import { Task, STATUS, PRIORITY } from '../../models/Task.js';
 
 // Mock the database service
@@ -11,6 +12,14 @@ vi.mock('../database.js', () => ({
     insert: vi.fn(),
     update: vi.fn(),
     delete: vi.fn()
+  }
+}));
+
+// Mock the notification service
+vi.mock('../notification.js', () => ({
+  default: {
+    getNotificationsByTask: vi.fn(),
+    deleteNotification: vi.fn()
   }
 }));
 
@@ -293,15 +302,93 @@ describe('TaskManager', () => {
   });
 
   describe('deleteTask', () => {
-    it('should delete a task successfully', async () => {
+    it('should delete a task and its associated notifications successfully', async () => {
+      // Mock notifications for the task
+      const mockNotifications = [
+        { id: 'notif-1', taskId: 'task-1' },
+        { id: 'notif-2', taskId: 'task-1' }
+      ];
+      
+      // Setup mocks
+      notificationService.getNotificationsByTask.mockResolvedValue(mockNotifications);
+      notificationService.deleteNotification.mockResolvedValue(true);
       databaseService.delete.mockReturnValue({ changes: 1 });
 
       const result = await taskManager.deleteTask('task-1');
       
+      // Verify notifications were fetched
+      expect(notificationService.getNotificationsByTask).toHaveBeenCalledWith('task-1');
+      
+      // Verify each notification was deleted
+      expect(notificationService.deleteNotification).toHaveBeenCalledWith('notif-1');
+      expect(notificationService.deleteNotification).toHaveBeenCalledWith('notif-2');
+      
+      // Verify task was deleted
       expect(databaseService.delete).toHaveBeenCalledWith(
         'DELETE FROM tasks WHERE id = ?',
         ['task-1']
       );
+      
+      expect(result).toBe(true);
+    });
+
+    it('should handle case with no associated notifications', async () => {
+      // Mock no notifications for the task
+      notificationService.getNotificationsByTask.mockResolvedValue([]);
+      databaseService.delete.mockReturnValue({ changes: 1 });
+
+      const result = await taskManager.deleteTask('task-1');
+      
+      // Verify notifications were fetched
+      expect(notificationService.getNotificationsByTask).toHaveBeenCalledWith('task-1');
+      
+      // Verify no notifications were deleted
+      expect(notificationService.deleteNotification).not.toHaveBeenCalled();
+      
+      // Verify task was deleted
+      expect(databaseService.delete).toHaveBeenCalledWith(
+        'DELETE FROM tasks WHERE id = ?',
+        ['task-1']
+      );
+      
+      expect(result).toBe(true);
+    });
+
+    it('should continue with task deletion even if notification deletion fails', async () => {
+      // Mock notifications for the task
+      const mockNotifications = [
+        { id: 'notif-1', taskId: 'task-1' }
+      ];
+      
+      // Setup mocks
+      notificationService.getNotificationsByTask.mockResolvedValue(mockNotifications);
+      notificationService.deleteNotification.mockRejectedValue(new Error('Notification deletion error'));
+      databaseService.delete.mockReturnValue({ changes: 1 });
+
+      const result = await taskManager.deleteTask('task-1');
+      
+      // Verify task was still deleted despite notification error
+      expect(databaseService.delete).toHaveBeenCalledWith(
+        'DELETE FROM tasks WHERE id = ?',
+        ['task-1']
+      );
+      
+      expect(result).toBe(true); // Should return true since task deletion succeeded
+    });
+
+    it('should continue with task deletion even if getting notifications fails', async () => {
+      // Setup mocks
+      notificationService.getNotificationsByTask.mockRejectedValue(new Error('Failed to get notifications'));
+      databaseService.delete.mockReturnValue({ changes: 1 });
+
+      const result = await taskManager.deleteTask('task-1');
+      
+      // Verify task was still deleted despite notification error
+      expect(databaseService.delete).toHaveBeenCalledWith(
+        'DELETE FROM tasks WHERE id = ?',
+        ['task-1']
+      );
+      
       expect(result).toBe(true);
     });
 

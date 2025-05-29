@@ -18,7 +18,8 @@ class Notification {
    */
   constructor(data = {}) {
     this.id = data.id || uuidv4();
-    this.taskId = data.task_id || '';
+    // Handle both taskId and task_id for flexibility
+    this.taskId = data.taskId || data.task_id || '';
     this.time = data.time ? new Date(data.time) : new Date();
     this.type = data.type || TYPE.REMINDER;
     this.message = data.message || '';
@@ -31,12 +32,15 @@ class Notification {
    */
   validate() {
     if (!this.taskId) {
+      console.error('Notification validation failed: missing taskId');
       return false;
     }
     if (!this.time) {
+      console.error('Notification validation failed: missing time');
       return false;
     }
     if (!Object.values(TYPE).includes(this.type)) {
+      console.error(`Notification validation failed: invalid type ${this.type}`);
       return false;
     }
     return true;
@@ -72,6 +76,7 @@ class Notification {
    */
   update(data) {
     if (data.taskId !== undefined) this.taskId = data.taskId;
+    if (data.task_id !== undefined) this.taskId = data.task_id;
     if (data.time !== undefined) this.time = data.time;
     if (data.type !== undefined) this.type = data.type;
     if (data.message !== undefined) this.message = data.message;

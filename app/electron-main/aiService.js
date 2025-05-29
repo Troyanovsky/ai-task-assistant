@@ -337,15 +337,21 @@ async function processWithLLM(userInput, functionResult = null) {
       messages.push({ role: 'user', content: userInput });
     }
 
+    // Create request payload
+    const requestPayload = {
+      model: aiState.model,
+      messages,
+      functions: functionSchemas,
+      function_call: 'auto'
+    };
+
+    // Log raw API request
+    console.log('🔄 Electron Main Process - AI API Request:', JSON.stringify(requestPayload, null, 2));
+
     // Make API request
     const response = await axios.post(
       aiState.apiUrl,
-      {
-        model: aiState.model,
-        messages,
-        functions: functionSchemas,
-        function_call: 'auto'
-      },
+      requestPayload,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -353,6 +359,9 @@ async function processWithLLM(userInput, functionResult = null) {
         }
       }
     );
+
+    // Log raw API response
+    console.log('✅ Electron Main Process - AI API Response:', JSON.stringify(response.data, null, 2));
 
     // Process the response
     const aiResponse = response.data.choices[0].message;

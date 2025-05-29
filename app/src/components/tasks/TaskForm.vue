@@ -74,6 +74,61 @@
         </div>
       </div>
       
+      <!-- Notifications Section -->
+      <div class="mb-3">
+        <div class="flex items-center justify-between mb-2">
+          <label class="block text-sm font-medium text-gray-700">Notifications</label>
+          <button 
+            type="button" 
+            @click="addNewNotification"
+            class="text-sm text-blue-600 hover:text-blue-800 flex items-center"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Notification
+          </button>
+        </div>
+        
+        <div v-if="notifications.length === 0" class="text-sm text-gray-500 italic mb-2">
+          No notifications set for this task.
+        </div>
+        
+        <div v-else class="space-y-2 mb-3">
+          <div 
+            v-for="(notification, index) in notifications" 
+            :key="notification.id"
+            class="flex items-center p-2 rounded-md border border-gray-200 bg-gray-50"
+          >
+            <div class="flex-1 grid grid-cols-2 gap-2">
+              <div>
+                <input
+                  v-model="notification.date"
+                  type="date"
+                  class="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 date-input"
+                />
+              </div>
+              <div>
+                <input
+                  v-model="notification.time"
+                  type="time"
+                  class="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+            <button 
+              type="button" 
+              @click="removeNotification(index)"
+              class="ml-2 text-red-500 hover:text-red-700"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      
       <div class="flex justify-end space-x-2">
         <button
           type="button"
@@ -94,7 +149,10 @@
 </template>
 
 <script>
-import { reactive, onMounted } from 'vue';
+import { reactive, onMounted, ref } from 'vue';
+import { TYPE } from '../../models/Notification';
+import { Notification } from '../../models/Notification';
+import { v4 as uuidv4 } from 'uuid';
 
 export default {
   name: 'TaskForm',
@@ -119,54 +177,269 @@ export default {
       duration: 0,
       projectId: props.projectId
     });
+    
+    // Store notifications as an array of objects with date and time properties
+    const notifications = ref([]);
+    
+    // Track notifications to be deleted (existing ones)
+    const notificationsToDelete = ref([]);
 
-    onMounted(() => {
+    onMounted(async () => {
       if (props.task) {
         formData.name = props.task.name;
         formData.description = props.task.description || '';
         formData.status = props.task.status;
         formData.priority = props.task.priority;
-        formData.duration = props.task.duration || 0;
+        formData.duration = props.task.duration !== null ? props.task.duration : 0;
         
         if (props.task.dueDate) {
           // Format date string to YYYY-MM-DD for input field
           const date = new Date(props.task.dueDate);
           formData.dueDate = date.toISOString().split('T')[0];
         }
+        
+        // Fetch existing notifications for the task
+        try {
+          console.log(`Fetching notifications for task: ${props.task.id}`);
+          const existingNotifications = await window.electron.getNotificationsByTask(props.task.id);
+          console.log('Existing notifications:', existingNotifications);
+          
+          if (existingNotifications && existingNotifications.length > 0) {
+            // Format notifications for the UI
+            notifications.value = existingNotifications.map(notification => {
+              const notificationDate = new Date(notification.time);
+              
+              // Format date as YYYY-MM-DD
+              const date = notificationDate.toISOString().split('T')[0];
+              
+              // Format time as HH:MM
+              const hours = notificationDate.getHours().toString().padStart(2, '0');
+              const minutes = notificationDate.getMinutes().toString().padStart(2, '0');
+              const time = `${hours}:${minutes}`;
+              
+              console.log(`Notification ${notification.id} time: ${notificationDate.toLocaleString()}, formatted as ${date} ${time}`);
+              
+              return {
+                id: notification.id,
+                date,
+                time,
+                type: notification.type,
+                message: notification.message,
+                isExisting: true
+              };
+            });
+            console.log('Formatted notifications for UI:', notifications.value);
+          }
+        } catch (error) {
+          console.error('Error fetching notifications:', error);
+        }
       }
     });
 
-    const saveTask = () => {
+    const addNewNotification = () => {
+      // Get current date in YYYY-MM-DD format
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Default time to 9:00 AM
+      const defaultTime = '09:00';
+      
+      // Add a new notification to the list
+      notifications.value.push({
+        id: uuidv4(), // Generate a temporary ID
+        date: today,
+        time: defaultTime,
+        type: TYPE.REMINDER,
+        message: '',
+        isExisting: false
+      });
+    };
+    
+    const removeNotification = (index) => {
+      const notification = notifications.value[index];
+      
+      // If it's an existing notification, add it to the list to be deleted
+      if (notification.isExisting) {
+        notificationsToDelete.value.push(notification.id);
+      }
+      
+      // Remove from the UI list
+      notifications.value.splice(index, 1);
+    };
+
+    const saveTask = async () => {
       const taskData = {
         name: formData.name.trim(),
         description: formData.description.trim(),
         status: formData.status,
         priority: formData.priority,
         projectId: props.projectId,
-        duration: formData.duration || 0
+        duration: formData.duration !== '' ? Number(formData.duration) : 0
       };
       
-      if (formData.dueDate) {
-        taskData.dueDate = new Date(formData.dueDate).toISOString();
-      }
+      taskData.dueDate = formData.dueDate ? new Date(formData.dueDate).toISOString() : null;
       
       if (props.task) {
         taskData.id = props.task.id;
+        taskData.createdAt = props.task.createdAt;
       }
       
-      emit('save', taskData);
+      console.log('Saving task with data:', taskData);
       
-      // Reset form if adding a new task
-      if (!props.task) {
+      // For existing tasks, we can save notifications immediately
+      if (props.task) {
+        // Save the task
+        emit('save', taskData);
+        
+        // Process notifications for existing task
+        await processNotifications(props.task.id, taskData.name);
+      } else {
+        // For new tasks, we need to wait for the task ID
+        // Save the task data and store notifications for later
+        const pendingNotifications = [...notifications.value];
+        
+        // Reset form data immediately
+        const taskName = taskData.name; // Keep a reference to the task name for notifications
         formData.name = '';
         formData.description = '';
         formData.dueDate = '';
         formData.duration = 0;
+        
+        // Clear notifications UI
+        notifications.value = [];
+        notificationsToDelete.value = [];
+        
+        // Emit save event with a callback to process notifications
+        emit('save', taskData, async (savedTaskId) => {
+          if (savedTaskId) {
+            console.log(`Task saved with ID: ${savedTaskId}, now saving notifications`);
+            
+            // Process the pending notifications with the new task ID
+            for (const notification of pendingNotifications) {
+              try {
+                // Create notification datetime by combining date and time
+                const [year, month, day] = notification.date.split('-');
+                const [hours, minutes] = notification.time.split(':');
+                
+                // Create notification datetime (being careful with month index)
+                const notificationDateTime = new Date(
+                  parseInt(year, 10),
+                  parseInt(month, 10) - 1, // Month is 0-indexed
+                  parseInt(day, 10),
+                  parseInt(hours, 10),
+                  parseInt(minutes, 10)
+                );
+                
+                // Create notification data
+                const notificationData = {
+                  task_id: savedTaskId,
+                  taskId: savedTaskId,
+                  time: notificationDateTime,
+                  type: TYPE.REMINDER,
+                  message: `Reminder for task: ${taskName}`
+                };
+                
+                console.log('Saving notification for new task:', notificationData);
+                
+                // Add the new notification
+                const success = await window.electron.addNotification(notificationData);
+                if (success) {
+                  console.log('Successfully created notification for new task');
+                } else {
+                  console.error('Failed to create notification for new task');
+                }
+              } catch (error) {
+                console.error('Error saving notification for new task:', error);
+              }
+            }
+          }
+        });
+      }
+    };
+    
+    // Helper function to process notifications for existing tasks
+    const processNotifications = async (taskId, taskName) => {
+      console.log(`Processing notifications for task ID: ${taskId}`);
+      console.log(`Notifications to delete: ${notificationsToDelete.value.length}`);
+      console.log(`Notifications to save: ${notifications.value.length}`);
+      
+      // Delete notifications that were removed
+      for (const notificationId of notificationsToDelete.value) {
+        try {
+          console.log(`Deleting notification: ${notificationId}`);
+          const success = await window.electron.deleteNotification(notificationId);
+          if (success) {
+            console.log(`Successfully deleted notification: ${notificationId}`);
+          } else {
+            console.error(`Failed to delete notification: ${notificationId}`);
+          }
+        } catch (error) {
+          console.error(`Error deleting notification ${notificationId}:`, error);
+        }
+      }
+      
+      // Save all notifications
+      for (const notification of notifications.value) {
+        try {
+          // Create notification datetime by combining date and time
+          const [year, month, day] = notification.date.split('-');
+          const [hours, minutes] = notification.time.split(':');
+          
+          // Create notification datetime (being careful with month index)
+          const notificationDateTime = new Date(
+            parseInt(year, 10),
+            parseInt(month, 10) - 1, // Month is 0-indexed
+            parseInt(day, 10),
+            parseInt(hours, 10),
+            parseInt(minutes, 10)
+          );
+          
+          console.log(`Notification date/time: ${notification.date} ${notification.time}`);
+          console.log(`Parsed notification datetime: ${notificationDateTime.toLocaleString()}`);
+          
+          // Create notification data
+          const notificationData = {
+            id: notification.isExisting ? notification.id : undefined,
+            task_id: taskId,
+            taskId: taskId,
+            time: notificationDateTime,
+            type: TYPE.REMINDER,
+            message: `Reminder for task: ${taskName}`
+          };
+          
+          console.log('Saving notification:', notificationData);
+          
+          let success = false;
+          
+          // If it's an existing notification, update it
+          if (notification.isExisting) {
+            console.log(`Updating existing notification: ${notification.id}`);
+            success = await window.electron.updateNotification(notificationData);
+            if (success) {
+              console.log(`Successfully updated notification: ${notification.id}`);
+            } else {
+              console.error(`Failed to update notification: ${notification.id}`);
+            }
+          } else {
+            // Otherwise add a new one
+            console.log('Creating new notification');
+            success = await window.electron.addNotification(notificationData);
+            if (success) {
+              console.log('Successfully created new notification');
+            } else {
+              console.error('Failed to create new notification');
+            }
+          }
+        } catch (error) {
+          console.error('Error saving notification:', error);
+        }
       }
     };
 
     return {
       formData,
+      notifications,
+      addNewNotification,
+      removeNotification,
       saveTask
     };
   }

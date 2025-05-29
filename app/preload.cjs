@@ -36,6 +36,11 @@ contextBridge.exposeInMainWorld(
     deleteTask: (taskId) => ipcRenderer.invoke('tasks:delete', taskId),
     updateTaskStatus: (taskId, status) => ipcRenderer.invoke('tasks:updateStatus', taskId, status),
     
+    getNotificationsByTask: (taskId) => ipcRenderer.invoke('notifications:getByTask', taskId),
+    addNotification: (notification) => ipcRenderer.invoke('notifications:add', notification),
+    updateNotification: (notification) => ipcRenderer.invoke('notifications:update', notification),
+    deleteNotification: (notificationId) => ipcRenderer.invoke('notifications:delete', notificationId),
+    
     configureAI: (config) => ipcRenderer.invoke('ai:configure', config),
     sendMessage: (message) => ipcRenderer.invoke('ai:sendMessage', message),
     getChatHistory: () => ipcRenderer.invoke('ai:getChatHistory'),
@@ -46,7 +51,8 @@ contextBridge.exposeInMainWorld(
       const validChannels = [
         'projects:refresh', 
         'tasks:refresh', 
-        'ai:chatHistoryUpdate'
+        'ai:chatHistoryUpdate',
+        'notification:received'
       ];
       if (validChannels.includes(channel)) {
         ipcRenderer.on(channel, (event, ...args) => func(...args));
@@ -56,7 +62,8 @@ contextBridge.exposeInMainWorld(
       const validChannels = [
         'projects:refresh', 
         'tasks:refresh', 
-        'ai:chatHistoryUpdate'
+        'ai:chatHistoryUpdate',
+        'notification:received'
       ];
       if (validChannels.includes(channel)) {
         ipcRenderer.removeAllListeners(channel);

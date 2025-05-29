@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import Project from '../src/models/Project.js';
 import projectManager from '../src/services/project.js';
 import taskManager from '../src/services/task.js';
+import notificationService from '../src/services/notification.js';
 
 /**
  * Set up IPC handlers for project and task operations
@@ -73,7 +74,8 @@ export function setupIpcHandlers(mainWindow, aiService) {
 
   ipcMain.handle('tasks:add', async (_, taskData) => {
     try {
-      return await taskManager.addTask(taskData);
+      const result = await taskManager.addTask(taskData);
+      return result;
     } catch (error) {
       console.error('IPC Error - addTask:', error);
       return false;
@@ -104,6 +106,51 @@ export function setupIpcHandlers(mainWindow, aiService) {
     } catch (error) {
       console.error(`IPC Error - updateTaskStatus for ${taskId}:`, error);
       return false;
+    }
+  });
+
+  // Notification operations
+  ipcMain.handle('notifications:getByTask', async (_, taskId) => {
+    try {
+      return await notificationService.getNotificationsByTask(taskId);
+    } catch (error) {
+      console.error(`IPC Error - getNotificationsByTask for ${taskId}:`, error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('notifications:add', async (_, notificationData) => {
+    try {
+      return await notificationService.addNotification(notificationData);
+    } catch (error) {
+      console.error('IPC Error - addNotification:', error);
+      return false;
+    }
+  });
+
+  ipcMain.handle('notifications:update', async (_, notificationData) => {
+    try {
+      return await notificationService.updateNotification(notificationData);
+    } catch (error) {
+      console.error(`IPC Error - updateNotification for ${notificationData.id}:`, error);
+      return false;
+    }
+  });
+
+  ipcMain.handle('notifications:delete', async (_, notificationId) => {
+    try {
+      return await notificationService.deleteNotification(notificationId);
+    } catch (error) {
+      console.error(`IPC Error - deleteNotification for ${notificationId}:`, error);
+      return false;
+    }
+  });
+
+  // Set up notification event listener
+  ipcMain.on('notification', (event, notification) => {
+    // Forward notification to renderer process
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('notification:received', notification);
     }
   });
 

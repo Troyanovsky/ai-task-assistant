@@ -3,23 +3,30 @@
     <main class="flex-1 overflow-hidden">
       <router-view />
     </main>
+    <NotificationListener />
   </div>
 </template>
 
 <script>
 import { onMounted } from 'vue';
 import { useStore } from 'vuex';
+import NotificationListener from './components/layout/NotificationListener.vue';
 
 export default {
   name: 'App',
+  components: {
+    NotificationListener
+  },
   setup() {
     const store = useStore();
     
     onMounted(() => {
-      // Start watchers for real-time updates
-      store.dispatch('projects/watchProjects');
-      store.dispatch('tasks/watchTasks');
+      // Initialize data
+      store.dispatch('projects/fetchProjects');
+      store.dispatch('tasks/fetchTasks');
     });
+    
+    return {};
   }
 };
 </script>

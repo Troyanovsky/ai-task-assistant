@@ -183,7 +183,7 @@ This document outlines a phased implementation approach for the AI Task Assistan
 
 ## Phase 5: Notification System
 
-**Status: Not Started**
+**Status: Completed**
 
 ### Goals
 - Implement notification scheduling
@@ -202,12 +202,13 @@ This document outlines a phased implementation approach for the AI Task Assistan
    - Add notification preferences
 
 3. **UI changes**
-   - Allow users to pick/edit notification time for each task (optional; default to due date time)
+   - Allow users to pick/edit notification time for each task (optional; default to due date time on task creation if the task has a due date, otherwise no notification)
 
 ### Deliverables
 - Working notification system
 - System notifications for tasks
 - Notification preferences
+- Editable notification time at task creation/edit
 
 ### Testing Criteria
 - Notifications trigger at scheduled times

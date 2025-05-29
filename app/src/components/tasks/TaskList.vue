@@ -169,9 +169,22 @@ export default {
       { immediate: true }
     );
 
-    const addTask = async (taskData) => {
-      await store.dispatch('tasks/addTask', taskData);
-      showAddTaskForm.value = false;
+    const addTask = async (taskData, callback) => {
+      try {
+        // Dispatch the action to add the task
+        const result = await store.dispatch('tasks/addTask', taskData);
+        
+        // If we have a callback and the task was successfully added
+        if (callback && result && result.id) {
+          // Call the callback with the new task ID
+          callback(result.id);
+        }
+        
+        // Hide the form
+        showAddTaskForm.value = false;
+      } catch (error) {
+        console.error('Error adding task:', error);
+      }
     };
 
     const updateTask = async (taskData) => {

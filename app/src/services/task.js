@@ -5,6 +5,7 @@
 
 import databaseService from './database.js';
 import { Task, STATUS, PRIORITY } from '../models/Task.js';
+import notificationService from './notification.js';
 
 class TaskManager {
   /**
@@ -59,7 +60,7 @@ class TaskManager {
   /**
    * Add a new task
    * @param {Object} taskData - Task data
-   * @returns {boolean} - Success status
+   * @returns {Object|boolean} - Task object with ID if successful, false otherwise
    */
   async addTask(taskData) {
     try {
@@ -107,7 +108,11 @@ class TaskManager {
       );
       
       console.log('Task insert result:', result);
-      return result && result.changes > 0;
+      if (result && result.changes > 0) {
+        // Return the task data with ID so it can be used for notifications
+        return data;
+      }
+      return false;
     } catch (error) {
       console.error('Error adding task:', error);
       return false;
@@ -121,13 +126,32 @@ class TaskManager {
    */
   async updateTask(taskData) {
     try {
+      console.log('Updating task with original data:', taskData);
+      
       // Make sure project_id is correctly set
       if (!taskData.project_id && taskData.projectId) {
         taskData.project_id = taskData.projectId;
       }
       
-      // Create a Task instance from the data
-      const task = new Task(taskData);
+      // Get existing task to preserve any fields not included in the update
+      const existingTask = await this.getTaskById(taskData.id);
+      if (!existingTask) {
+        console.error(`Task ${taskData.id} not found for update`);
+        return false;
+      }
+      
+      // Create a Task instance from the data, merging with existing task
+      const task = new Task({
+        ...existingTask.toDatabase(),
+        ...taskData
+      });
+      
+      // Ensure dueDate is properly handled
+      if (taskData.dueDate !== undefined) {
+        task.dueDate = taskData.dueDate ? new Date(taskData.dueDate) : null;
+      } else if (taskData.due_date !== undefined) {
+        task.dueDate = taskData.due_date ? new Date(taskData.due_date) : null;
+      }
       
       // Validate the task
       const isValid = task.validate();
@@ -137,7 +161,8 @@ class TaskManager {
       }
       
       const data = task.toDatabase();
-      console.log('Updating task with data:', data);
+      console.log('Updating task with database data:', data);
+      console.log('Database due_date:', data.due_date);
       
       const result = databaseService.update(
         `UPDATE tasks SET 
@@ -166,6 +191,18 @@ class TaskManager {
    */
   async deleteTask(id) {
     try {
+      // First delete associated notifications
+      try {
+        const notifications = await notificationService.getNotificationsByTask(id);
+        for (const notification of notifications) {
+          await notificationService.deleteNotification(notification.id);
+        }
+      } catch (notificationError) {
+        console.error(`Error deleting notifications for task ${id}:`, notificationError);
+        // Continue with task deletion even if notification deletion fails
+      }
+      
+      // Then delete the task
       const result = databaseService.delete('DELETE FROM tasks WHERE id = ?', [id]);
       return result && result.changes > 0;
     } catch (error) {

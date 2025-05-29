@@ -45,15 +45,21 @@ class AIService {
         { role: 'user', content: userInput }
       ];
 
+      // Create request payload
+      const requestPayload = {
+        model: this.model,
+        messages,
+        functions: functionSchemas,
+        function_call: 'auto'
+      };
+
+      // Log raw API request
+      console.log('🔄 AI API Request:', JSON.stringify(requestPayload, null, 2));
+
       // Make API request
       const response = await axios.post(
         this.apiUrl,
-        {
-          model: this.model,
-          messages,
-          functions: functionSchemas,
-          function_call: 'auto'
-        },
+        requestPayload,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -61,6 +67,9 @@ class AIService {
           }
         }
       );
+
+      // Log raw API response
+      console.log('✅ AI API Response:', JSON.stringify(response.data, null, 2));
 
       // Process the response
       const aiResponse = response.data.choices[0].message;

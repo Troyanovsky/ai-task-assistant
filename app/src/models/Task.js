@@ -27,8 +27,19 @@ class Task {
     this.id = data.id || uuidv4();
     this.name = data.name || '';
     this.description = data.description || '';
-    this.duration = data.duration || null;
-    this.dueDate = data.due_date ? new Date(data.due_date) : null;
+    
+    // Fix: Handle duration properly (0 is a valid value)
+    this.duration = data.duration !== undefined ? data.duration : null;
+    
+    // Fix: Handle dueDate properly, checking both snake_case and camelCase properties
+    if (data.dueDate) {
+      this.dueDate = new Date(data.dueDate);
+    } else if (data.due_date) {
+      this.dueDate = new Date(data.due_date);
+    } else {
+      this.dueDate = null;
+    }
+    
     this.projectId = data.project_id || data.projectId || '';
     this.dependencies = data.dependencies ? this.parseDependencies(data.dependencies) : [];
     this.status = data.status || STATUS.PLANNING;
