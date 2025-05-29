@@ -2,16 +2,10 @@
   <div class="project-list">
     <div class="mb-4 flex justify-between items-center">
       <!-- <h3 class="text-lg font-semibold">Projects</h3> -->
-      <button
-        @click="showAddProjectForm = true"
-        class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-sm"
-      >
-        Add Project
-      </button>
     </div>
 
     <!-- Project Form Dialog for Add -->
-    <div v-if="showAddProjectForm" class="mb-4 p-3 bg-white rounded shadow-md">
+    <div v-if="showAddProjectForm && !editingProject" class="mb-4 p-3 bg-white rounded shadow-md">
       <project-form
         @save="addProject"
         @cancel="showAddProjectForm = false"
@@ -28,19 +22,28 @@
     </div>
 
     <!-- Projects List -->
-    <div v-if="projects.length > 0" class="space-y-2">
+    <div v-if="projects.length > 0" class="space-y-2 mb-2">
       <project-item
         v-for="project in projects"
         :key="project.id"
         :project="project"
         :is-selected="selectedProject && selectedProject.id === project.id"
+        v-show="!editingProject || editingProject.id !== project.id"
         @click="selectProject(project)"
         @edit="editProject(project)"
         @delete="deleteProject(project.id)"
       />
     </div>
-    <div v-else class="text-gray-500 text-sm mt-2">
+    <div v-else class="text-gray-500 text-sm mt-2 mb-2">
       No projects found. Create your first project.
+    </div>
+    
+    <!-- Add Project Button at bottom -->
+    <div 
+      @click="showAddForm"
+      class="p-3 rounded cursor-pointer bg-white border-gray-200 border hover:bg-gray-50 text-center text-blue-500"
+    >
+      + Add Project
     </div>
     
     <!-- Loading Indicator -->
@@ -122,6 +125,8 @@ export default {
     };
 
     const editProject = (project) => {
+      // Close add form if it's open
+      showAddProjectForm.value = false;
       editingProject.value = project;
     };
 
@@ -138,6 +143,12 @@ export default {
       }
     };
 
+    const showAddForm = () => {
+      // Close edit form if it's open
+      editingProject.value = null;
+      showAddProjectForm.value = true;
+    };
+
     return {
       projects,
       selectedProject,
@@ -149,7 +160,8 @@ export default {
       addProject,
       updateProject,
       editProject,
-      deleteProject
+      deleteProject,
+      showAddForm
     };
   }
 };

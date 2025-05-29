@@ -1,23 +1,21 @@
 <template>
   <div class="task-list">
-    <div class="mb-4 flex justify-between items-center">
-      <h3 class="text-lg font-semibold">Tasks</h3>
-      <button
-        v-if="selectedProject"
-        @click="showAddTaskForm = true"
-        class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-sm"
-      >
-        Add Task
-      </button>
-    </div>
-
     <!-- Task Filter -->
     <task-filter
-      v-if="tasks.length > 0"
+      v-if="selectedProject"
       :filters="filters"
       @update:filters="updateFilters"
       class="mb-4"
     />
+
+    <!-- Add Task Button -->
+    <div 
+      v-if="selectedProject"
+      @click="showAddTaskForm = true"
+      class="p-3 rounded cursor-pointer bg-white border-gray-200 border hover:bg-gray-50 text-center text-blue-500 mb-4"
+    >
+      + Add Task
+    </div>
 
     <!-- Task Form Dialog -->
     <div v-if="showAddTaskForm" class="mb-4 p-3 bg-white rounded shadow-md">
@@ -49,13 +47,13 @@
         @delete="deleteTask"
       />
     </div>
-    <div v-else-if="tasks.length > 0" class="text-gray-500 text-sm mt-2">
+    <div v-else-if="tasks.length > 0" class="text-gray-500 text-sm mt-2 text-center">
       No tasks match your filters.
     </div>
-    <div v-else-if="selectedProject" class="text-gray-500 text-sm mt-2">
+    <div v-else-if="selectedProject" class="text-gray-500 text-sm mt-2 text-center">
       No tasks in this project. Create your first task.
     </div>
-    <div v-else class="text-gray-500 text-sm mt-2">
+    <div v-else class="text-gray-500 text-sm mt-2 text-center">
       Select a project to view and manage tasks.
     </div>
     
