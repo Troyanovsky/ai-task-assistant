@@ -2,9 +2,6 @@ This documentation is automatically generated folder structure for the project, 
 
 ```
 └── 📁ai-task-assistant
-    └── 📁.cursor
-        └── 📁rules
-            └── electron-rule.mdc
     └── 📁app
         └── .eslintrc.cjs
         └── .eslintrc.js
@@ -16,6 +13,9 @@ This documentation is automatically generated folder structure for the project, 
                 └── initial.js
             └── README.md
             └── schema.js
+        └── 📁electron-main
+            └── aiService.js
+            └── ipcHandlers.js
         └── electron.js
         └── index.html
         └── package-lock.json
@@ -36,6 +36,7 @@ This documentation is automatically generated folder structure for the project, 
                     └── ChatMessage.vue
                 └── 📁layout
                     └── AppSidebar.vue
+                    └── NotificationListener.vue
                 └── 📁projects
                     └── ProjectForm.vue
                     └── ProjectItem.vue
@@ -56,6 +57,10 @@ This documentation is automatically generated folder structure for the project, 
             └── 📁services
                 └── 📁__tests__
                     └── ai.test.js
+                    └── database.test.js
+                    └── notification.test.js
+                    └── project.test.js
+                    └── task.test.js
                 └── ai.js
                 └── database.js
                 └── functionSchemas.js
@@ -67,6 +72,8 @@ This documentation is automatically generated folder structure for the project, 
                 └── 📁modules
                     └── 📁__tests__
                         └── ai.test.js
+                        └── projects.test.js
+                        └── tasks.test.js
                     └── ai.js
                     └── projects.js
                     └── tasks.js

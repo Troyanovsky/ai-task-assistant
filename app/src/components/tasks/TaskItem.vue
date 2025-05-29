@@ -19,26 +19,75 @@
       <!-- Task Content -->
       <div class="flex-1 min-w-0"><!-- Added min-w-0 to allow truncation -->
         <div class="flex justify-between">
-          <h4 class="font-medium truncate max-w-[calc(100%-60px)]" :class="{ 'line-through text-gray-500': task.status === 'done' }">
+          <h4 class="font-medium truncate max-w-[calc(100%-30px)]" :class="{ 'line-through text-gray-500': task.status === 'done' }">
             {{ task.name }}
           </h4>
-          <div class="flex space-x-2 flex-shrink-0"><!-- Added flex-shrink-0 -->
+          <div class="relative flex-shrink-0">
             <button 
-              @click="$emit('edit', task)" 
-              class="text-gray-500 hover:text-blue-500"
+              @click.stop="showDropdown = !showDropdown"
+              class="text-gray-500 hover:text-gray-700 p-1"
+              title="Task options"
             >
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
               </svg>
             </button>
-            <button 
-              @click="$emit('delete', task.id)" 
-              class="text-gray-500 hover:text-red-500"
+            
+            <!-- Dropdown Menu -->
+            <div 
+              v-if="showDropdown" 
+              class="absolute right-0 mt-1 w-40 bg-white rounded-md shadow-lg z-10 border border-gray-200"
+              @click.stop
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
+              <div class="py-1">
+                <a 
+                  @click.stop="$emit('edit', task); showDropdown = false" 
+                  class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                >
+                  Edit Task
+                </a>
+                <div class="relative">
+                  <a 
+                    @click.stop="showMoveOptions = !showMoveOptions" 
+                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+                  >
+                    Move Task
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </a>
+                  
+                  <!-- Project List Submenu -->
+                  <div 
+                    v-if="showMoveOptions" 
+                    class="absolute right-full top-0 w-48 bg-white rounded-md shadow-lg z-20 border border-gray-200"
+                  >
+                    <div v-if="isLoadingProjects" class="px-4 py-2 text-sm text-gray-500">
+                      Loading projects...
+                    </div>
+                    <div v-else-if="projects.length === 0" class="px-4 py-2 text-sm text-gray-500">
+                      No other projects available
+                    </div>
+                    <div v-else class="py-1 max-h-48 overflow-y-auto">
+                      <a 
+                        v-for="project in availableProjects" 
+                        :key="project.id"
+                        @click.stop="moveTaskToProject(project); showDropdown = false; showMoveOptions = false"
+                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer truncate"
+                      >
+                        {{ project.name }}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+                <a 
+                  @click.stop="$emit('delete', task.id); showDropdown = false" 
+                  class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 cursor-pointer"
+                >
+                  Delete Task
+                </a>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -85,7 +134,8 @@
 </template>
 
 <script>
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
+import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue';
+import { useStore } from 'vuex';
 
 export default {
   name: 'TaskItem',
@@ -95,9 +145,42 @@ export default {
       required: true
     }
   },
-  emits: ['status-change', 'edit', 'delete'],
+  emits: ['status-change', 'edit', 'delete', 'move'],
   setup(props, { emit }) {
+    const store = useStore();
     const notificationCount = ref(0);
+    const showDropdown = ref(false);
+    const showMoveOptions = ref(false);
+    
+    // Get projects from store
+    const projects = computed(() => store.getters['projects/allProjects']);
+    const isLoadingProjects = computed(() => store.getters['projects/isLoading']);
+    
+    // Filter out the current project
+    const availableProjects = computed(() => {
+      return projects.value.filter(project => project.id !== props.task.projectId);
+    });
+    
+    // Close dropdowns when clicking outside
+    const closeDropdowns = (event) => {
+      if (!event.target.closest('.task-item')) {
+        showDropdown.value = false;
+        showMoveOptions.value = false;
+      }
+    };
+    
+    // Function to move task to another project
+    const moveTaskToProject = async (project) => {
+      const updatedTask = { ...props.task, projectId: project.id };
+      emit('move', updatedTask);
+    };
+    
+    // Fetch projects when dropdown is opened
+    watch(showDropdown, async (isOpen) => {
+      if (isOpen) {
+        await store.dispatch('projects/fetchProjects');
+      }
+    });
     
     // Function to fetch notifications count
     const fetchNotifications = async () => {
@@ -119,11 +202,15 @@ export default {
           await fetchNotifications();
         }
       });
+      
+      // Add click event listener to close dropdowns
+      document.addEventListener('click', closeDropdowns);
     });
     
     onBeforeUnmount(() => {
-      // Remove event listener when component is unmounted
+      // Remove event listeners when component is unmounted
       window.electron.removeAllListeners('notifications:changed');
+      document.removeEventListener('click', closeDropdowns);
     });
 
     const statusClasses = computed(() => {
@@ -192,7 +279,13 @@ export default {
       statusClasses,
       priorityClasses,
       notificationCount,
+      showDropdown,
+      showMoveOptions,
+      projects,
+      availableProjects,
+      isLoadingProjects,
       toggleStatus,
+      moveTaskToProject,
       formatDate,
       formatDuration,
       capitalizeFirst

@@ -45,6 +45,7 @@
           @status-change="updateTaskStatus"
           @edit="editTask"
           @delete="deleteTask"
+          @move="moveTask"
         />
       </template>
     </div>
@@ -227,6 +228,22 @@ export default {
         });
       }
     };
+    
+    const moveTask = async (task) => {
+      try {
+        // The task object already has the new projectId set by the TaskItem component
+        await store.dispatch('tasks/updateTask', task);
+        
+        // Refresh tasks for the current project
+        if (props.selectedProject) {
+          await store.dispatch('tasks/fetchTasksByProject', props.selectedProject.id);
+        }
+        
+        console.log(`Task ${task.id} moved from project ${props.selectedProject.id} to project ${task.projectId}`);
+      } catch (error) {
+        console.error('Error moving task:', error);
+      }
+    };
 
     const updateFilters = (newFilters) => {
       filters.value = { ...newFilters };
@@ -247,6 +264,7 @@ export default {
       updateTaskStatus,
       editTask,
       deleteTask,
+      moveTask,
       updateFilters
     };
   }
