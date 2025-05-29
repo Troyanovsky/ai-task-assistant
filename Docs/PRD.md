@@ -12,19 +12,19 @@ An intelligent application to manage to-do items and calendars by offloading tas
 
 ### AI Capabilities
 - **Agentic AI via LLM function-calling**
-  - Add, view, edit, remove tasks
+  - Add, view, edit, remove tasks and projects
   - Daily/ad-hoc prioritization (urgency-based queue)
 - **Notifications**
 
 ### UI Components
 - Left panel: Projects
-- Middle: Text-based task list
+- Middle: Task List
 - Right panel: AI chatbox
 
 ### Usage Flow
 - User inputs natural langauge task description in chatbox
 - User input is formatted into prompt and sent to LLM
-- LLM returns actions for modifying the task list (data) and UI updates based on task list (data).
+- LLM returns actions for modifying the projects and tasks (data) and UI updates to reflect changes.
 
 ## V1 Features
 

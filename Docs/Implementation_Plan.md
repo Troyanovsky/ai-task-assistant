@@ -201,6 +201,9 @@ This document outlines a phased implementation approach for the AI Task Assistan
    - Implement notification actions
    - Add notification preferences
 
+3. **UI changes**
+   - Allow users to pick/edit notification time for each task (optional; default to due date time)
+
 ### Deliverables
 - Working notification system
 - System notifications for tasks
