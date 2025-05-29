@@ -106,8 +106,26 @@ async function sendMessage(message, mainWindow) {
       return { success: false, error: 'AI service not configured', chatHistory: aiState.chatHistory };
     }
 
-    // Process with LLM API
-    const response = await processWithLLM(message);
+    // Fetch projects to provide context to the AI
+    let projectsInfo = "";
+    try {
+      const projects = await projectManager.getProjects();
+      if (projects && projects.length > 0) {
+        projectsInfo = "<available_projects>\n";
+        projects.forEach(project => {
+          projectsInfo += `- ${project.name} (ID: ${project.id})\n`;
+        });
+        projectsInfo += "</available_projects>\n";
+      }
+    } catch (error) {
+      console.error('Error fetching projects for AI context:', error);
+    }
+
+    // Prepend projects info to the user message
+    const enhancedMessage = projectsInfo + message;
+
+    // Process with LLM API using the enhanced message
+    const response = await processWithLLM(enhancedMessage);
     
     // Add AI response to history
     const aiMessage = {
@@ -294,6 +312,26 @@ async function processWithLLM(userInput, functionResult = null) {
         name: functionResult.functionName,
         content: JSON.stringify(functionResult.data)
       });
+      
+      // Fetch projects to provide context for function result processing
+      try {
+        const projects = await projectManager.getProjects();
+        if (projects && projects.length > 0) {
+          let projectsInfo = "<available_projects>\n";
+          projects.forEach(project => {
+            projectsInfo += `- ${project.name} (ID: ${project.id})\n`;
+          });
+          projectsInfo += "</available_projects>\n";
+          
+          // Add a system message with project information for context
+          messages.push({
+            role: 'system',
+            content: projectsInfo
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching projects for AI context in function result processing:', error);
+      }
     } else {
       // If no function result, add the user message
       messages.push({ role: 'user', content: userInput });
@@ -452,6 +490,25 @@ async function executeFunctionCall(functionCall) {
           success: true, 
           project: newProject,
           message: `Project "${args.name}" has been created.`
+        };
+        
+      case 'updateProject':
+        const updatedProject = new Project(args);
+        const updateResult = await projectManager.updateProject(updatedProject);
+        return {
+          success: updateResult,
+          message: updateResult 
+            ? `Project "${args.name}" has been updated.`
+            : `Failed to update project "${args.name}".`
+        };
+        
+      case 'deleteProject':
+        const deleteResult = await projectManager.deleteProject(args.id);
+        return {
+          success: deleteResult,
+          message: deleteResult
+            ? `Project has been deleted.`
+            : `Failed to delete project.`
         };
         
       default:

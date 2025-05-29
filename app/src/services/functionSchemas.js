@@ -160,6 +160,42 @@ export const functionSchemas = [
       },
       required: ["name"]
     }
+  },
+  {
+    name: "updateProject",
+    description: "Update an existing project",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { 
+          type: "string",
+          description: "ID of the project to update"
+        },
+        name: { 
+          type: "string",
+          description: "The name of the project"
+        },
+        description: { 
+          type: "string",
+          description: "A description of the project"
+        }
+      },
+      required: ["id", "name"]
+    }
+  },
+  {
+    name: "deleteProject",
+    description: "Delete a project",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { 
+          type: "string",
+          description: "ID of the project to delete"
+        }
+      },
+      required: ["id"]
+    }
   }
 ];
 
