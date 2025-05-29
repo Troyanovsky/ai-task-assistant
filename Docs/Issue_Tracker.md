@@ -4,5 +4,3 @@ Functionality Issues:
 - Recurrence is not implemented.
 
 UI issues:
-- The contrast for Cancel button in task creation is off, gray text on dark background doesn't work.
-- The button styling is off on Windows, having white background for button and white text.

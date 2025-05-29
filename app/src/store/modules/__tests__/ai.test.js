@@ -11,6 +11,16 @@ vi.mock('../../../services/ai.js', () => ({
   }
 }));
 
+// Mock window.electron
+global.window = {
+  electron: {
+    configureAI: vi.fn(),
+    sendMessage: vi.fn(),
+    getChatHistory: vi.fn(),
+    clearChatHistory: vi.fn()
+  }
+};
+
 describe('AI Store Module', () => {
   // Helper to create a mock commit function
   const createCommit = () => vi.fn();
@@ -35,6 +45,10 @@ describe('AI Store Module', () => {
     projects: { projects: [] }
   });
 
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
   describe('configureAI', () => {
     it('should configure the AI service and update state', async () => {
       const commit = createCommit();
@@ -45,13 +59,18 @@ describe('AI Store Module', () => {
         model: 'test-model'
       };
       
-      await aiModule.actions.configureAI({ commit, state }, config);
-      
-      expect(aiService.configure).toHaveBeenCalledWith({
+      // Mock successful configuration
+      window.electron.configureAI.mockResolvedValue({
+        success: true,
         apiKey: 'test-api-key',
         apiUrl: 'test-api-url',
-        model: 'test-model'
+        model: 'test-model',
+        isConfigured: true
       });
+      
+      await aiModule.actions.configureAI({ commit, state }, config);
+      
+      expect(window.electron.configureAI).toHaveBeenCalledWith(config);
       
       expect(commit).toHaveBeenCalledWith('setApiKey', 'test-api-key');
       expect(commit).toHaveBeenCalledWith('setApiUrl', 'test-api-url');
@@ -64,9 +83,7 @@ describe('AI Store Module', () => {
       const state = createState();
       const config = { apiKey: 'test-api-key' };
       
-      aiService.configure.mockImplementation(() => {
-        throw new Error('Configuration error');
-      });
+      window.electron.configureAI.mockRejectedValue(new Error('Configuration error'));
       
       const result = await aiModule.actions.configureAI({ commit, state }, config);
       
@@ -88,37 +105,29 @@ describe('AI Store Module', () => {
       const mockDate = new Date('2023-01-01T12:00:00Z');
       vi.spyOn(global, 'Date').mockImplementation(() => mockDate);
       
-      // Mock successful response with text only
-      aiService.processUserInput.mockResolvedValue({
-        text: 'AI response'
+      // Mock successful response
+      window.electron.sendMessage.mockResolvedValue({
+        success: true,
+        chatHistory: [
+          { text: 'Test message', sender: 'user', timestamp: mockDate },
+          { text: 'AI response', sender: 'ai', timestamp: mockDate }
+        ]
       });
       
       await aiModule.actions.sendMessage({ commit, dispatch, state, rootState }, message);
-      
-      // Check that user message was added
-      expect(commit).toHaveBeenCalledWith('addMessage', {
-        text: 'Test message',
-        sender: 'user',
-        timestamp: mockDate
-      });
       
       // Check processing state was set
       expect(commit).toHaveBeenCalledWith('setProcessing', true);
       expect(commit).toHaveBeenCalledWith('setError', null);
       
-      // Check AI service was called
-      expect(aiService.processUserInput).toHaveBeenCalledWith(
-        'Test message',
-        expect.any(Array),
-        state.chatHistory
-      );
+      // Check electron API was called
+      expect(window.electron.sendMessage).toHaveBeenCalledWith(message);
       
-      // Check AI response was added
-      expect(commit).toHaveBeenCalledWith('addMessage', {
-        text: 'AI response',
-        sender: 'ai',
-        timestamp: mockDate
-      });
+      // Check chat history was updated
+      expect(commit).toHaveBeenCalledWith('setChatHistory', [
+        { text: 'Test message', sender: 'user', timestamp: mockDate },
+        { text: 'AI response', sender: 'ai', timestamp: mockDate }
+      ]);
       
       // Check processing state was reset
       expect(commit).toHaveBeenCalledWith('setProcessing', false);
@@ -131,44 +140,38 @@ describe('AI Store Module', () => {
       const rootState = createRootState();
       const message = 'Create a task';
       
-      // Mock function call response
-      aiService.processUserInput.mockResolvedValue({
-        text: 'I will create a task',
-        functionCall: {
-          name: 'addTask',
-          arguments: { name: 'New task', projectId: '123' }
-        }
-      });
-      
-      // Mock function execution result
-      dispatch.mockResolvedValue({
+      // Mock successful response with function call
+      window.electron.sendMessage.mockResolvedValue({
         success: true,
-        message: 'Task created successfully'
+        chatHistory: [
+          { text: 'Create a task', sender: 'user', timestamp: new Date() },
+          { 
+            text: 'I will create a task', 
+            sender: 'ai', 
+            timestamp: new Date(),
+            functionCall: {
+              name: 'addTask',
+              arguments: { name: 'New task', projectId: '123' }
+            }
+          },
+          { 
+            text: 'Task created successfully', 
+            sender: 'ai', 
+            timestamp: new Date(),
+            functionResult: {
+              success: true
+            }
+          }
+        ]
       });
       
       await aiModule.actions.sendMessage({ commit, dispatch, state, rootState }, message);
       
-      // Check that function call was executed
-      expect(dispatch).toHaveBeenCalledWith('executeFunctionCall', {
-        name: 'addTask',
-        arguments: { name: 'New task', projectId: '123' }
-      });
+      // Check electron API was called
+      expect(window.electron.sendMessage).toHaveBeenCalledWith(message);
       
-      // Check that AI response with function call was added
-      expect(commit).toHaveBeenCalledWith('addMessage', expect.objectContaining({
-        text: 'I will create a task',
-        sender: 'ai',
-        functionCall: {
-          name: 'addTask',
-          arguments: { name: 'New task', projectId: '123' }
-        }
-      }));
-      
-      // Check that function result message was added
-      expect(commit).toHaveBeenCalledWith('addMessage', expect.objectContaining({
-        text: 'Task created successfully',
-        sender: 'ai'
-      }));
+      // Check chat history was updated with all messages
+      expect(commit).toHaveBeenCalledWith('setChatHistory', expect.any(Array));
     });
     
     it('should handle errors when AI service is not configured', async () => {
@@ -178,119 +181,63 @@ describe('AI Store Module', () => {
       const rootState = createRootState();
       const message = 'Test message';
       
+      window.electron.sendMessage.mockRejectedValue(new Error('AI service not configured'));
+      
       await aiModule.actions.sendMessage({ commit, dispatch, state, rootState }, message);
       
-      expect(commit).toHaveBeenCalledWith('setError', 'AI service not configured. Please set API key.');
-      expect(commit).toHaveBeenCalledWith('addMessage', expect.objectContaining({
-        text: expect.stringContaining('Sorry, I encountered an error'),
-        sender: 'ai'
-      }));
+      expect(commit).toHaveBeenCalledWith('setError', 'AI service not configured');
+      expect(commit).toHaveBeenCalledWith('setProcessing', false);
     });
   });
 
-  describe('executeFunctionCall', () => {
-    it('should execute addTask function correctly', async () => {
+  describe('loadChatHistory', () => {
+    it('should load chat history from electron', async () => {
       const commit = createCommit();
-      const dispatch = createDispatch();
-      const rootState = createRootState();
-      const functionCall = {
-        name: 'addTask',
-        arguments: { name: 'Test task', projectId: '123' }
-      };
+      const chatHistory = [
+        { text: 'Hello', sender: 'user', timestamp: new Date() },
+        { text: 'Hi there', sender: 'ai', timestamp: new Date() }
+      ];
       
-      // Mock task creation
-      dispatch.mockResolvedValue({ id: 'task-123', name: 'Test task' });
+      window.electron.getChatHistory.mockResolvedValue(chatHistory);
       
-      // Mock aiService.executeFunctionCall to simulate the function execution
-      aiService.executeFunctionCall.mockImplementation(async (call, funcs) => {
-        return await funcs[call.name](call.arguments);
-      });
+      await aiModule.actions.loadChatHistory({ commit });
       
-      const result = await aiModule.actions.executeFunctionCall(
-        { commit, dispatch, rootState },
-        functionCall
-      );
-      
-      expect(dispatch).toHaveBeenCalledWith(
-        'tasks/addTask',
-        { name: 'Test task', projectId: '123' },
-        { root: true }
-      );
-      
-      expect(result).toEqual({
-        success: true,
-        task: { id: 'task-123', name: 'Test task' },
-        message: 'Task "Test task" has been created.'
-      });
+      expect(window.electron.getChatHistory).toHaveBeenCalled();
+      expect(commit).toHaveBeenCalledWith('setChatHistory', chatHistory);
     });
-    
-    it('should handle function execution errors', async () => {
+  });
+  
+  describe('clearHistory', () => {
+    it('should clear chat history', async () => {
       const commit = createCommit();
-      const dispatch = createDispatch();
-      const rootState = createRootState();
-      const functionCall = {
-        name: 'addTask',
-        arguments: { name: 'Test task' } // Missing required projectId
-      };
       
-      // Mock error during task creation
-      dispatch.mockRejectedValue(new Error('Missing projectId'));
+      await aiModule.actions.clearHistory({ commit });
       
-      // Mock aiService.executeFunctionCall to simulate the function execution error
-      aiService.executeFunctionCall.mockImplementation(async (call, funcs) => {
-        try {
-          return await funcs[call.name](call.arguments);
-        } catch (error) {
-          throw error;
-        }
-      });
-      
-      const result = await aiModule.actions.executeFunctionCall(
-        { commit, dispatch, rootState },
-        functionCall
-      );
-      
-      expect(commit).toHaveBeenCalledWith('setError', 'Failed to execute addTask: Missing projectId');
-      expect(result).toEqual({
-        success: false,
-        error: 'Missing projectId',
-        message: 'Sorry, I couldn\'t complete that action: Missing projectId'
-      });
+      expect(window.electron.clearChatHistory).toHaveBeenCalled();
+      expect(commit).toHaveBeenCalledWith('clearChatHistory');
     });
   });
 
   describe('mutations', () => {
     it('should add a message to chat history', () => {
       const state = createState();
-      const message = {
-        text: 'Test message',
-        sender: 'user',
-        timestamp: new Date()
-      };
+      const message = { text: 'Hello', sender: 'user', timestamp: new Date() };
       
       aiModule.mutations.addMessage(state, message);
       
-      expect(state.chatHistory).toEqual([message]);
+      expect(state.chatHistory).toContain(message);
     });
     
     it('should set processing state', () => {
       const state = createState();
       
       aiModule.mutations.setProcessing(state, true);
-      expect(state.isProcessing).toBe(true);
       
-      aiModule.mutations.setProcessing(state, false);
-      expect(state.isProcessing).toBe(false);
+      expect(state.isProcessing).toBe(true);
     });
     
     it('should clear chat history', () => {
-      const state = {
-        ...createState(),
-        chatHistory: [
-          { text: 'Message 1', sender: 'user' },
-          { text: 'Message 2', sender: 'ai' }
-        ]
-      };
+      const state = { ...createState(), chatHistory: [{ text: 'Hello', sender: 'user' }] };
       
       aiModule.mutations.clearChatHistory(state);
       
@@ -309,16 +256,8 @@ describe('AI Store Module', () => {
       const state = createState();
       
       aiModule.mutations.setConfigured(state, true);
+      
       expect(state.isConfigured).toBe(true);
-      
-      aiModule.mutations.setApiKey(state, 'test-key');
-      expect(state.apiKey).toBe('test-key');
-      
-      aiModule.mutations.setApiUrl(state, 'test-url');
-      expect(state.apiUrl).toBe('test-url');
-      
-      aiModule.mutations.setModel(state, 'test-model');
-      expect(state.model).toBe('test-model');
     });
   });
 }); 

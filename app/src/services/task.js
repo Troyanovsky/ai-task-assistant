@@ -79,7 +79,8 @@ class TaskManager {
       console.log('Task project ID:', task.projectId);
       
       // Validate the task
-      if (!task.validate()) {
+      const isValid = task.validate();
+      if (!isValid) {
         console.error('Invalid task data - validation failed');
         console.error('Task validation details:');
         console.error('- Name:', task.name, task.name && task.name.trim() !== '');
@@ -129,7 +130,8 @@ class TaskManager {
       const task = new Task(taskData);
       
       // Validate the task
-      if (!task.validate()) {
+      const isValid = task.validate();
+      if (!isValid) {
         console.error('Invalid task data - validation failed');
         return false;
       }
