@@ -3,7 +3,7 @@
     <div class="flex h-full overflow-hidden">
       <!-- Left Panel: Projects -->
       <div class="w-1/4 border-r border-gray-300 flex flex-col h-full bg-gray-100">
-        <div class="flex items-center justify-between p-4 border-b border-gray-300">
+        <div class="flex items-center justify-between p-4 border-b border-gray-300 h-[60px]">
           <h2 class="font-bold text-lg">Projects</h2>
           <router-link to="/settings" class="text-gray-600 hover:text-gray-900">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -18,7 +18,7 @@
       
       <!-- Middle Panel: Tasks -->
       <div class="w-2/4 bg-white flex flex-col h-full">
-        <div class="p-4 border-b border-gray-300">
+        <div class="p-4 border-b border-gray-300 h-[60px] flex items-center">
           <h2 class="font-bold text-lg">Tasks</h2>
         </div>
         <div class="flex-1 overflow-y-auto p-4">

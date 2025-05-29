@@ -1,10 +1,10 @@
 <template>
   <div class="chat-box flex flex-col h-full">
-    <div class="chat-header border-b border-gray-300 p-3 flex justify-between items-center">
-      <h3 class="font-medium">AI Assistant</h3>
+    <div class="p-4 border-b border-gray-300 flex justify-between items-center h-[60px]">
+      <h2 class="font-bold text-lg">AI Assistant</h2>
       <button 
         @click="clearChat" 
-        class="text-sm text-gray-500 hover:text-red-500"
+        class="text-gray-600 hover:text-red-500"
         title="Clear chat history"
       >
         Clear
