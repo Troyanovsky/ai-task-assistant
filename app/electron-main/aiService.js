@@ -132,7 +132,7 @@ async function sendMessage(message, mainWindow) {
       text: response.text,
       sender: 'ai',
       timestamp: new Date(),
-      functionCall: response.functionCall
+      functionCalls: response.functionCalls
     };
     aiState.chatHistory.push(aiMessage);
     
@@ -140,113 +140,127 @@ async function sendMessage(message, mainWindow) {
     mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
 
     // Handle function calls if present
-    if (response.functionCall) {
-      // Add a message indicating function execution is in progress
-      const executingMessage = {
-        text: `Executing: ${response.functionCall.name}`,
-        sender: 'system',
-        timestamp: new Date(),
-        isExecutionProgress: true
-      };
-      aiState.chatHistory.push(executingMessage);
-      mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
+    if (response.functionCalls && response.functionCalls.length > 0) {
+      // Create an array to store all function results
+      const functionResults = [];
       
-      // Execute the function
-      const result = await executeFunctionCall(response.functionCall);
-      
-      // Add function result to chat history
-      if (result && result.message) {
-        const resultMessage = {
-          text: result.message,
+      // Execute each function call and collect results
+      for (const functionCall of response.functionCalls) {
+        // Add a message indicating function execution is in progress
+        const executingMessage = {
+          text: `Executing: ${functionCall.name}`,
           sender: 'system',
           timestamp: new Date(),
-          isExecutionResult: true
+          isExecutionProgress: true
         };
-        aiState.chatHistory.push(resultMessage);
-        // Send updated chat history to frontend immediately after function execution
+        aiState.chatHistory.push(executingMessage);
         mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
         
-        // Trigger UI updates if needed based on function type
-        if (response.functionCall.name === 'addProject' || response.functionCall.name === 'updateProject' || response.functionCall.name === 'deleteProject') {
-          mainWindow.webContents.send('projects:refresh');
-        }
+        // Execute the function
+        const result = await executeFunctionCall(functionCall);
         
-        if (response.functionCall.name === 'addTask' || response.functionCall.name === 'updateTask' || response.functionCall.name === 'deleteTask') {
-          mainWindow.webContents.send('tasks:refresh');
+        // Store the result for later processing
+        functionResults.push({
+          functionName: functionCall.name,
+          data: result
+        });
+        
+        // Add function result to chat history
+        if (result && result.message) {
+          const resultMessage = {
+            text: result.message,
+            sender: 'system',
+            timestamp: new Date(),
+            isExecutionResult: true
+          };
+          aiState.chatHistory.push(resultMessage);
+          // Send updated chat history to frontend immediately after function execution
+          mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
+          
+          // Trigger UI updates if needed based on function type
+          if (functionCall.name === 'addProject' || functionCall.name === 'updateProject' || functionCall.name === 'deleteProject') {
+            mainWindow.webContents.send('projects:refresh');
+          }
+          
+          if (functionCall.name === 'addTask' || functionCall.name === 'updateTask' || functionCall.name === 'deleteTask') {
+            mainWindow.webContents.send('tasks:refresh');
+          }
         }
       }
       
-      // Process the function result with LLM to get a new response
-      const functionResult = {
-        functionName: response.functionCall.name,
-        data: result
-      };
-      
-      // Get AI's response to the function result
-      const followUpResponse = await processWithLLM(null, functionResult);
+      // Send all function results back to the LLM for a final response
+      const followUpResponse = await processWithLLM(null, functionResults);
       
       // Add the follow-up response to chat history
       const followUpMessage = {
         text: followUpResponse.text,
         sender: 'ai',
         timestamp: new Date(),
-        functionCall: followUpResponse.functionCall
+        functionCalls: followUpResponse.functionCalls
       };
       aiState.chatHistory.push(followUpMessage);
+      
       // Send updated chat history to frontend immediately after follow-up response
       mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
       
-      // Handle nested function calls if present (one level deep)
-      if (followUpResponse.functionCall) {
-        // Add a message indicating nested function execution is in progress
-        const nestedExecutingMessage = {
-          text: `Executing: ${followUpResponse.functionCall.name}`,
-          sender: 'system',
-          timestamp: new Date(),
-          isExecutionProgress: true
-        };
-        aiState.chatHistory.push(nestedExecutingMessage);
-        mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
+      // Handle nested function calls if present in follow-up response
+      if (followUpResponse.functionCalls && followUpResponse.functionCalls.length > 0) {
+        // Create an array to store all nested function results
+        const nestedFunctionResults = [];
         
-        const nestedResult = await executeFunctionCall(followUpResponse.functionCall);
-        
-        // Add nested function result to chat history
-        if (nestedResult && nestedResult.message) {
-          const nestedResultMessage = {
-            text: nestedResult.message,
+        // Execute each nested function call and collect results
+        for (const nestedFunctionCall of followUpResponse.functionCalls) {
+          // Add a message indicating nested function execution is in progress
+          const nestedExecutingMessage = {
+            text: `Executing: ${nestedFunctionCall.name}`,
             sender: 'system',
             timestamp: new Date(),
-            isExecutionResult: true
+            isExecutionProgress: true
           };
-          aiState.chatHistory.push(nestedResultMessage);
-          // Send updated chat history to frontend after nested function execution
+          aiState.chatHistory.push(nestedExecutingMessage);
           mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
           
-          // Trigger UI updates if needed based on function type
-          if (followUpResponse.functionCall.name === 'addProject' || followUpResponse.functionCall.name === 'updateProject' || followUpResponse.functionCall.name === 'deleteProject') {
-            mainWindow.webContents.send('projects:refresh');
-          }
+          // Execute the nested function
+          const nestedResult = await executeFunctionCall(nestedFunctionCall);
           
-          if (followUpResponse.functionCall.name === 'addTask' || followUpResponse.functionCall.name === 'updateTask' || followUpResponse.functionCall.name === 'deleteTask') {
-            mainWindow.webContents.send('tasks:refresh');
+          // Store the result for later processing
+          nestedFunctionResults.push({
+            functionName: nestedFunctionCall.name,
+            data: nestedResult
+          });
+          
+          // Add nested function result to chat history
+          if (nestedResult && nestedResult.message) {
+            const nestedResultMessage = {
+              text: nestedResult.message,
+              sender: 'system',
+              timestamp: new Date(),
+              isExecutionResult: true
+            };
+            aiState.chatHistory.push(nestedResultMessage);
+            // Send updated chat history to frontend after nested function execution
+            mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
+            
+            // Trigger UI updates if needed based on function type
+            if (nestedFunctionCall.name === 'addProject' || nestedFunctionCall.name === 'updateProject' || nestedFunctionCall.name === 'deleteProject') {
+              mainWindow.webContents.send('projects:refresh');
+            }
+            
+            if (nestedFunctionCall.name === 'addTask' || nestedFunctionCall.name === 'updateTask' || nestedFunctionCall.name === 'deleteTask') {
+              mainWindow.webContents.send('tasks:refresh');
+            }
           }
         }
         
-        // Process the nested function result with LLM
-        const nestedFunctionResult = {
-          functionName: followUpResponse.functionCall.name,
-          data: nestedResult
-        };
-        
-        // Get AI's final response to the nested function result
-        const finalResponse = await processWithLLM(null, nestedFunctionResult);
+        // Send all nested function results back to the LLM for a final response
+        const finalResponse = await processWithLLM(null, nestedFunctionResults);
         
         // Add the final response to chat history
         const finalMessage = {
           text: finalResponse.text,
           sender: 'ai',
           timestamp: new Date(),
-          functionCall: finalResponse.functionCall
+          functionCalls: finalResponse.functionCalls
         };
         aiState.chatHistory.push(finalMessage);
         // Send final updated chat history to frontend
@@ -279,10 +293,10 @@ async function sendMessage(message, mainWindow) {
 /**
  * Process user input with LLM API
  * @param {string} userInput - User's message
- * @param {Object} functionResult - Result from a previous function call, if any
+ * @param {Array|Object} functionResults - Results from previous function calls, if any
  * @returns {Object} - AI response
  */
-async function processWithLLM(userInput, functionResult = null) {
+async function processWithLLM(userInput, functionResults = null) {
   try {
     // Import function schemas
     const functionSchemasModule = await import('../src/services/functionSchemas.js');
@@ -296,21 +310,34 @@ async function processWithLLM(userInput, functionResult = null) {
           role: msg.sender === 'user' ? 'user' : 'assistant',
           content: msg.text,
           // Include function call information for assistant messages if present
-          ...(msg.sender === 'ai' && msg.functionCall ? {
-            function_call: {
-              name: msg.functionCall.name,
-              arguments: JSON.stringify(msg.functionCall.arguments)
-            }
+          ...(msg.sender === 'ai' && msg.functionCalls && msg.functionCalls.length > 0 ? {
+            tool_calls: msg.functionCalls.map((fc, idx) => ({
+              type: 'function',
+              id: `call_${Date.now()}_${idx}`,
+              function: {
+                name: fc.name,
+                arguments: JSON.stringify(fc.arguments)
+              }
+            }))
           } : {})
         }))
     ];
     
-    // Add the function result if provided
-    if (functionResult) {
-      messages.push({
-        role: 'function',
-        name: functionResult.functionName,
-        content: JSON.stringify(functionResult.data)
+    // Add the function results if provided
+    if (functionResults) {
+      // Handle single function result (backward compatibility)
+      if (!Array.isArray(functionResults)) {
+        functionResults = [functionResults];
+      }
+      
+      // Add each function result as a tool message
+      functionResults.forEach((result, idx) => {
+        messages.push({
+          role: 'tool',
+          tool_call_id: `call_${Date.now() - 1}_${idx}`, // Use a predictable ID that matches the previous call
+          name: result.functionName,
+          content: JSON.stringify(result.data)
+        });
       });
       
       // Fetch projects to provide context for function result processing
@@ -341,8 +368,8 @@ async function processWithLLM(userInput, functionResult = null) {
     const requestPayload = {
       model: aiState.model,
       messages,
-      functions: functionSchemas,
-      function_call: 'auto'
+      tools: functionSchemas,
+      tool_choice: 'auto'
     };
 
     // Log raw API request
@@ -366,15 +393,23 @@ async function processWithLLM(userInput, functionResult = null) {
     // Process the response
     const aiResponse = response.data.choices[0].message;
     
-    // Check if the response contains function calls
-    if (aiResponse.function_call) {
-      return {
-        text: aiResponse.content || "I'll help you with that.",
-        functionCall: {
-          name: aiResponse.function_call.name,
-          arguments: JSON.parse(aiResponse.function_call.arguments)
-        }
-      };
+    // Check if the response contains tool calls
+    if (aiResponse.tool_calls && aiResponse.tool_calls.length > 0) {
+      // Convert all tool calls to function calls
+      const functionCalls = aiResponse.tool_calls
+        .filter(toolCall => toolCall.type === 'function')
+        .map(toolCall => ({
+          id: toolCall.id,
+          name: toolCall.function.name,
+          arguments: JSON.parse(toolCall.function.arguments)
+        }));
+      
+      if (functionCalls.length > 0) {
+        return {
+          text: aiResponse.content || "I'll help you with that.",
+          functionCalls: functionCalls
+        };
+      }
     }
 
     // Regular text response
@@ -393,7 +428,7 @@ async function processWithLLM(userInput, functionResult = null) {
  * @returns {Promise<Object>} - Result of the function execution
  */
 async function executeFunctionCall(functionCall) {
-  const { name, arguments: args } = functionCall;
+  const { id, name, arguments: args } = functionCall;
   
   try {
     switch (name) {
@@ -425,13 +460,15 @@ async function executeFunctionCall(functionCall) {
         return { 
           success: true, 
           task,
-          message: `Task "${args.name}" has been created.`
+          taskId: task.id,
+          message: `Task "${args.name}" has been created with ID: ${task.id}.`
         };
         
       case 'updateTask':
         await taskManager.updateTask(args);
         return { 
           success: true,
+          taskId: args.id,
           message: `Task "${args.id}" has been updated.`
         };
         
@@ -439,7 +476,8 @@ async function executeFunctionCall(functionCall) {
         await taskManager.deleteTask(args.id);
         return { 
           success: true,
-          message: `Task has been deleted.`
+          taskId: args.id,
+          message: `Task with ID ${args.id} has been deleted.`
         };
         
       case 'getTasks':
@@ -477,6 +515,7 @@ async function executeFunctionCall(functionCall) {
         return { 
           success: true, 
           tasks,
+          taskIds: tasks.map(task => task.id),
           message: tasks.length > 0 
             ? `Found ${tasks.length} tasks.` 
             : 'No tasks found matching your criteria.'
@@ -487,6 +526,7 @@ async function executeFunctionCall(functionCall) {
         return { 
           success: true, 
           projects,
+          projectIds: projects.map(project => project.id),
           message: projects.length > 0 
             ? `Found ${projects.length} projects.` 
             : 'No projects found.'
@@ -497,8 +537,9 @@ async function executeFunctionCall(functionCall) {
         const newProject = await projectManager.addProject(project);
         return { 
           success: true, 
-          project: newProject,
-          message: `Project "${args.name}" has been created.`
+          project: project,
+          projectId: project.id,
+          message: `Project "${args.name}" has been created with ID: ${project.id}.`
         };
         
       case 'updateProject':
@@ -506,18 +547,20 @@ async function executeFunctionCall(functionCall) {
         const updateResult = await projectManager.updateProject(updatedProject);
         return {
           success: updateResult,
+          projectId: updatedProject.id,
           message: updateResult 
-            ? `Project "${args.name}" has been updated.`
-            : `Failed to update project "${args.name}".`
+            ? `Project "${args.name}" (ID: ${updatedProject.id}) has been updated.`
+            : `Failed to update project "${args.name}" (ID: ${updatedProject.id}).`
         };
         
       case 'deleteProject':
         const deleteResult = await projectManager.deleteProject(args.id);
         return {
           success: deleteResult,
+          projectId: args.id,
           message: deleteResult
-            ? `Project has been deleted.`
-            : `Failed to delete project.`
+            ? `Project with ID ${args.id} has been deleted.`
+            : `Failed to delete project with ID ${args.id}.`
         };
         
       default:

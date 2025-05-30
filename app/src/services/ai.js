@@ -49,8 +49,8 @@ class AIService {
       const requestPayload = {
         model: this.model,
         messages,
-        functions: functionSchemas,
-        function_call: 'auto'
+        tools: functionSchemas,
+        tool_choice: 'auto'
       };
 
       // Log raw API request
@@ -74,15 +74,20 @@ class AIService {
       // Process the response
       const aiResponse = response.data.choices[0].message;
       
-      // Check if the response contains function calls
-      if (aiResponse.function_call) {
-        return {
-          text: aiResponse.content || "I'll help you with that.",
-          functionCall: {
-            name: aiResponse.function_call.name,
-            arguments: JSON.parse(aiResponse.function_call.arguments)
-          }
-        };
+      // Check if the response contains tool calls
+      if (aiResponse.tool_calls && aiResponse.tool_calls.length > 0) {
+        const toolCall = aiResponse.tool_calls[0];
+        
+        // Check if it's a function call
+        if (toolCall.type === 'function') {
+          return {
+            text: aiResponse.content || "I'll help you with that.",
+            functionCall: {
+              name: toolCall.function.name,
+              arguments: JSON.parse(toolCall.function.arguments)
+            }
+          };
+        }
       }
 
       // Regular text response
