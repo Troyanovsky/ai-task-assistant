@@ -36,13 +36,18 @@ class AIService {
     }
 
     try {
+      // Add current date and time to the context
+      const now = new Date();
+      const dateTimeInfo = `<current_datetime>${now.toISOString()}</current_datetime>\n`;
+      const enhancedUserInput = dateTimeInfo + userInput;
+
       // Format chat history for the API
       const messages = [
         ...chatHistory.map(msg => ({
           role: msg.sender === 'user' ? 'user' : 'assistant',
           content: msg.text
         })),
-        { role: 'user', content: userInput }
+        { role: 'user', content: enhancedUserInput }
       ];
 
       // Create request payload

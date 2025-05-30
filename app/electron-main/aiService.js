@@ -121,8 +121,12 @@ async function sendMessage(message, mainWindow) {
       console.error('Error fetching projects for AI context:', error);
     }
 
-    // Prepend projects info to the user message
-    const enhancedMessage = projectsInfo + message;
+    // Add current date and time to the context
+    const now = new Date();
+    const dateTimeInfo = `<current_datetime>${now.toISOString()}</current_datetime>\n`;
+
+    // Prepend projects info and date/time to the user message
+    const enhancedMessage = projectsInfo + dateTimeInfo + message;
 
     // Process with LLM API using the enhanced message
     const response = await processWithLLM(enhancedMessage);
@@ -350,10 +354,14 @@ async function processWithLLM(userInput, functionResults = null) {
           });
           projectsInfo += "</available_projects>\n";
           
-          // Add a system message with project information for context
+          // Add current date and time
+          const now = new Date();
+          const dateTimeInfo = `<current_datetime>${now.toISOString()}</current_datetime>\n`;
+          
+          // Add a system message with project information and date/time for context
           messages.push({
             role: 'system',
-            content: projectsInfo
+            content: projectsInfo + dateTimeInfo
           });
         }
       } catch (error) {

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import aiService from '../ai.js';
 import axios from 'axios';
 
@@ -36,6 +36,14 @@ describe('AIService', () => {
     
     // Configure the service
     aiService.configure(mockConfig);
+    
+    // Mock Date for consistent datetime in tests
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-05-30T03:27:12.633Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe('configure', () => {
@@ -90,10 +98,10 @@ describe('AIService', () => {
           messages: [
             { role: 'user', content: 'Hello' },
             { role: 'assistant', content: 'Hi there' },
-            { role: 'user', content: 'Test input' }
+            { role: 'user', content: '<current_datetime>2025-05-30T03:27:12.633Z</current_datetime>\nTest input' }
           ],
-          functions: mockFunctionSchemas,
-          function_call: 'auto'
+          tools: mockFunctionSchemas,
+          tool_choice: 'auto'
         },
         {
           headers: {
@@ -105,17 +113,22 @@ describe('AIService', () => {
     });
 
     it('should process function call response correctly', async () => {
-      // Mock successful response with function call
+      // Mock successful response with tool call
       axios.post.mockResolvedValue({
         data: {
           choices: [
             {
               message: {
                 content: 'I will help with that',
-                function_call: {
-                  name: 'testFunction',
-                  arguments: JSON.stringify({ param1: 'test value' })
-                }
+                tool_calls: [
+                  {
+                    type: 'function',
+                    function: {
+                      name: 'testFunction',
+                      arguments: JSON.stringify({ param1: 'test value' })
+                    }
+                  }
+                ]
               }
             }
           ]
