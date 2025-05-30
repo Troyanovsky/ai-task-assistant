@@ -74,10 +74,37 @@
         </div>
       </div>
       
+      <!-- Planned Time Section -->
+      <div class="mb-3">
+        <label for="plannedTime" class="block text-sm font-medium text-gray-700 mb-1">Planned Time</label>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <input
+              id="plannedDate"
+              v-model="formData.plannedDate"
+              type="date"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 date-input"
+              :min="currentDate"
+            />
+          </div>
+          <div>
+            <input
+              id="plannedTime"
+              v-model="formData.plannedTime"
+              type="time"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        </div>
+        <p v-if="formData.plannedDate && formData.plannedTime" class="text-xs text-gray-500 mt-1">
+          A reminder notification will be automatically set for this time.
+        </p>
+      </div>
+      
       <!-- Notifications Section -->
       <div class="mb-3">
         <div class="flex items-center justify-between mb-2">
-          <label class="block text-sm font-medium text-gray-700">Notifications</label>
+          <label class="block text-sm font-medium text-gray-700">Additional Notifications</label>
           <button 
             type="button" 
             @click="addNewNotification"
@@ -91,7 +118,7 @@
         </div>
         
         <div v-if="notifications.length === 0" class="text-sm text-gray-500 italic mb-2">
-          No notifications set for this task.
+          No additional notifications set for this task.
         </div>
         
         <div v-else class="space-y-2 mb-3">
@@ -149,7 +176,7 @@
 </template>
 
 <script>
-import { reactive, onMounted, ref } from 'vue';
+import { reactive, onMounted, ref, computed } from 'vue';
 import { TYPE } from '../../models/Notification';
 import { Notification } from '../../models/Notification';
 import { v4 as uuidv4 } from 'uuid';
@@ -168,6 +195,11 @@ export default {
   },
   emits: ['save', 'cancel'],
   setup(props, { emit }) {
+    // Current date in YYYY-MM-DD format for min date attribute
+    const currentDate = computed(() => {
+      return new Date().toISOString().split('T')[0];
+    });
+    
     const formData = reactive({
       name: '',
       description: '',
@@ -175,6 +207,8 @@ export default {
       priority: 'medium',
       dueDate: '',
       duration: 0,
+      plannedDate: '',
+      plannedTime: '',
       projectId: props.projectId
     });
     
@@ -183,6 +217,9 @@ export default {
     
     // Track notifications to be deleted (existing ones)
     const notificationsToDelete = ref([]);
+    
+    // Track the planned time notification specifically
+    const plannedTimeNotification = ref(null);
 
     onMounted(async () => {
       if (props.task) {
@@ -198,6 +235,17 @@ export default {
           formData.dueDate = date.toISOString().split('T')[0];
         }
         
+        if (props.task.plannedTime) {
+          // Format planned time into date and time fields
+          const plannedDateTime = new Date(props.task.plannedTime);
+          formData.plannedDate = plannedDateTime.toISOString().split('T')[0];
+          
+          // Format time as HH:MM
+          const hours = plannedDateTime.getHours().toString().padStart(2, '0');
+          const minutes = plannedDateTime.getMinutes().toString().padStart(2, '0');
+          formData.plannedTime = `${hours}:${minutes}`;
+        }
+        
         // Fetch existing notifications for the task
         try {
           console.log(`Fetching notifications for task: ${props.task.id}`);
@@ -206,28 +254,37 @@ export default {
           
           if (existingNotifications && existingNotifications.length > 0) {
             // Format notifications for the UI
-            notifications.value = existingNotifications.map(notification => {
-              const notificationDate = new Date(notification.time);
+            notifications.value = existingNotifications
+              .filter(notification => notification.type !== 'PLANNED_TIME')
+              .map(notification => {
+                const notificationDate = new Date(notification.time);
+                
+                // Format date as YYYY-MM-DD
+                const date = notificationDate.toISOString().split('T')[0];
+                
+                // Format time as HH:MM
+                const hours = notificationDate.getHours().toString().padStart(2, '0');
+                const minutes = notificationDate.getMinutes().toString().padStart(2, '0');
+                const time = `${hours}:${minutes}`;
+                
+                console.log(`Notification ${notification.id} time: ${notificationDate.toLocaleString()}, formatted as ${date} ${time}`);
+                
+                return {
+                  id: notification.id,
+                  date,
+                  time,
+                  type: notification.type,
+                  message: notification.message,
+                  isExisting: true
+                };
+              });
               
-              // Format date as YYYY-MM-DD
-              const date = notificationDate.toISOString().split('T')[0];
-              
-              // Format time as HH:MM
-              const hours = notificationDate.getHours().toString().padStart(2, '0');
-              const minutes = notificationDate.getMinutes().toString().padStart(2, '0');
-              const time = `${hours}:${minutes}`;
-              
-              console.log(`Notification ${notification.id} time: ${notificationDate.toLocaleString()}, formatted as ${date} ${time}`);
-              
-              return {
-                id: notification.id,
-                date,
-                time,
-                type: notification.type,
-                message: notification.message,
-                isExisting: true
-              };
-            });
+            // Check if there's a planned time notification
+            const plannedNotification = existingNotifications.find(n => n.type === 'PLANNED_TIME');
+            if (plannedNotification) {
+              plannedTimeNotification.value = plannedNotification;
+            }
+            
             console.log('Formatted notifications for UI:', notifications.value);
           }
         } catch (error) {
@@ -276,7 +333,26 @@ export default {
         duration: formData.duration !== '' ? Number(formData.duration) : 0
       };
       
+      // Set due date if provided
       taskData.dueDate = formData.dueDate ? new Date(formData.dueDate).toISOString() : null;
+      
+      // Set planned time if both date and time are provided
+      if (formData.plannedDate && formData.plannedTime) {
+        const [year, month, day] = formData.plannedDate.split('-');
+        const [hours, minutes] = formData.plannedTime.split(':');
+        
+        const plannedDateTime = new Date(
+          parseInt(year, 10),
+          parseInt(month, 10) - 1, // Month is 0-indexed
+          parseInt(day, 10),
+          parseInt(hours, 10),
+          parseInt(minutes, 10)
+        );
+        
+        taskData.plannedTime = plannedDateTime.toISOString();
+      } else {
+        taskData.plannedTime = null;
+      }
       
       if (props.task) {
         taskData.id = props.task.id;
@@ -291,7 +367,7 @@ export default {
         emit('save', taskData);
         
         // Process notifications for existing task
-        await processNotifications(props.task.id, taskData.name);
+        await processNotifications(props.task.id, taskData.name, taskData.plannedTime);
       } else {
         // For new tasks, we need to wait for the task ID
         // Save the task data and store notifications for later
@@ -299,10 +375,13 @@ export default {
         
         // Reset form data immediately
         const taskName = taskData.name; // Keep a reference to the task name for notifications
+        const plannedTimeValue = taskData.plannedTime; // Keep reference to planned time
         formData.name = '';
         formData.description = '';
         formData.dueDate = '';
         formData.duration = 0;
+        formData.plannedDate = '';
+        formData.plannedTime = '';
         
         // Clear notifications UI
         notifications.value = [];
@@ -312,6 +391,25 @@ export default {
         emit('save', taskData, async (savedTaskId) => {
           if (savedTaskId) {
             console.log(`Task saved with ID: ${savedTaskId}, now saving notifications`);
+            
+            // First create planned time notification if set
+            if (plannedTimeValue) {
+              try {
+                const plannedNotificationData = {
+                  task_id: savedTaskId,
+                  taskId: savedTaskId,
+                  time: plannedTimeValue,
+                  type: 'PLANNED_TIME',
+                  message: `It's time to work on: ${taskName}`
+                };
+                
+                console.log('Saving planned time notification:', plannedNotificationData);
+                
+                await window.electron.addNotification(plannedNotificationData);
+              } catch (error) {
+                console.error('Error saving planned time notification:', error);
+              }
+            }
             
             // Process the pending notifications with the new task ID
             for (const notification of pendingNotifications) {
@@ -357,10 +455,54 @@ export default {
     };
     
     // Helper function to process notifications for existing tasks
-    const processNotifications = async (taskId, taskName) => {
+    const processNotifications = async (taskId, taskName, plannedTime) => {
       console.log(`Processing notifications for task ID: ${taskId}`);
       console.log(`Notifications to delete: ${notificationsToDelete.value.length}`);
       console.log(`Notifications to save: ${notifications.value.length}`);
+      console.log(`Planned time: ${plannedTime}`);
+      
+      // Handle planned time notification
+      if (plannedTime) {
+        try {
+          // Check if we already have a planned time notification
+          if (plannedTimeNotification.value) {
+            // Update existing planned time notification
+            const updateData = {
+              id: plannedTimeNotification.value.id,
+              task_id: taskId,
+              taskId: taskId,
+              time: plannedTime,
+              type: 'PLANNED_TIME',
+              message: `It's time to work on: ${taskName}`
+            };
+            
+            console.log('Updating planned time notification:', updateData);
+            await window.electron.updateNotification(updateData);
+          } else {
+            // Create new planned time notification
+            const notificationData = {
+              task_id: taskId,
+              taskId: taskId,
+              time: plannedTime,
+              type: 'PLANNED_TIME',
+              message: `It's time to work on: ${taskName}`
+            };
+            
+            console.log('Creating new planned time notification:', notificationData);
+            await window.electron.addNotification(notificationData);
+          }
+        } catch (error) {
+          console.error('Error handling planned time notification:', error);
+        }
+      } else if (plannedTimeNotification.value) {
+        // If planned time was removed but we had a notification, delete it
+        try {
+          console.log(`Deleting planned time notification: ${plannedTimeNotification.value.id}`);
+          await window.electron.deleteNotification(plannedTimeNotification.value.id);
+        } catch (error) {
+          console.error('Error deleting planned time notification:', error);
+        }
+      }
       
       // Delete notifications that were removed
       for (const notificationId of notificationsToDelete.value) {
@@ -438,6 +580,7 @@ export default {
     return {
       formData,
       notifications,
+      currentDate,
       addNewNotification,
       removeNotification,
       saveTask

@@ -40,6 +40,15 @@ class Task {
       this.dueDate = null;
     }
     
+    // Handle planned time
+    if (data.plannedTime) {
+      this.plannedTime = new Date(data.plannedTime);
+    } else if (data.planned_time) {
+      this.plannedTime = new Date(data.planned_time);
+    } else {
+      this.plannedTime = null;
+    }
+    
     this.projectId = data.project_id || data.projectId || '';
     this.dependencies = data.dependencies ? this.parseDependencies(data.dependencies) : [];
     this.status = data.status || STATUS.PLANNING;
@@ -112,6 +121,7 @@ class Task {
       description: this.description,
       duration: this.duration,
       due_date: this.dueDate ? this.dueDate.toISOString() : null,
+      planned_time: this.plannedTime ? this.plannedTime.toISOString() : null,
       project_id: this.projectId,
       dependencies: JSON.stringify(this.dependencies),
       status: this.status,
@@ -143,6 +153,7 @@ class Task {
     if (data.description !== undefined) this.description = data.description;
     if (data.duration !== undefined) this.duration = data.duration;
     if (data.dueDate !== undefined) this.dueDate = data.dueDate;
+    if (data.plannedTime !== undefined) this.plannedTime = data.plannedTime;
     if (data.projectId !== undefined) this.projectId = data.projectId;
     if (data.dependencies !== undefined) this.dependencies = data.dependencies;
     if (data.status !== undefined) this.status = data.status;

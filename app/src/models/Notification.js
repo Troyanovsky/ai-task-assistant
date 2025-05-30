@@ -8,7 +8,8 @@ import { v4 as uuidv4 } from 'uuid';
 export const TYPE = {
   REMINDER: 'reminder',
   DUE_DATE: 'due_date',
-  STATUS_CHANGE: 'status_change'
+  STATUS_CHANGE: 'status_change',
+  PLANNED_TIME: 'PLANNED_TIME'
 };
 
 class Notification {

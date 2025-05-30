@@ -104,6 +104,14 @@
             {{ formatDate(task.dueDate) }}
           </span>
           
+          <!-- Planned Time -->
+          <span v-if="task.plannedTime" class="inline-flex items-center text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {{ formatDateTime(task.plannedTime) }}
+          </span>
+          
           <!-- Priority -->
           <span class="inline-flex items-center text-xs px-2 py-0.5 rounded" :class="priorityClasses">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -187,7 +195,9 @@ export default {
       try {
         // Fetch notifications for this task
         const notifications = await window.electron.getNotificationsByTask(props.task.id);
-        notificationCount.value = notifications ? notifications.length : 0;
+        // Exclude planned time notifications from the count shown in UI
+        const regularNotifications = notifications.filter(n => n.type !== 'PLANNED_TIME');
+        notificationCount.value = regularNotifications ? regularNotifications.length : 0;
       } catch (error) {
         console.error('Error fetching task notifications:', error);
       }
@@ -261,6 +271,31 @@ export default {
       const date = new Date(dateString);
       return date.toLocaleDateString();
     };
+    
+    const formatDateTime = (dateTimeString) => {
+      const date = new Date(dateTimeString);
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      // Format time
+      const timeOptions = { hour: 'numeric', minute: '2-digit' };
+      const timeStr = date.toLocaleTimeString(undefined, timeOptions);
+      
+      // Check if it's today
+      if (date.toDateString() === today.toDateString()) {
+        return `Today, ${timeStr}`;
+      }
+      
+      // Check if it's tomorrow
+      if (date.toDateString() === tomorrow.toDateString()) {
+        return `Tomorrow, ${timeStr}`;
+      }
+      
+      // Otherwise, show date and time
+      const dateOptions = { month: 'short', day: 'numeric' };
+      return `${date.toLocaleDateString(undefined, dateOptions)}, ${timeStr}`;
+    };
 
     const formatDuration = (minutes) => {
       if (minutes < 60) {
@@ -287,6 +322,7 @@ export default {
       toggleStatus,
       moveTaskToProject,
       formatDate,
+      formatDateTime,
       formatDuration,
       capitalizeFirst
     };

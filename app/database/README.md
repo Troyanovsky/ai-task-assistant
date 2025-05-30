@@ -29,6 +29,7 @@ Stores information about tasks.
 | description  | TEXT    | Task description                 |
 | duration     | INTEGER | Task duration in minutes         |
 | due_date     | TEXT    | Due date (ISO string)            |
+| planned_time | TEXT    | Planned time (ISO string)        |
 | project_id   | TEXT    | Foreign key to projects.id       |
 | dependencies | TEXT    | JSON array of task IDs           |
 | status       | TEXT    | Task status (planning/doing/done)|
@@ -49,6 +50,13 @@ Stores information about task notifications.
 | type       | TEXT    | Notification type                |
 | message    | TEXT    | Notification message             |
 | created_at | TEXT    | Creation timestamp (ISO string)  |
+
+#### Notification Types
+
+The application uses these notification types:
+
+- `REMINDER`: Standard notification reminder for a task
+- `PLANNED_TIME`: Notification automatically created when a task's planned time is set
 
 ### Recurrence Rules
 

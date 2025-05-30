@@ -122,6 +122,13 @@ const actions = {
         dbData.project_id = taskData.projectId;
       }
       
+      // Ensure planned_time is set correctly
+      if (taskData.plannedTime) {
+        dbData.planned_time = typeof taskData.plannedTime === 'string'
+          ? taskData.plannedTime
+          : taskData.plannedTime.toISOString();
+      }
+      
       console.log('Task data to be saved:', dbData);
       
       // In Electron, we would use IPC to communicate with the main process
@@ -172,6 +179,11 @@ const actions = {
       // Ensure due_date is explicitly set, even if null
       if (task.dueDate !== undefined) {
         dbData.due_date = task.dueDate ? new Date(task.dueDate).toISOString() : null;
+      }
+      
+      // Ensure planned_time is explicitly set, even if null
+      if (task.plannedTime !== undefined) {
+        dbData.planned_time = task.plannedTime ? new Date(task.plannedTime).toISOString() : null;
       }
       
       console.log('Task data to be updated:', dbData);

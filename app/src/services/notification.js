@@ -336,6 +336,8 @@ class NotificationManager {
         return `Task due soon: ${taskName}`;
       case TYPE.STATUS_CHANGE:
         return `Status changed for task: ${taskName}`;
+      case TYPE.PLANNED_TIME:
+        return `It's time to work on: ${taskName}`;
       default:
         return `Notification for task: ${taskName}`;
     }

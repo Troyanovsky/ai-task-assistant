@@ -97,12 +97,12 @@ class TaskManager {
       
       const result = databaseService.insert(
         `INSERT INTO tasks (
-          id, name, description, duration, due_date, project_id, 
+          id, name, description, duration, due_date, planned_time, project_id, 
           dependencies, status, labels, priority, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           data.id, data.name, data.description, data.duration, data.due_date, 
-          data.project_id, data.dependencies, data.status, data.labels, 
+          data.planned_time, data.project_id, data.dependencies, data.status, data.labels, 
           data.priority, data.created_at, data.updated_at
         ]
       );
@@ -153,6 +153,13 @@ class TaskManager {
         task.dueDate = taskData.due_date ? new Date(taskData.due_date) : null;
       }
       
+      // Ensure plannedTime is properly handled
+      if (taskData.plannedTime !== undefined) {
+        task.plannedTime = taskData.plannedTime ? new Date(taskData.plannedTime) : null;
+      } else if (taskData.planned_time !== undefined) {
+        task.plannedTime = taskData.planned_time ? new Date(taskData.planned_time) : null;
+      }
+      
       // Validate the task
       const isValid = task.validate();
       if (!isValid) {
@@ -163,15 +170,16 @@ class TaskManager {
       const data = task.toDatabase();
       console.log('Updating task with database data:', data);
       console.log('Database due_date:', data.due_date);
+      console.log('Database planned_time:', data.planned_time);
       
       const result = databaseService.update(
         `UPDATE tasks SET 
-          name = ?, description = ?, duration = ?, due_date = ?, 
+          name = ?, description = ?, duration = ?, due_date = ?, planned_time = ?,
           project_id = ?, dependencies = ?, status = ?, labels = ?, 
           priority = ?, updated_at = ? 
         WHERE id = ?`,
         [
-          data.name, data.description, data.duration, data.due_date, 
+          data.name, data.description, data.duration, data.due_date, data.planned_time,
           data.project_id, data.dependencies, data.status, data.labels, 
           data.priority, data.updated_at, data.id
         ]

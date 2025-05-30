@@ -20,6 +20,7 @@ const schema = {
       description TEXT,
       duration INTEGER,
       due_date TEXT,
+      planned_time TEXT,
       project_id TEXT NOT NULL,
       dependencies TEXT,
       status TEXT NOT NULL,
