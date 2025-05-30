@@ -9,6 +9,9 @@ import notificationService from './src/services/notification.js';
 import { setupIpcHandlers } from './electron-main/ipcHandlers.js';
 import aiService from './electron-main/aiService.js';
 
+// Set application name for notifications
+app.setName('FokusZeit');
+
 // ES Module equivalent for __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

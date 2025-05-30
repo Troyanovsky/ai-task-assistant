@@ -1,5 +1,6 @@
 {
-  "name": "ai-task-assistant",
+  "name": "fokus-zeit",
+  "productName": "FokusZeit",
   "private": true,
   "version": "0.0.0",
   "type": "module",
