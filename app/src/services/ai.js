@@ -38,11 +38,20 @@ class AIService {
     try {
       // Add current date and time to the context
       const now = new Date();
-      const dateTimeInfo = `<current_datetime>${now.toISOString()}</current_datetime>\n`;
+      const localTimeString = now.toLocaleString();
+      const dateTimeInfo = `<current_datetime>${now.toISOString()}</current_datetime>\n<local_datetime>${localTimeString}</local_datetime>\n`;
       const enhancedUserInput = dateTimeInfo + userInput;
+
+      const systemMessage = "You're FokusZeit, an AI task assistant. \
+      Use the tools provided to you to help the user with their tasks. \
+      For some tasks, you may need to execute multiple tools in a row to find info that the user didn't provide. \
+      For example, if the user didn't provide task id, you can look for tasks in projects first. \
+      ";
 
       // Format chat history for the API
       const messages = [
+        // Add system message
+        { role: 'system', content: systemMessage },
         ...chatHistory.map(msg => ({
           role: msg.sender === 'user' ? 'user' : 'assistant',
           content: msg.text

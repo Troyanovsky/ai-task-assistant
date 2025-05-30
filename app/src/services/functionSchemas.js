@@ -25,7 +25,7 @@ export const functionSchemas = [
           dueDate: { 
             type: "string", 
             format: "date-time",
-            description: "Due date for the task in ISO format"
+            description: "Due date for the task in ISO format (YYYY-MM-DDTHH:MM:SS.sssZ). You can interpret user's local time and convert appropriately."
           },
           projectId: { 
             type: "string",
@@ -78,7 +78,7 @@ export const functionSchemas = [
           dueDate: { 
             type: "string", 
             format: "date-time",
-            description: "Due date for the task in ISO format"
+            description: "Due date for the task in ISO format (YYYY-MM-DDTHH:MM:SS.sssZ). You can interpret user's local time and convert appropriately."
           },
           projectId: { 
             type: "string",
