@@ -334,7 +334,19 @@ export default {
       };
       
       // Set due date if provided
-      taskData.dueDate = formData.dueDate ? new Date(formData.dueDate).toISOString() : null;
+      if (formData.dueDate) {
+        // Create date object with noon time (12:00) to avoid timezone issues
+        const [year, month, day] = formData.dueDate.split('-');
+        const dueDate = new Date(
+          parseInt(year, 10),
+          parseInt(month, 10) - 1, // Month is 0-indexed
+          parseInt(day, 10),
+          12, 0, 0 // Set to 12:00:00 (noon) to avoid timezone issues
+        );
+        taskData.dueDate = dueDate.toISOString().split('T')[0] + 'T12:00:00.000Z';
+      } else {
+        taskData.dueDate = null;
+      }
       
       // Set planned time if both date and time are provided
       if (formData.plannedDate && formData.plannedTime) {

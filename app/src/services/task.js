@@ -148,9 +148,21 @@ class TaskManager {
       
       // Ensure dueDate is properly handled
       if (taskData.dueDate !== undefined) {
-        task.dueDate = taskData.dueDate ? new Date(taskData.dueDate) : null;
+        if (taskData.dueDate) {
+          const date = new Date(taskData.dueDate);
+          // Set time to 12:00:00 (noon) to avoid timezone issues
+          task.dueDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
+        } else {
+          task.dueDate = null;
+        }
       } else if (taskData.due_date !== undefined) {
-        task.dueDate = taskData.due_date ? new Date(taskData.due_date) : null;
+        if (taskData.due_date) {
+          const date = new Date(taskData.due_date);
+          // Set time to 12:00:00 (noon) to avoid timezone issues
+          task.dueDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
+        } else {
+          task.dueDate = null;
+        }
       }
       
       // Ensure plannedTime is properly handled
@@ -300,12 +312,20 @@ class TaskManager {
   async getTasksDueSoon() {
     try {
       const now = new Date();
-      const tomorrow = new Date(now);
+      // Set today to noon
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
+      
+      // Set tomorrow to noon of next day
+      const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      // Convert to ISO string format used for date-only storage
+      const todayStr = today.toISOString().split('T')[0] + 'T12:00:00.000Z';
+      const tomorrowStr = tomorrow.toISOString().split('T')[0] + 'T12:00:00.000Z';
 
       const tasks = databaseService.query(
         'SELECT * FROM tasks WHERE due_date BETWEEN ? AND ? ORDER BY due_date ASC',
-        [now.toISOString(), tomorrow.toISOString()]
+        [todayStr, tomorrowStr]
       );
       return tasks.map(task => Task.fromDatabase(task));
     } catch (error) {
@@ -321,10 +341,14 @@ class TaskManager {
   async getOverdueTasks() {
     try {
       const now = new Date();
+      // Set today to noon
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
+      // Convert to ISO string format used for date-only storage
+      const todayStr = today.toISOString().split('T')[0] + 'T12:00:00.000Z';
       
       const tasks = databaseService.query(
         'SELECT * FROM tasks WHERE due_date < ? AND status != ? ORDER BY due_date ASC',
-        [now.toISOString(), STATUS.DONE]
+        [todayStr, STATUS.DONE]
       );
       return tasks.map(task => Task.fromDatabase(task));
     } catch (error) {

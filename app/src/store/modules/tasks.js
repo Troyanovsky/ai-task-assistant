@@ -178,7 +178,17 @@ const actions = {
       
       // Ensure due_date is explicitly set, even if null
       if (task.dueDate !== undefined) {
-        dbData.due_date = task.dueDate ? new Date(task.dueDate).toISOString() : null;
+        // Store date without time component
+        if (task.dueDate) {
+          const date = new Date(task.dueDate);
+          const year = date.getFullYear();
+          const month = date.getMonth();
+          const day = date.getDate();
+          const dateOnly = new Date(year, month, day, 12, 0, 0);
+          dbData.due_date = dateOnly.toISOString().split('T')[0] + 'T12:00:00.000Z';
+        } else {
+          dbData.due_date = null;
+        }
       }
       
       // Ensure planned_time is explicitly set, even if null

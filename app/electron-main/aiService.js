@@ -3,6 +3,8 @@ import Store from 'electron-store';
 import Project from '../src/models/Project.js';
 import projectManager from '../src/services/project.js';
 import taskManager from '../src/services/task.js';
+import notificationService from '../src/services/notification.js';
+import { Notification, TYPE } from '../src/models/Notification.js';
 
 // Initialize persistent store
 const store = new Store({
@@ -124,7 +126,7 @@ async function sendMessage(message, mainWindow) {
     // Add current date and time to the context
     const now = new Date();
     const localTimeString = now.toLocaleString();
-    const dateTimeInfo = `<current_datetime>${now.toISOString()}</current_datetime>\n<local_datetime>${localTimeString}</local_datetime>\n`;
+    const dateTimeInfo = `<current_datetime>${localTimeString}</current_datetime>\n`;
 
     // Prepend projects info and date/time to the user message
     const enhancedMessage = projectsInfo + dateTimeInfo + message;
@@ -190,6 +192,17 @@ async function sendMessage(message, mainWindow) {
           if (functionCall.name === 'addTask' || functionCall.name === 'updateTask' || functionCall.name === 'deleteTask') {
             mainWindow.webContents.send('tasks:refresh');
           }
+          
+          if (functionCall.name === 'addNotification' || functionCall.name === 'updateNotification' || functionCall.name === 'deleteNotification') {
+            mainWindow.webContents.send('notifications:refresh');
+            
+            // If we have a taskId, also send the notifications:changed event
+            if (result.notification && result.notification.taskId) {
+              mainWindow.webContents.send('notifications:changed', result.notification.taskId);
+            } else if (result.taskId) {
+              mainWindow.webContents.send('notifications:changed', result.taskId);
+            }
+          }
         }
       }
       
@@ -254,6 +267,17 @@ async function sendMessage(message, mainWindow) {
             if (nestedFunctionCall.name === 'addTask' || nestedFunctionCall.name === 'updateTask' || nestedFunctionCall.name === 'deleteTask') {
               mainWindow.webContents.send('tasks:refresh');
             }
+            
+            if (nestedFunctionCall.name === 'addNotification' || nestedFunctionCall.name === 'updateNotification' || nestedFunctionCall.name === 'deleteNotification') {
+              mainWindow.webContents.send('notifications:refresh');
+              
+              // If we have a taskId, also send the notifications:changed event
+              if (nestedResult.notification && nestedResult.notification.taskId) {
+                mainWindow.webContents.send('notifications:changed', nestedResult.notification.taskId);
+              } else if (nestedResult.taskId) {
+                mainWindow.webContents.send('notifications:changed', nestedResult.taskId);
+              }
+            }
           }
         }
         
@@ -308,8 +332,8 @@ async function processWithLLM(userInput, functionResults = null) {
     const functionSchemas = functionSchemasModule.default;
     
     const systemMessage = "You're FokusZeit, an AI task assistant. \
-    Use the tools provided to you to help the user with their tasks. \
-    For some tasks, you may need to execute multiple tools in a row to find info that the user didn't provide. \
+    Use the tools provided to you to help the user with their task & project management. \
+    For some queries, you may need to execute multiple tools in a row to find info that the user didn't provide. \
     For example, if the user didn't provide task id, you can look for tasks in projects first. \
     ";
 
@@ -366,7 +390,7 @@ async function processWithLLM(userInput, functionResults = null) {
           // Add current date and time
           const now = new Date();
           const localTimeString = now.toLocaleString();
-          const dateTimeInfo = `<current_datetime>${now.toISOString()}</current_datetime>\n<local_datetime>${localTimeString}</local_datetime>\n`;
+          const dateTimeInfo = `<current_datetime>${localTimeString}</current_datetime>\n`;
           
           // Add a system message with project information and date/time for context
           messages.push({
@@ -474,14 +498,31 @@ async function executeFunctionCall(functionCall) {
           }
         }
         
-        // Ensure dueDate is in proper ISO format if provided
+        // Convert local date string to ISO format if provided
         if (args.dueDate && typeof args.dueDate === 'string') {
           try {
-            // Create a Date object and convert to ISO string
-            const dueDate = new Date(args.dueDate);
-            args.dueDate = dueDate.toISOString();
+            // Try parsing as ISO first
+            let dueDate = new Date(args.dueDate);
+            
+            // If invalid or looks like a local date format, try parsing it as a local date
+            if (isNaN(dueDate) || !args.dueDate.includes('T')) {
+              // This is likely a local date format
+              console.log(`Converting local date format: ${args.dueDate}`);
+              dueDate = new Date(args.dueDate);
+            }
+            
+            if (!isNaN(dueDate)) {
+              // Store only the date part with noon time to avoid timezone issues
+              const year = dueDate.getFullYear();
+              const month = dueDate.getMonth();
+              const day = dueDate.getDate();
+              const dateOnly = new Date(year, month, day, 12, 0, 0);
+              args.dueDate = dateOnly.toISOString().split('T')[0] + 'T12:00:00.000Z';
+            } else {
+              console.log(`Invalid date format: ${args.dueDate}`);
+            }
           } catch (error) {
-            console.log(`Invalid date format for due date: ${args.dueDate}`);
+            console.log(`Error parsing due date: ${args.dueDate}`, error);
           }
         }
         
@@ -494,14 +535,31 @@ async function executeFunctionCall(functionCall) {
         };
         
       case 'updateTask':
-        // Ensure dueDate is in proper ISO format if provided
+        // Convert local date string to ISO format if provided
         if (args.dueDate && typeof args.dueDate === 'string') {
           try {
-            // Create a Date object and convert to ISO string
-            const dueDate = new Date(args.dueDate);
-            args.dueDate = dueDate.toISOString();
+            // Try parsing as ISO first
+            let dueDate = new Date(args.dueDate);
+            
+            // If invalid or looks like a local date format, try parsing it as a local date
+            if (isNaN(dueDate) || !args.dueDate.includes('T')) {
+              // This is likely a local date format
+              console.log(`Converting local date format: ${args.dueDate}`);
+              dueDate = new Date(args.dueDate);
+            }
+            
+            if (!isNaN(dueDate)) {
+              // Store only the date part with noon time to avoid timezone issues
+              const year = dueDate.getFullYear();
+              const month = dueDate.getMonth();
+              const day = dueDate.getDate();
+              const dateOnly = new Date(year, month, day, 12, 0, 0);
+              args.dueDate = dateOnly.toISOString().split('T')[0] + 'T12:00:00.000Z';
+            } else {
+              console.log(`Invalid date format: ${args.dueDate}`);
+            }
           } catch (error) {
-            console.log(`Invalid date format for due date: ${args.dueDate}`);
+            console.log(`Error parsing due date: ${args.dueDate}`, error);
           }
         }
         
@@ -584,23 +642,147 @@ async function executeFunctionCall(functionCall) {
         
       case 'updateProject':
         const updatedProject = new Project(args);
-        const updateResult = await projectManager.updateProject(updatedProject);
+        const updateProjectResult = await projectManager.updateProject(updatedProject);
         return {
-          success: updateResult,
+          success: updateProjectResult,
           projectId: updatedProject.id,
-          message: updateResult 
+          message: updateProjectResult 
             ? `Project "${args.name}" (ID: ${updatedProject.id}) has been updated.`
             : `Failed to update project "${args.name}" (ID: ${updatedProject.id}).`
         };
         
       case 'deleteProject':
-        const deleteResult = await projectManager.deleteProject(args.id);
+        const deleteProjectResult = await projectManager.deleteProject(args.id);
         return {
-          success: deleteResult,
+          success: deleteProjectResult,
           projectId: args.id,
-          message: deleteResult
+          message: deleteProjectResult
             ? `Project with ID ${args.id} has been deleted.`
             : `Failed to delete project with ID ${args.id}.`
+        };
+        
+      case 'addNotification':
+        // Convert local time string to ISO format if provided
+        if (args.time && typeof args.time === 'string') {
+          try {
+            // Try parsing as ISO first
+            let notificationTime = new Date(args.time);
+            
+            // If invalid or looks like a local date format, try parsing it as a local date
+            if (isNaN(notificationTime) || !args.time.includes('T')) {
+              // This is likely a local date format
+              console.log(`Converting local date format for notification: ${args.time}`);
+              notificationTime = new Date(args.time);
+            }
+            
+            if (!isNaN(notificationTime)) {
+              args.time = notificationTime.toISOString();
+            } else {
+              console.log(`Invalid date format for notification: ${args.time}`);
+              return {
+                success: false,
+                error: `Invalid date format for notification time: ${args.time}`,
+                message: `I couldn't create the notification because the time format is invalid.`
+              };
+            }
+          } catch (error) {
+            console.log(`Error parsing notification time: ${args.time}`, error);
+            return {
+              success: false,
+              error: `Invalid date format for notification time: ${args.time}`,
+              message: `I couldn't create the notification because the time format is invalid.`
+            };
+          }
+        }
+        
+        // Validate notification type
+        if (!Object.values(TYPE).includes(args.type)) {
+          return {
+            success: false,
+            error: `Invalid notification type: ${args.type}`,
+            message: `I couldn't create the notification because "${args.type}" is not a valid notification type. Valid types are: ${Object.values(TYPE).join(', ')}`
+          };
+        }
+        
+        // Create notification
+        const notification = new Notification({
+          taskId: args.taskId,
+          time: args.time,
+          type: args.type,
+          message: args.message || ''
+        });
+        
+        const addResult = await notificationService.addNotification(notification);
+        return { 
+          success: addResult,
+          notification,
+          notificationId: notification.id,
+          message: addResult 
+            ? `Notification has been created for task ${args.taskId}.`
+            : `Failed to create notification for task ${args.taskId}.`
+        };
+        
+      case 'updateNotification':
+        // Convert local time string to ISO format if provided
+        if (args.time && typeof args.time === 'string') {
+          try {
+            // Try parsing as ISO first
+            let notificationTime = new Date(args.time);
+            
+            // If invalid or looks like a local date format, try parsing it as a local date
+            if (isNaN(notificationTime) || !args.time.includes('T')) {
+              // This is likely a local date format
+              console.log(`Converting local date format for notification: ${args.time}`);
+              notificationTime = new Date(args.time);
+            }
+            
+            if (!isNaN(notificationTime)) {
+              args.time = notificationTime.toISOString();
+            } else {
+              console.log(`Invalid date format for notification: ${args.time}`);
+            }
+          } catch (error) {
+            console.log(`Error parsing notification time: ${args.time}`, error);
+          }
+        }
+        
+        // Validate notification type if provided
+        if (args.type && !Object.values(TYPE).includes(args.type)) {
+          return {
+            success: false,
+            error: `Invalid notification type: ${args.type}`,
+            message: `I couldn't update the notification because "${args.type}" is not a valid notification type. Valid types are: ${Object.values(TYPE).join(', ')}`
+          };
+        }
+        
+        const updateNotificationResult = await notificationService.updateNotification(args);
+        return {
+          success: updateNotificationResult,
+          notificationId: args.id,
+          message: updateNotificationResult
+            ? `Notification ${args.id} has been updated.`
+            : `Failed to update notification ${args.id}.`
+        };
+        
+      case 'deleteNotification':
+        const deleteNotificationResult = await notificationService.deleteNotification(args.id);
+        return {
+          success: deleteNotificationResult,
+          notificationId: args.id,
+          message: deleteNotificationResult
+            ? `Notification with ID ${args.id} has been deleted.`
+            : `Failed to delete notification with ID ${args.id}.`
+        };
+        
+      case 'getNotificationsByTask':
+        const notifications = await notificationService.getNotificationsByTask(args.taskId);
+        return { 
+          success: true, 
+          notifications,
+          notificationIds: notifications.map(notification => notification.id),
+          message: notifications.length > 0 
+            ? `Found ${notifications.length} notifications for task ${args.taskId}.` 
+            : `No notifications found for task ${args.taskId}.`
         };
         
       default:

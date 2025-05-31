@@ -1,4 +1,7 @@
 Issues:
+- Revise function schemas & info passed to AI.
+- Check when we delte tasks, related notifications are deleted; when we delete projects, related tasks are deleted.
+- when we pass planned time for tasks, notification time for notifications to the AI, we only pass local time to the AI, not the ISO time saved in our database.
 - Modify query projects/tasks/notifications (and schemas exposed to AI) for flexible filtering and handling optional paramters with default values.
     - query functions should be flexible with params for task/proj/notifications.
     - Pay attention to AI created tasks & their notifications.

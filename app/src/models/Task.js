@@ -33,9 +33,13 @@ class Task {
     
     // Fix: Handle dueDate properly, checking both snake_case and camelCase properties
     if (data.dueDate) {
-      this.dueDate = new Date(data.dueDate);
+      const date = new Date(data.dueDate);
+      // Set time to 12:00:00 to avoid timezone issues when converting to ISO string
+      this.dueDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
     } else if (data.due_date) {
-      this.dueDate = new Date(data.due_date);
+      const date = new Date(data.due_date);
+      // Set time to 12:00:00 to avoid timezone issues when converting to ISO string
+      this.dueDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
     } else {
       this.dueDate = null;
     }
@@ -120,7 +124,7 @@ class Task {
       name: this.name,
       description: this.description,
       duration: this.duration,
-      due_date: this.dueDate ? this.dueDate.toISOString() : null,
+      due_date: this.dueDate ? this.dueDate.toISOString().split('T')[0] + 'T12:00:00.000Z' : null,
       planned_time: this.plannedTime ? this.plannedTime.toISOString() : null,
       project_id: this.projectId,
       dependencies: JSON.stringify(this.dependencies),

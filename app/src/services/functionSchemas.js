@@ -25,7 +25,7 @@ export const functionSchemas = [
           dueDate: { 
             type: "string", 
             format: "date-time",
-            description: "Due date for the task in ISO format (YYYY-MM-DDTHH:MM:SS.sssZ). You can interpret user's local time and convert appropriately."
+            description: "Due date for the task. Provide in a standard format like 'YYYY-MM-DD', '5/31/2023', or 'May 31, 2023'. The system will convert to proper format."
           },
           projectId: { 
             type: "string",
@@ -78,7 +78,7 @@ export const functionSchemas = [
           dueDate: { 
             type: "string", 
             format: "date-time",
-            description: "Due date for the task in ISO format (YYYY-MM-DDTHH:MM:SS.sssZ). You can interpret user's local time and convert appropriately."
+            description: "Due date for the task. Provide in a standard format like 'YYYY-MM-DD', '5/31/2023', or 'May 31, 2023'. The system will convert to proper format."
           },
           projectId: { 
             type: "string",
@@ -218,6 +218,106 @@ export const functionSchemas = [
           }
         },
         required: ["id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "addNotification",
+      description: "Add a new notification for a task",
+      parameters: {
+        type: "object",
+        properties: {
+          taskId: { 
+            type: "string",
+            description: "ID of the task this notification is for"
+          },
+          time: { 
+            type: "string", 
+            format: "date-time",
+            description: "Time when the notification should trigger. Provide in a standard format like 'YYYY-MM-DD', '5/31/2023 15:30', or 'May 31, 2023 15:30'. The system will convert to proper format."
+          },
+          type: { 
+            type: "string", 
+            enum: ["reminder", "due_date", "status_change", "PLANNED_TIME"],
+            description: "Type of notification"
+          },
+          message: { 
+            type: "string",
+            description: "Custom message for the notification (optional, a default will be used if not provided)"
+          }
+        },
+        required: ["taskId", "time", "type"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "updateNotification",
+      description: "Update an existing notification",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { 
+            type: "string",
+            description: "ID of the notification to update"
+          },
+          taskId: { 
+            type: "string",
+            description: "ID of the task this notification is for"
+          },
+          time: { 
+            type: "string", 
+            format: "date-time",
+            description: "Time when the notification should trigger. Provide in a standard format like '5/31/2023 15:30', or 'May 31, 2023 15:30'. The system will convert to proper format."
+          },
+          type: { 
+            type: "string", 
+            enum: ["reminder", "due_date", "status_change", "PLANNED_TIME"],
+            description: "Type of notification"
+          },
+          message: { 
+            type: "string",
+            description: "Custom message for the notification"
+          }
+        },
+        required: ["id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "deleteNotification",
+      description: "Delete a notification",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { 
+            type: "string",
+            description: "ID of the notification to delete"
+          }
+        },
+        required: ["id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "getNotificationsByTask",
+      description: "Get all notifications for a specific task",
+      parameters: {
+        type: "object",
+        properties: {
+          taskId: { 
+            type: "string",
+            description: "ID of the task to get notifications for"
+          }
+        },
+        required: ["taskId"]
       }
     }
   }
