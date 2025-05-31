@@ -27,6 +27,11 @@ export const functionSchemas = [
             format: "date-time",
             description: "Due date for the task. Provide in a standard format like 'YYYY-MM-DD', '5/31/2023', or 'May 31, 2023'. The system will convert to proper format."
           },
+          plannedTime: {
+            type: "string",
+            format: "date-time",
+            description: "Planned time to work on the task. Provide in a standard format like 'YYYY-MM-DD HH:MM', '5/31/2023 15:30', or 'May 31, 2023 3:30 PM'."
+          },
           projectId: { 
             type: "string",
             description: "ID of the project this task belongs to"
@@ -80,6 +85,11 @@ export const functionSchemas = [
             format: "date-time",
             description: "Due date for the task. Provide in a standard format like 'YYYY-MM-DD', '5/31/2023', or 'May 31, 2023'. The system will convert to proper format."
           },
+          plannedTime: {
+            type: "string",
+            format: "date-time",
+            description: "Planned time to work on the task. Provide in a standard format like 'YYYY-MM-DD HH:MM', '5/31/2023 15:30', or 'May 31, 2023 3:30 PM'."
+          },
           projectId: { 
             type: "string",
             description: "ID of the project this task belongs to"
@@ -124,24 +134,69 @@ export const functionSchemas = [
   {
     type: "function",
     function: {
-      name: "getTasks",
-      description: "Get tasks with optional filtering",
+      name: "queryTasks",
+      description: "Retrieve a list of tasks based on various filter criteria and limit",
       parameters: {
         type: "object",
         properties: {
-          projectId: { 
+          ids: {
+            type: "array",
+            items: { type: "string" },
+            description: "A list of specific task IDs to retrieve"
+          },
+          nameContains: {
             type: "string",
-            description: "Filter tasks by project ID"
+            description: "Filter tasks where the name contains this substring (case-insensitive)"
           },
-          status: { 
-            type: "string", 
-            enum: ["planning", "doing", "done"],
-            description: "Filter tasks by status"
+          descriptionContains: {
+            type: "string",
+            description: "Filter tasks where the description contains this substring (case-insensitive)"
           },
-          priority: { 
-            type: "string", 
-            enum: ["low", "medium", "high"],
-            description: "Filter tasks by priority"
+          projectIds: {
+            type: "array",
+            items: { type: "string" },
+            description: "Filter tasks belonging to one or more specified project IDs"
+          },
+          statuses: {
+            type: "array",
+            items: { 
+              type: "string",
+              enum: ["planning", "doing", "done"]
+            },
+            description: "Filter tasks by one or more statuses"
+          },
+          priorities: {
+            type: "array",
+            items: { 
+              type: "string",
+              enum: ["low", "medium", "high"]
+            },
+            description: "Filter tasks by one or more priority levels"
+          },
+          dueDateStart: {
+            type: "string",
+            format: "date",
+            description: "Filter tasks with a due date on or after this date"
+          },
+          dueDateEnd: {
+            type: "string",
+            format: "date",
+            description: "Filter tasks with a due date on or before this date"
+          },
+          plannedTimeStart: {
+            type: "string",
+            format: "date-time",
+            description: "Filter tasks with a planned time on or after this date/time"
+          },
+          plannedTimeEnd: {
+            type: "string",
+            format: "date-time",
+            description: "Filter tasks with a planned time on or before this date/time"
+          },
+          limit: {
+            type: "number",
+            default: 20,
+            description: "Maximum number of tasks to return"
           }
         }
       }
@@ -307,17 +362,37 @@ export const functionSchemas = [
   {
     type: "function",
     function: {
-      name: "getNotificationsByTask",
-      description: "Get all notifications for a specific task",
+      name: "queryNotifications",
+      description: "Retrieve a list of notifications based on various filter criteria and limit",
       parameters: {
         type: "object",
         properties: {
-          taskId: { 
+          ids: {
+            type: "array",
+            items: { type: "string" },
+            description: "A list of specific notification IDs to retrieve"
+          },
+          taskIds: {
+            type: "array",
+            items: { type: "string" },
+            description: "Filter notifications associated with one or more specified task IDs"
+          },
+          timeStart: {
             type: "string",
-            description: "ID of the task to get notifications for"
+            format: "date-time",
+            description: "Filter notifications scheduled to trigger on or after this time"
+          },
+          timeEnd: {
+            type: "string",
+            format: "date-time",
+            description: "Filter notifications scheduled to trigger on or before this time"
+          },
+          limit: {
+            type: "number",
+            default: 20,
+            description: "Maximum number of notifications to return"
           }
-        },
-        required: ["taskId"]
+        }
       }
     }
   }

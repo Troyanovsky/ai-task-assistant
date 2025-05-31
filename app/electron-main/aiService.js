@@ -414,8 +414,12 @@ async function processWithLLM(userInput, functionResults = null) {
       tool_choice: 'auto'
     };
 
-    // Log raw API request
-    console.log('🔄 Electron Main Process - AI API Request:', JSON.stringify(requestPayload, null, 2));
+    // Log raw API request with tools omitted for brevity
+    const loggablePayload = {
+      model: requestPayload.model,
+      messages: requestPayload.messages
+    };
+    console.log('🔄 Electron Main Process - AI API Request:', JSON.stringify(loggablePayload, null, 2));
 
     // Make API request
     const response = await axios.post(
@@ -470,6 +474,7 @@ async function processWithLLM(userInput, functionResults = null) {
  * @returns {Promise<Object>} - Result of the function execution
  */
 async function executeFunctionCall(functionCall) {
+  console.log('🔄 Electron Main Process - Executing function call:', functionCall);
   const { id, name, arguments: args } = functionCall;
   
   try {
@@ -526,6 +531,29 @@ async function executeFunctionCall(functionCall) {
           }
         }
         
+        // Convert local time string to ISO format if provided for plannedTime
+        if (args.plannedTime && typeof args.plannedTime === 'string') {
+          try {
+            // Try parsing as ISO first
+            let plannedTime = new Date(args.plannedTime);
+            
+            // If invalid or looks like a local date format, try parsing it as a local date
+            if (isNaN(plannedTime) || !args.plannedTime.includes('T')) {
+              // This is likely a local date format
+              console.log(`Converting local date format for planned time: ${args.plannedTime}`);
+              plannedTime = new Date(args.plannedTime);
+            }
+            
+            if (!isNaN(plannedTime)) {
+              args.plannedTime = plannedTime.toISOString();
+            } else {
+              console.log(`Invalid date format for planned time: ${args.plannedTime}`);
+            }
+          } catch (error) {
+            console.log(`Error parsing planned time: ${args.plannedTime}`, error);
+          }
+        }
+        
         const task = await taskManager.addTask(args);
         return { 
           success: true, 
@@ -563,6 +591,29 @@ async function executeFunctionCall(functionCall) {
           }
         }
         
+        // Convert local time string to ISO format if provided for plannedTime
+        if (args.plannedTime && typeof args.plannedTime === 'string') {
+          try {
+            // Try parsing as ISO first
+            let plannedTime = new Date(args.plannedTime);
+            
+            // If invalid or looks like a local date format, try parsing it as a local date
+            if (isNaN(plannedTime) || !args.plannedTime.includes('T')) {
+              // This is likely a local date format
+              console.log(`Converting local date format for planned time: ${args.plannedTime}`);
+              plannedTime = new Date(args.plannedTime);
+            }
+            
+            if (!isNaN(plannedTime)) {
+              args.plannedTime = plannedTime.toISOString();
+            } else {
+              console.log(`Invalid date format for planned time: ${args.plannedTime}`);
+            }
+          } catch (error) {
+            console.log(`Error parsing planned time: ${args.plannedTime}`, error);
+          }
+        }
+        
         await taskManager.updateTask(args);
         return { 
           success: true,
@@ -579,6 +630,7 @@ async function executeFunctionCall(functionCall) {
         };
         
       case 'getTasks':
+        // Legacy function for backward compatibility
         let tasks = await taskManager.getTasks();
         
         if (args.projectId) {
@@ -616,6 +668,196 @@ async function executeFunctionCall(functionCall) {
           taskIds: tasks.map(task => task.id),
           message: tasks.length > 0 
             ? `Found ${tasks.length} tasks.` 
+            : 'No tasks found matching your criteria.'
+        };
+
+      case 'queryTasks':
+        // Start with all tasks
+        let allTasks = await taskManager.getTasks();
+        console.log(`QueryTasks - Found ${allTasks.length} total tasks`);
+        allTasks.forEach(task => {
+          if (task.dueDate) {
+            console.log(`Task ${task.id} - ${task.name} - Due date: ${task.dueDate} (${new Date(task.dueDate).toLocaleString()})`);
+          }
+        });
+        
+        let filteredTasks = [...allTasks];
+        let filteringApplied = false;
+        
+        // Filter by specific IDs if provided
+        if (args.ids && Array.isArray(args.ids) && args.ids.length > 0) {
+          filteredTasks = filteredTasks.filter(task => args.ids.includes(task.id));
+          filteringApplied = true;
+        }
+        
+        // Filter by name substring
+        if (args.nameContains) {
+          filteredTasks = filteredTasks.filter(task => 
+            task.name.toLowerCase().includes(args.nameContains.toLowerCase())
+          );
+          filteringApplied = true;
+        }
+        
+        // Filter by description substring
+        if (args.descriptionContains) {
+          filteredTasks = filteredTasks.filter(task => 
+            task.description && task.description.toLowerCase().includes(args.descriptionContains.toLowerCase())
+          );
+          filteringApplied = true;
+        }
+        
+        // Filter by project IDs
+        if (args.projectIds && Array.isArray(args.projectIds) && args.projectIds.length > 0) {
+          // Convert project names to IDs if needed
+          const projectIds = [];
+          for (const projectId of args.projectIds) {
+            if (typeof projectId === 'string' && !projectId.includes('-')) {
+              // This might be a project name, look it up
+              const projects = await projectManager.getProjects();
+              const project = projects.find(p => p.name.toLowerCase() === projectId.toLowerCase());
+              if (project) {
+                projectIds.push(project.id);
+              }
+            } else {
+              projectIds.push(projectId);
+            }
+          }
+          
+          filteredTasks = filteredTasks.filter(task => projectIds.includes(task.projectId));
+          filteringApplied = true;
+        }
+        
+        // Filter by statuses
+        if (args.statuses && Array.isArray(args.statuses) && args.statuses.length > 0) {
+          filteredTasks = filteredTasks.filter(task => args.statuses.includes(task.status));
+          filteringApplied = true;
+        }
+        
+        // Filter by priorities
+        if (args.priorities && Array.isArray(args.priorities) && args.priorities.length > 0) {
+          filteredTasks = filteredTasks.filter(task => args.priorities.includes(task.priority));
+          filteringApplied = true;
+        }
+        
+        // Filter by due date range
+        if (args.dueDateStart) {
+          try {
+            const startDate = new Date(args.dueDateStart);
+            console.log(`Filtering by due date start: ${args.dueDateStart} -> ${startDate.toLocaleString()}`);
+            
+            if (!isNaN(startDate)) {
+              // Set the start date to the beginning of the day (00:00:00)
+              startDate.setHours(0, 0, 0, 0);
+              console.log(`Adjusted start date: ${startDate.toLocaleString()}`);
+              
+              filteredTasks = filteredTasks.filter(task => {
+                if (!task.dueDate) return false;
+                
+                // Parse task due date
+                const taskDueDate = new Date(task.dueDate);
+                
+                // Compare dates ignoring time part
+                const result = taskDueDate >= startDate;
+                console.log(`  Task ${task.id} - ${task.name} - Due date: ${taskDueDate.toLocaleString()} >= ${startDate.toLocaleString()} = ${result}`);
+                return result;
+              });
+              
+              filteringApplied = true;
+            }
+          } catch (error) {
+            console.log(`Error parsing dueDateStart: ${args.dueDateStart}`, error);
+          }
+        }
+        
+        if (args.dueDateEnd) {
+          try {
+            const endDate = new Date(args.dueDateEnd);
+            console.log(`Filtering by due date end: ${args.dueDateEnd} -> ${endDate.toLocaleString()}`);
+            
+            if (!isNaN(endDate)) {
+              // Set the end date to the end of the day (23:59:59.999)
+              endDate.setHours(23, 59, 59, 999);
+              console.log(`Adjusted end date: ${endDate.toLocaleString()}`);
+              
+              filteredTasks = filteredTasks.filter(task => {
+                if (!task.dueDate) return false;
+                
+                // Parse task due date
+                const taskDueDate = new Date(task.dueDate);
+                
+                // Compare dates ignoring time part
+                const result = taskDueDate <= endDate;
+                console.log(`  Task ${task.id} - ${task.name} - Due date: ${taskDueDate.toLocaleString()} <= ${endDate.toLocaleString()} = ${result}`);
+                return result;
+              });
+              
+              filteringApplied = true;
+            }
+          } catch (error) {
+            console.log(`Error parsing dueDateEnd: ${args.dueDateEnd}`, error);
+          }
+        }
+        
+        // Filter by planned time range
+        if (args.plannedTimeStart) {
+          try {
+            const startTime = new Date(args.plannedTimeStart);
+            if (!isNaN(startTime)) {
+              filteredTasks = filteredTasks.filter(task => 
+                task.plannedTime && new Date(task.plannedTime) >= startTime
+              );
+              filteringApplied = true;
+            }
+          } catch (error) {
+            console.log(`Error parsing plannedTimeStart: ${args.plannedTimeStart}`, error);
+          }
+        }
+        
+        if (args.plannedTimeEnd) {
+          try {
+            const endTime = new Date(args.plannedTimeEnd);
+            if (!isNaN(endTime)) {
+              filteredTasks = filteredTasks.filter(task => 
+                task.plannedTime && new Date(task.plannedTime) <= endTime
+              );
+              filteringApplied = true;
+            }
+          } catch (error) {
+            console.log(`Error parsing plannedTimeEnd: ${args.plannedTimeEnd}`, error);
+          }
+        }
+        
+        // Apply limit if provided
+        const limit = args.limit || 20;
+        if (filteredTasks.length > limit) {
+          filteredTasks = filteredTasks.slice(0, limit);
+        }
+        
+        // Convert dates to local time format for AI readability
+        const formattedTasks = filteredTasks.map(task => {
+          const formattedTask = { ...task };
+          
+          // Convert dueDate to local date string if it exists
+          if (formattedTask.dueDate) {
+            const dueDate = new Date(formattedTask.dueDate);
+            formattedTask.dueDate = dueDate.toLocaleDateString();
+          }
+          
+          // Convert plannedTime to local time string if it exists
+          if (formattedTask.plannedTime) {
+            const plannedTime = new Date(formattedTask.plannedTime);
+            formattedTask.plannedTime = plannedTime.toLocaleString();
+          }
+          
+          return formattedTask;
+        });
+        
+        return {
+          success: true,
+          tasks: formattedTasks,
+          taskIds: formattedTasks.map(task => task.id),
+          message: formattedTasks.length > 0
+            ? `Found ${formattedTasks.length} tasks${filteringApplied ? ' matching your criteria' : ''}.${formattedTasks.length === limit ? ' (Result limit reached)' : ''}`
             : 'No tasks found matching your criteria.'
         };
         
@@ -783,6 +1025,126 @@ async function executeFunctionCall(functionCall) {
           message: notifications.length > 0 
             ? `Found ${notifications.length} notifications for task ${args.taskId}.` 
             : `No notifications found for task ${args.taskId}.`
+        };
+        
+      case 'queryNotifications':
+        // Start with all notifications
+        let allNotifications = await notificationService.getNotifications();
+        console.log(`QueryNotifications - Found ${allNotifications.length} total notifications`);
+        allNotifications.forEach(notification => {
+          if (notification.time) {
+            console.log(`Notification ${notification.id} - Task ID: ${notification.taskId} - Time: ${notification.time} (${new Date(notification.time).toLocaleString()})`);
+          }
+        });
+        
+        let filteredNotifications = [...allNotifications];
+        let notifFilteringApplied = false;
+        
+        // Filter by specific IDs if provided
+        if (args.ids && Array.isArray(args.ids) && args.ids.length > 0) {
+          filteredNotifications = filteredNotifications.filter(notification => 
+            args.ids.includes(notification.id)
+          );
+          notifFilteringApplied = true;
+        }
+        
+        // Filter by task IDs
+        if (args.taskIds && Array.isArray(args.taskIds) && args.taskIds.length > 0) {
+          filteredNotifications = filteredNotifications.filter(notification => 
+            args.taskIds.includes(notification.taskId)
+          );
+          notifFilteringApplied = true;
+        }
+        
+        // Filter by time range
+        if (args.timeStart) {
+          try {
+            const startTime = new Date(args.timeStart);
+            console.log(`Filtering notifications by time start: ${args.timeStart} -> ${startTime.toLocaleString()}`);
+            
+            if (!isNaN(startTime)) {
+              // For date-only inputs, set to beginning of day
+              if (!args.timeStart.includes('T') && !args.timeStart.includes(':')) {
+                startTime.setHours(0, 0, 0, 0);
+                console.log(`Adjusted notification start time: ${startTime.toLocaleString()}`);
+              }
+              
+              filteredNotifications = filteredNotifications.filter(notification => {
+                if (!notification.time) return false;
+                
+                // Parse notification time
+                const notificationTime = new Date(notification.time);
+                
+                // Compare times
+                const result = notificationTime >= startTime;
+                console.log(`  Notification ${notification.id} - Time: ${notificationTime.toLocaleString()} >= ${startTime.toLocaleString()} = ${result}`);
+                return result;
+              });
+              
+              notifFilteringApplied = true;
+            }
+          } catch (error) {
+            console.log(`Error parsing timeStart: ${args.timeStart}`, error);
+          }
+        }
+        
+        if (args.timeEnd) {
+          try {
+            const endTime = new Date(args.timeEnd);
+            console.log(`Filtering notifications by time end: ${args.timeEnd} -> ${endTime.toLocaleString()}`);
+            
+            if (!isNaN(endTime)) {
+              // For date-only inputs, set to end of day
+              if (!args.timeEnd.includes('T') && !args.timeEnd.includes(':')) {
+                endTime.setHours(23, 59, 59, 999);
+                console.log(`Adjusted notification end time: ${endTime.toLocaleString()}`);
+              }
+              
+              filteredNotifications = filteredNotifications.filter(notification => {
+                if (!notification.time) return false;
+                
+                // Parse notification time
+                const notificationTime = new Date(notification.time);
+                
+                // Compare times
+                const result = notificationTime <= endTime;
+                console.log(`  Notification ${notification.id} - Time: ${notificationTime.toLocaleString()} <= ${endTime.toLocaleString()} = ${result}`);
+                return result;
+              });
+              
+              notifFilteringApplied = true;
+            }
+          } catch (error) {
+            console.log(`Error parsing timeEnd: ${args.timeEnd}`, error);
+          }
+        }
+        
+        // Apply limit if provided
+        const notificationLimit = args.limit || 20;
+        if (filteredNotifications.length > notificationLimit) {
+          filteredNotifications = filteredNotifications.slice(0, notificationLimit);
+        }
+        
+        // Convert times to local time format for AI readability
+        const formattedNotifications = filteredNotifications.map(notification => {
+          const formattedNotification = { ...notification };
+          
+          // Convert notification time to local time string if it exists
+          if (formattedNotification.time) {
+            const time = new Date(formattedNotification.time);
+            formattedNotification.time = time.toLocaleString();
+          }
+          
+          return formattedNotification;
+        });
+        
+        return {
+          success: true,
+          notifications: formattedNotifications,
+          notificationIds: formattedNotifications.map(notification => notification.id),
+          message: formattedNotifications.length > 0
+            ? `Found ${formattedNotifications.length} notifications${notifFilteringApplied ? ' matching your criteria' : ''}.${formattedNotifications.length === notificationLimit ? ' (Result limit reached)' : ''}`
+            : 'No notifications found matching your criteria.'
         };
         
       default:

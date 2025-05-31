@@ -67,8 +67,12 @@ class AIService {
         tool_choice: 'auto'
       };
 
-      // Log raw API request
-      console.log('🔄 AI API Request:', JSON.stringify(requestPayload, null, 2));
+      // Log raw API request with tools omitted for brevity
+      const loggablePayload = {
+        model: requestPayload.model,
+        messages: requestPayload.messages
+      };
+      console.log('🔄 AI API Request:', JSON.stringify(loggablePayload, null, 2));
 
       // Make API request
       const response = await axios.post(
