@@ -179,7 +179,10 @@ export default {
     
     // Function to move task to another project
     const moveTaskToProject = async (project) => {
+      // Create a new task object with updated projectId
       const updatedTask = { ...props.task, projectId: project.id };
+      
+      // Emit the move event with the updated task object
       emit('move', updatedTask);
     };
     
@@ -273,13 +276,19 @@ export default {
     };
     
     const formatDateTime = (dateTimeString) => {
+      // Ensure we're working with a valid date
       const date = new Date(dateTimeString);
+      if (isNaN(date)) {
+        console.error(`Invalid date string: ${dateTimeString}`);
+        return 'Invalid date';
+      }
+      
       const today = new Date();
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
       
-      // Format time
-      const timeOptions = { hour: 'numeric', minute: '2-digit' };
+      // Format time in user's local time zone
+      const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
       const timeStr = date.toLocaleTimeString(undefined, timeOptions);
       
       // Check if it's today
@@ -293,7 +302,7 @@ export default {
       }
       
       // Otherwise, show date and time
-      const dateOptions = { month: 'short', day: 'numeric' };
+      const dateOptions = { month: 'short', day: 'numeric', year: 'numeric' };
       return `${date.toLocaleDateString(undefined, dateOptions)}, ${timeStr}`;
     };
 

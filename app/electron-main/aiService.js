@@ -503,54 +503,72 @@ async function executeFunctionCall(functionCall) {
           }
         }
         
-        // Convert local date string to ISO format if provided
+        // Handle dueDate as YYYY-MM-DD string format
         if (args.dueDate && typeof args.dueDate === 'string') {
           try {
-            // Try parsing as ISO first
-            let dueDate = new Date(args.dueDate);
-            
-            // If invalid or looks like a local date format, try parsing it as a local date
-            if (isNaN(dueDate) || !args.dueDate.includes('T')) {
-              // This is likely a local date format
-              console.log(`Converting local date format: ${args.dueDate}`);
-              dueDate = new Date(args.dueDate);
+            // If it already has time component, extract just the date part
+            if (args.dueDate.includes('T')) {
+              args.dueDate = args.dueDate.split('T')[0];
             }
             
-            if (!isNaN(dueDate)) {
-              // Store only the date part with noon time to avoid timezone issues
-              const year = dueDate.getFullYear();
-              const month = dueDate.getMonth();
-              const day = dueDate.getDate();
-              const dateOnly = new Date(year, month, day, 12, 0, 0);
-              args.dueDate = dateOnly.toISOString().split('T')[0] + 'T12:00:00.000Z';
-            } else {
-              console.log(`Invalid date format: ${args.dueDate}`);
+            // Validate the date format (YYYY-MM-DD)
+            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+            if (!dateRegex.test(args.dueDate)) {
+              // If not in YYYY-MM-DD format, try to convert it
+              const parsedDate = new Date(args.dueDate);
+              if (!isNaN(parsedDate)) {
+                // Convert to YYYY-MM-DD
+                args.dueDate = parsedDate.toISOString().split('T')[0];
+              } else {
+                console.log(`Invalid date format: ${args.dueDate}`);
+                args.dueDate = null;
+              }
             }
           } catch (error) {
             console.log(`Error parsing due date: ${args.dueDate}`, error);
+            args.dueDate = null;
           }
         }
         
         // Convert local time string to ISO format if provided for plannedTime
         if (args.plannedTime && typeof args.plannedTime === 'string') {
           try {
-            // Try parsing as ISO first
+            // Try parsing as ISO first to see if it's already in ISO format
             let plannedTime = new Date(args.plannedTime);
             
             // If invalid or looks like a local date format, try parsing it as a local date
             if (isNaN(plannedTime) || !args.plannedTime.includes('T')) {
-              // This is likely a local date format
+              // This is likely a local date format (e.g., "May 31, 2023 15:30" or "5/31/2023 15:30")
               console.log(`Converting local date format for planned time: ${args.plannedTime}`);
+              
+              // Try to parse date using more flexible approach
               plannedTime = new Date(args.plannedTime);
+              
+              // If still invalid, try some common formats
+              if (isNaN(plannedTime)) {
+                console.log(`Failed to parse date directly, attempting structured parsing`);
+                // Try to extract date and time components from common formats
+                const dateTimeParts = args.plannedTime.split(/,\s*| /);
+                if (dateTimeParts.length >= 2) {
+                  // Last part is likely the time
+                  const timePart = dateTimeParts[dateTimeParts.length - 1];
+                  // Join the rest as the date part
+                  const datePart = dateTimeParts.slice(0, dateTimeParts.length - 1).join(' ');
+                  plannedTime = new Date(`${datePart} ${timePart}`);
+                }
+              }
             }
             
             if (!isNaN(plannedTime)) {
+              console.log(`Successfully parsed plannedTime from "${args.plannedTime}" to: ${plannedTime.toISOString()}`);
               args.plannedTime = plannedTime.toISOString();
             } else {
               console.log(`Invalid date format for planned time: ${args.plannedTime}`);
+              throw new Error(`Could not parse date/time from: ${args.plannedTime}`);
             }
           } catch (error) {
             console.log(`Error parsing planned time: ${args.plannedTime}`, error);
+            throw new Error(`Failed to parse planned time: ${error.message}`);
           }
         }
         
@@ -563,54 +581,72 @@ async function executeFunctionCall(functionCall) {
         };
         
       case 'updateTask':
-        // Convert local date string to ISO format if provided
+        // Handle dueDate as YYYY-MM-DD string format
         if (args.dueDate && typeof args.dueDate === 'string') {
           try {
-            // Try parsing as ISO first
-            let dueDate = new Date(args.dueDate);
-            
-            // If invalid or looks like a local date format, try parsing it as a local date
-            if (isNaN(dueDate) || !args.dueDate.includes('T')) {
-              // This is likely a local date format
-              console.log(`Converting local date format: ${args.dueDate}`);
-              dueDate = new Date(args.dueDate);
+            // If it already has time component, extract just the date part
+            if (args.dueDate.includes('T')) {
+              args.dueDate = args.dueDate.split('T')[0];
             }
             
-            if (!isNaN(dueDate)) {
-              // Store only the date part with noon time to avoid timezone issues
-              const year = dueDate.getFullYear();
-              const month = dueDate.getMonth();
-              const day = dueDate.getDate();
-              const dateOnly = new Date(year, month, day, 12, 0, 0);
-              args.dueDate = dateOnly.toISOString().split('T')[0] + 'T12:00:00.000Z';
-            } else {
-              console.log(`Invalid date format: ${args.dueDate}`);
+            // Validate the date format (YYYY-MM-DD)
+            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+            if (!dateRegex.test(args.dueDate)) {
+              // If not in YYYY-MM-DD format, try to convert it
+              const parsedDate = new Date(args.dueDate);
+              if (!isNaN(parsedDate)) {
+                // Convert to YYYY-MM-DD
+                args.dueDate = parsedDate.toISOString().split('T')[0];
+              } else {
+                console.log(`Invalid date format: ${args.dueDate}`);
+                args.dueDate = null;
+              }
             }
           } catch (error) {
             console.log(`Error parsing due date: ${args.dueDate}`, error);
+            args.dueDate = null;
           }
         }
         
         // Convert local time string to ISO format if provided for plannedTime
         if (args.plannedTime && typeof args.plannedTime === 'string') {
           try {
-            // Try parsing as ISO first
+            // Try parsing as ISO first to see if it's already in ISO format
             let plannedTime = new Date(args.plannedTime);
             
             // If invalid or looks like a local date format, try parsing it as a local date
             if (isNaN(plannedTime) || !args.plannedTime.includes('T')) {
-              // This is likely a local date format
+              // This is likely a local date format (e.g., "May 31, 2023 15:30" or "5/31/2023 15:30")
               console.log(`Converting local date format for planned time: ${args.plannedTime}`);
+              
+              // Try to parse date using more flexible approach
               plannedTime = new Date(args.plannedTime);
+              
+              // If still invalid, try some common formats
+              if (isNaN(plannedTime)) {
+                console.log(`Failed to parse date directly, attempting structured parsing`);
+                // Try to extract date and time components from common formats
+                const dateTimeParts = args.plannedTime.split(/,\s*| /);
+                if (dateTimeParts.length >= 2) {
+                  // Last part is likely the time
+                  const timePart = dateTimeParts[dateTimeParts.length - 1];
+                  // Join the rest as the date part
+                  const datePart = dateTimeParts.slice(0, dateTimeParts.length - 1).join(' ');
+                  plannedTime = new Date(`${datePart} ${timePart}`);
+                }
+              }
             }
             
             if (!isNaN(plannedTime)) {
+              console.log(`Successfully parsed plannedTime from "${args.plannedTime}" to: ${plannedTime.toISOString()}`);
               args.plannedTime = plannedTime.toISOString();
             } else {
               console.log(`Invalid date format for planned time: ${args.plannedTime}`);
+              throw new Error(`Could not parse date/time from: ${args.plannedTime}`);
             }
           } catch (error) {
             console.log(`Error parsing planned time: ${args.plannedTime}`, error);
+            throw new Error(`Failed to parse planned time: ${error.message}`);
           }
         }
         
@@ -833,20 +869,28 @@ async function executeFunctionCall(functionCall) {
           filteredTasks = filteredTasks.slice(0, limit);
         }
         
-        // Convert dates to local time format for AI readability
+        // Format tasks consistently for AI readability
         const formattedTasks = filteredTasks.map(task => {
           const formattedTask = { ...task };
           
-          // Convert dueDate to local date string if it exists
+          // Ensure dueDate is consistently in YYYY-MM-DD format
           if (formattedTask.dueDate) {
-            const dueDate = new Date(formattedTask.dueDate);
-            formattedTask.dueDate = dueDate.toLocaleDateString();
+            // If it has time component, extract just the date part
+            if (typeof formattedTask.dueDate === 'string' && formattedTask.dueDate.includes('T')) {
+              formattedTask.dueDate = formattedTask.dueDate.split('T')[0];
+            } else if (formattedTask.dueDate instanceof Date) {
+              // Convert Date object to YYYY-MM-DD string
+              formattedTask.dueDate = formattedTask.dueDate.toISOString().split('T')[0];
+            }
           }
           
-          // Convert plannedTime to local time string if it exists
+          // Convert plannedTime to user-friendly local time string if it exists
           if (formattedTask.plannedTime) {
             const plannedTime = new Date(formattedTask.plannedTime);
-            formattedTask.plannedTime = plannedTime.toLocaleString();
+            // Format with date and time components for better readability
+            const dateOptions = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
+            const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
+            formattedTask.plannedTime = `${plannedTime.toLocaleDateString(undefined, dateOptions)} at ${plannedTime.toLocaleTimeString(undefined, timeOptions)}`;
           }
           
           return formattedTask;

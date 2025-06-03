@@ -122,11 +122,27 @@ const actions = {
         dbData.project_id = taskData.projectId;
       }
       
-      // Ensure planned_time is set correctly
+      // Ensure planned_time is set correctly and stored in UTC
       if (taskData.plannedTime) {
-        dbData.planned_time = typeof taskData.plannedTime === 'string'
-          ? taskData.plannedTime
-          : taskData.plannedTime.toISOString();
+        // If it's already a Date object, convert to ISO string (UTC)
+        if (taskData.plannedTime instanceof Date) {
+          dbData.planned_time = taskData.plannedTime.toISOString();
+        } 
+        // If it's a string but not ISO format, parse and convert to ISO
+        else if (typeof taskData.plannedTime === 'string' && !taskData.plannedTime.includes('T')) {
+          const plannedTime = new Date(taskData.plannedTime);
+          if (!isNaN(plannedTime)) {
+            dbData.planned_time = plannedTime.toISOString();
+          }
+        } 
+        // Otherwise use as is (should already be ISO string)
+        else {
+          dbData.planned_time = typeof taskData.plannedTime === 'string'
+            ? taskData.plannedTime
+            : taskData.plannedTime.toISOString();
+        }
+        
+        console.log(`Planned time for task: ${dbData.planned_time} (UTC)`);
       }
       
       console.log('Task data to be saved:', dbData);
@@ -176,24 +192,27 @@ const actions = {
         dbData.project_id = task.projectId;
       }
       
-      // Ensure due_date is explicitly set, even if null
-      if (task.dueDate !== undefined) {
-        // Store date without time component
-        if (task.dueDate) {
-          const date = new Date(task.dueDate);
-          const year = date.getFullYear();
-          const month = date.getMonth();
-          const day = date.getDate();
-          const dateOnly = new Date(year, month, day, 12, 0, 0);
-          dbData.due_date = dateOnly.toISOString().split('T')[0] + 'T12:00:00.000Z';
-        } else {
-          dbData.due_date = null;
+      // Ensure planned_time is in UTC ISO format
+      if (task.plannedTime) {
+        // If it's a Date object
+        if (task.plannedTime instanceof Date) {
+          dbData.planned_time = task.plannedTime.toISOString();
+        } 
+        // If it's a string but not in ISO format
+        else if (typeof task.plannedTime === 'string' && !task.plannedTime.includes('T')) {
+          const plannedTime = new Date(task.plannedTime);
+          if (!isNaN(plannedTime)) {
+            dbData.planned_time = plannedTime.toISOString();
+          }
         }
-      }
-      
-      // Ensure planned_time is explicitly set, even if null
-      if (task.plannedTime !== undefined) {
-        dbData.planned_time = task.plannedTime ? new Date(task.plannedTime).toISOString() : null;
+        // Otherwise use as is (should already be ISO string)
+        else {
+          dbData.planned_time = typeof task.plannedTime === 'string'
+            ? task.plannedTime
+            : task.plannedTime.toISOString();
+        }
+        
+        console.log(`Updated planned time for task: ${dbData.planned_time} (UTC)`);
       }
       
       console.log('Task data to be updated:', dbData);

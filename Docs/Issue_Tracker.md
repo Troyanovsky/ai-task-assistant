@@ -1,6 +1,6 @@
 Issues:
-- Check when we delte tasks, related notifications are deleted; when we delete projects, related tasks are deleted.
-- when we pass planned time for tasks, notification time for notifications to the AI, we only pass local time to the AI, not the ISO time saved in our database.
+- Check when we delet tasks, related notifications are deleted; when we delete projects, related tasks are deleted.
+- When AI deletes/updates tasks, it will use user referring name as ID. Fix with prompt or parsing. Shouldn't succesfully delete an non-existent task.
 - Modify query projects/tasks/notifications (and schemas exposed to AI) for flexible filtering and handling optional paramters with default values.
     - query functions should be flexible with params for task/proj/notifications.
     - Pay attention to AI created tasks & their notifications.
@@ -8,3 +8,7 @@ Issues:
 - Handle UI display when planned time is later than due date. Handle UI display when current time has passed planned time but task is still not done. Handle past due items that are not done. 
 - P1: When creating or editing a task, user should be able to pick dependency (dropdown of other tasks with checkbox), which means this task should be organized after the dependencies are done (dependencies are pre-reqs)
 - P1: Recurrence is not implemented. (Need to design recurrence logic & UI)
+
+Time issue:
+Need to:
+- Check if there is default notification for due date.

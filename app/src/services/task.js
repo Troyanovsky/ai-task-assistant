@@ -146,32 +146,6 @@ class TaskManager {
         ...taskData
       });
       
-      // Ensure dueDate is properly handled
-      if (taskData.dueDate !== undefined) {
-        if (taskData.dueDate) {
-          const date = new Date(taskData.dueDate);
-          // Set time to 12:00:00 (noon) to avoid timezone issues
-          task.dueDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
-        } else {
-          task.dueDate = null;
-        }
-      } else if (taskData.due_date !== undefined) {
-        if (taskData.due_date) {
-          const date = new Date(taskData.due_date);
-          // Set time to 12:00:00 (noon) to avoid timezone issues
-          task.dueDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
-        } else {
-          task.dueDate = null;
-        }
-      }
-      
-      // Ensure plannedTime is properly handled
-      if (taskData.plannedTime !== undefined) {
-        task.plannedTime = taskData.plannedTime ? new Date(taskData.plannedTime) : null;
-      } else if (taskData.planned_time !== undefined) {
-        task.plannedTime = taskData.planned_time ? new Date(taskData.planned_time) : null;
-      }
-      
       // Validate the task
       const isValid = task.validate();
       if (!isValid) {

@@ -25,12 +25,12 @@ export const functionSchemas = [
           dueDate: { 
             type: "string", 
             format: "date-time",
-            description: "Due date for the task. Provide in a standard format like 'YYYY-MM-DD', '5/31/2023', or 'May 31, 2023'. The system will convert to proper format."
+            description: "Due date for the task. Provide in the following date-only format `YYYY-MM-DD`."
           },
           plannedTime: {
             type: "string",
             format: "date-time",
-            description: "Planned time to work on the task. Provide in a standard format like 'YYYY-MM-DD HH:MM', '5/31/2023 15:30', or 'May 31, 2023 3:30 PM'."
+            description: "Planned time to work on the task. Provide in user's local time zone in a readable format like 'YYYY-MM-DD HH:MM'."
           },
           projectId: { 
             type: "string",
@@ -83,12 +83,12 @@ export const functionSchemas = [
           dueDate: { 
             type: "string", 
             format: "date-time",
-            description: "Due date for the task. Provide in a standard format like 'YYYY-MM-DD', '5/31/2023', or 'May 31, 2023'. The system will convert to proper format."
+            description: "Due date for the task. Provide in the following date-only format `YYYY-MM-DD`."
           },
           plannedTime: {
             type: "string",
             format: "date-time",
-            description: "Planned time to work on the task. Provide in a standard format like 'YYYY-MM-DD HH:MM', '5/31/2023 15:30', or 'May 31, 2023 3:30 PM'."
+            description: "Planned time to work on the task. Provide in user's local time zone in a readable format like 'YYYY-MM-DD HH:MM'."
           },
           projectId: { 
             type: "string",
@@ -191,7 +191,7 @@ export const functionSchemas = [
           plannedTimeEnd: {
             type: "string",
             format: "date-time",
-            description: "Filter tasks with a planned time on or before this date/time"
+            description: "Filter tasks with a planned time on or before this date/time."
           },
           limit: {
             type: "number",

@@ -236,14 +236,18 @@ export default {
         }
         
         if (props.task.plannedTime) {
-          // Format planned time into date and time fields
+          // Format planned time into date and time fields from UTC to local
           const plannedDateTime = new Date(props.task.plannedTime);
-          formData.plannedDate = plannedDateTime.toISOString().split('T')[0];
+          // Use local date string components to account for timezone differences
+          const localDate = plannedDateTime.toLocaleDateString('en-CA'); // YYYY-MM-DD format
+          formData.plannedDate = localDate;
           
-          // Format time as HH:MM
+          // Format time as HH:MM in local time
           const hours = plannedDateTime.getHours().toString().padStart(2, '0');
           const minutes = plannedDateTime.getMinutes().toString().padStart(2, '0');
           formData.plannedTime = `${hours}:${minutes}`;
+          
+          console.log(`Converted UTC plannedTime ${props.task.plannedTime} to local: ${localDate} ${hours}:${minutes}`);
         }
         
         // Fetch existing notifications for the task
@@ -333,26 +337,21 @@ export default {
         duration: formData.duration !== '' ? Number(formData.duration) : 0
       };
       
-      // Set due date if provided
+      // Set due date if provided - store as YYYY-MM-DD string
       if (formData.dueDate) {
-        // Create date object with noon time (12:00) to avoid timezone issues
-        const [year, month, day] = formData.dueDate.split('-');
-        const dueDate = new Date(
-          parseInt(year, 10),
-          parseInt(month, 10) - 1, // Month is 0-indexed
-          parseInt(day, 10),
-          12, 0, 0 // Set to 12:00:00 (noon) to avoid timezone issues
-        );
-        taskData.dueDate = dueDate.toISOString().split('T')[0] + 'T12:00:00.000Z';
+        // Use dueDate directly since it's already in YYYY-MM-DD format from the date input
+        taskData.dueDate = formData.dueDate;
       } else {
         taskData.dueDate = null;
       }
       
       // Set planned time if both date and time are provided
       if (formData.plannedDate && formData.plannedTime) {
+        // Create a Date object in local time zone
         const [year, month, day] = formData.plannedDate.split('-');
         const [hours, minutes] = formData.plannedTime.split(':');
         
+        // Create the date in local time
         const plannedDateTime = new Date(
           parseInt(year, 10),
           parseInt(month, 10) - 1, // Month is 0-indexed
@@ -361,7 +360,9 @@ export default {
           parseInt(minutes, 10)
         );
         
+        // Convert to ISO string for storage (automatically converts to UTC)
         taskData.plannedTime = plannedDateTime.toISOString();
+        console.log(`Saving plannedTime: Local ${plannedDateTime.toString()} as UTC ${taskData.plannedTime}`);
       } else {
         taskData.plannedTime = null;
       }

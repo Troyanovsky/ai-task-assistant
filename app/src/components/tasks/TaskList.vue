@@ -231,15 +231,18 @@ export default {
     
     const moveTask = async (task) => {
       try {
+        // Store the original projectId to reference where the task is moving FROM
+        const originalProjectId = props.selectedProject ? props.selectedProject.id : null;
+        
         // The task object already has the new projectId set by the TaskItem component
         await store.dispatch('tasks/updateTask', task);
         
-        // Refresh tasks for the current project
-        if (props.selectedProject) {
-          await store.dispatch('tasks/fetchTasksByProject', props.selectedProject.id);
+        // Refresh tasks for the current project to remove the moved task from view
+        if (originalProjectId) {
+          await store.dispatch('tasks/fetchTasksByProject', originalProjectId);
         }
         
-        console.log(`Task ${task.id} moved from project ${props.selectedProject.id} to project ${task.projectId}`);
+        console.log(`Task ${task.id} moved from project ${originalProjectId} to project ${task.projectId}`);
       } catch (error) {
         console.error('Error moving task:', error);
       }
