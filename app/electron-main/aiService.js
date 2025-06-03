@@ -513,23 +513,45 @@ async function executeFunctionCall(functionCall) {
         // Handle dueDate as YYYY-MM-DD string format
         if (args.dueDate && typeof args.dueDate === 'string') {
           try {
+            console.log(`Original dueDate input: ${args.dueDate}`);
+            
             // If it already has time component, extract just the date part
             if (args.dueDate.includes('T')) {
               args.dueDate = args.dueDate.split('T')[0];
+              console.log(`Extracted date part from ISO string: ${args.dueDate}`);
             }
             
             // Validate the date format (YYYY-MM-DD)
             const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
             if (!dateRegex.test(args.dueDate)) {
               // If not in YYYY-MM-DD format, try to convert it
-              const parsedDate = new Date(args.dueDate);
-              if (!isNaN(parsedDate)) {
-                // Convert to YYYY-MM-DD
-                args.dueDate = parsedDate.toISOString().split('T')[0];
+              console.log(`Date ${args.dueDate} doesn't match YYYY-MM-DD format, parsing as Date`);
+              
+              // Fix: Create date with UTC to prevent timezone issues
+              const [year, month, day] = args.dueDate.split('-');
+              if (year && month && day) {
+                // Ensure month and day are zero-padded
+                const paddedMonth = month.padStart(2, '0');
+                const paddedDay = day.padStart(2, '0');
+                args.dueDate = `${year}-${paddedMonth}-${paddedDay}`;
+                console.log(`Formatted date with padding: ${args.dueDate}`);
               } else {
-                console.log(`Invalid date format: ${args.dueDate}`);
-                args.dueDate = null;
+                // If we can't split it, use the Date object but force UTC
+                const parsedDate = new Date(args.dueDate);
+                if (!isNaN(parsedDate)) {
+                  // Use UTC methods to avoid timezone issues
+                  const utcYear = parsedDate.getUTCFullYear();
+                  const utcMonth = String(parsedDate.getUTCMonth() + 1).padStart(2, '0');
+                  const utcDay = String(parsedDate.getUTCDate()).padStart(2, '0');
+                  args.dueDate = `${utcYear}-${utcMonth}-${utcDay}`;
+                  console.log(`Parsed and formatted date using UTC: ${args.dueDate}`);
+                } else {
+                  console.log(`Invalid date format: ${args.dueDate}`);
+                  args.dueDate = null;
+                }
               }
+            } else {
+              console.log(`Date already in correct YYYY-MM-DD format: ${args.dueDate}`);
             }
           } catch (error) {
             console.log(`Error parsing due date: ${args.dueDate}`, error);
@@ -591,23 +613,45 @@ async function executeFunctionCall(functionCall) {
         // Handle dueDate as YYYY-MM-DD string format
         if (args.dueDate && typeof args.dueDate === 'string') {
           try {
+            console.log(`Original dueDate input: ${args.dueDate}`);
+            
             // If it already has time component, extract just the date part
             if (args.dueDate.includes('T')) {
               args.dueDate = args.dueDate.split('T')[0];
+              console.log(`Extracted date part from ISO string: ${args.dueDate}`);
             }
             
             // Validate the date format (YYYY-MM-DD)
             const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
             if (!dateRegex.test(args.dueDate)) {
               // If not in YYYY-MM-DD format, try to convert it
-              const parsedDate = new Date(args.dueDate);
-              if (!isNaN(parsedDate)) {
-                // Convert to YYYY-MM-DD
-                args.dueDate = parsedDate.toISOString().split('T')[0];
+              console.log(`Date ${args.dueDate} doesn't match YYYY-MM-DD format, parsing as Date`);
+              
+              // Fix: Create date with UTC to prevent timezone issues
+              const [year, month, day] = args.dueDate.split('-');
+              if (year && month && day) {
+                // Ensure month and day are zero-padded
+                const paddedMonth = month.padStart(2, '0');
+                const paddedDay = day.padStart(2, '0');
+                args.dueDate = `${year}-${paddedMonth}-${paddedDay}`;
+                console.log(`Formatted date with padding: ${args.dueDate}`);
               } else {
-                console.log(`Invalid date format: ${args.dueDate}`);
-                args.dueDate = null;
+                // If we can't split it, use the Date object but force UTC
+                const parsedDate = new Date(args.dueDate);
+                if (!isNaN(parsedDate)) {
+                  // Use UTC methods to avoid timezone issues
+                  const utcYear = parsedDate.getUTCFullYear();
+                  const utcMonth = String(parsedDate.getUTCMonth() + 1).padStart(2, '0');
+                  const utcDay = String(parsedDate.getUTCDate()).padStart(2, '0');
+                  args.dueDate = `${utcYear}-${utcMonth}-${utcDay}`;
+                  console.log(`Parsed and formatted date using UTC: ${args.dueDate}`);
+                } else {
+                  console.log(`Invalid date format: ${args.dueDate}`);
+                  args.dueDate = null;
+                }
               }
+            } else {
+              console.log(`Date already in correct YYYY-MM-DD format: ${args.dueDate}`);
             }
           } catch (error) {
             console.log(`Error parsing due date: ${args.dueDate}`, error);
