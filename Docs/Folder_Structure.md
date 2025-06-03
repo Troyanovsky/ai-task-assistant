@@ -1,4 +1,4 @@
-This documentation is automatically generated folder structure for the project, you may use this as a reference to find the files you need.
+This documentation is the folder structure for the project. It may be used to find different files in the project.
 
 ```
 └── 📁ai-task-assistant
@@ -24,7 +24,6 @@ This documentation is automatically generated folder structure for the project, 
         └── preload.cjs
         └── 📁public
             └── vite.svg
-        └── README.md
         └── 📁src
             └── App.vue
             └── 📁assets
@@ -91,7 +90,5 @@ This documentation is automatically generated folder structure for the project, 
         └── Tech_System.md
     └── .gitignore
     └── LICENSE
-    └── package-lock.json
-    └── package.json
     └── README.md
 ```

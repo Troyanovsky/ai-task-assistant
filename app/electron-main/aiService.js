@@ -331,11 +331,18 @@ async function processWithLLM(userInput, functionResults = null) {
     const functionSchemasModule = await import('../src/services/functionSchemas.js');
     const functionSchemas = functionSchemasModule.default;
     
-    const systemMessage = "You're FokusZeit, an AI task assistant. \
-    Use the tools provided to you to help the user with their task & project management. \
-    For some queries, you may need to execute multiple tools in a row to find info that the user didn't provide. \
-    For example, if the user didn't provide task id, you can look for tasks in projects first. \
-    ";
+    const systemMessage = `<role>
+You're FokusZeit, an AI task assistant.
+</role>
+
+<goal>
+Use the tools provided to you to help the user with their task & project management.
+</goal>
+
+<tips>
+- For some queries, you may need to execute multiple tools in a row to find info that the user didn't provide, like task id or notification id.
+- Most of the time, the user won't refer to tasks/projects/notifications with id but names or vague descriptions. In this case, use queryTasks or queryNotifications to find out the id.
+</tips>`;
 
     // Format chat history for the API
     const messages = [

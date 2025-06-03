@@ -1,20 +1,13 @@
 # AI Task Assistant
 
-An intelligent application to manage to-do items and calendars by offloading task creation, editing, and planning to AI.
+FokusZeit is an intelligent application to manage to-do items and calendars by offloading task creation, editing, and planning to an LLM. Supports OpenAI compatible APIs.
 
 ## Project Setup
 
 ```bash
 # Install dependencies
-npm install
 cd app
 npm install
-
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
 
 # Run Electron in development mode
 npm run electron:dev
@@ -24,8 +17,8 @@ npm run electron:build
 ```
 
 ## How to use AI features
-- In settings, set up base URL, API key, and model
-- Chat with AI to view/edit/update/delete projects/tasks in natural language.
+- In settings, set up base URL, API key, and model. Both hosted LLM API and local LLM API like LMStudio are supported.
+- Chat with AI to view/edit/update/delete projects/tasks/notifications in natural language.
 
 ## Features
 
@@ -38,13 +31,10 @@ npm run electron:build
 ### V1 Features (Planned)
 - Calendar-based UI for tasks/days
 - Voice input for AI interaction
-- Enhanced AI features
-  - Task breakdown
-  - Time estimation
+- Enhanced AI features like task breakdown
 - Other notifications: email
-- Keyboard shortcut buttons
+- Keyboard shortcut 
 - Default list: Input/Backlog
-- Planned date for tasks
 - Daily progress bar
 - Dragging tasks
 
@@ -67,15 +57,3 @@ npm run electron:build
   - Weekly review time
 - Focus mode with time tracking
 - Third-party integrations
-
-## Development
-
-This project is developed in phases as outlined in the Implementation Plan document.
-
-### Current Status
-- Phase 0: Project Setup and Infrastructure - Completed
-- Phase 1: Core Data Layer - Completed
-- Phase 2: Basic UI Components - Completed
-- Phase 3: State Management and Integration - Completed
-- Phase 4: MVP AI Integration - Completed
-- Phase 5: Notification System - Not Started
