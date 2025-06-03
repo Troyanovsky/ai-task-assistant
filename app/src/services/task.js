@@ -185,7 +185,14 @@ class TaskManager {
    */
   async deleteTask(id) {
     try {
-      // First delete associated notifications
+      // First check if the task exists
+      const task = await this.getTaskById(id);
+      if (!task) {
+        console.error(`Task ${id} not found for deletion`);
+        return false;
+      }
+      
+      // Delete associated notifications
       try {
         const notifications = await notificationService.getNotificationsByTask(id);
         for (const notification of notifications) {

@@ -709,7 +709,14 @@ async function executeFunctionCall(functionCall) {
         };
         
       case 'deleteTask':
-        await taskManager.deleteTask(args.id);
+        const deleteResult = await taskManager.deleteTask(args.id);
+        if (!deleteResult) {
+          return {
+            success: false,
+            taskId: args.id,
+            message: `Task with ID ${args.id} not found or couldn't be deleted.`
+          };
+        }
         return { 
           success: true,
           taskId: args.id,
