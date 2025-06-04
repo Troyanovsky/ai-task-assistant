@@ -97,19 +97,40 @@
         
         <div class="flex flex-wrap gap-2 mt-2">
           <!-- Due Date -->
-          <span v-if="task.dueDate" class="inline-flex items-center text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
+          <span 
+            v-if="task.dueDate" 
+            class="inline-flex items-center text-xs px-2 py-0.5 rounded"
+            :class="isOverdue ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-700'"
+          >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             {{ formatDate(task.dueDate) }}
+            <span v-if="isOverdue" class="ml-1 font-medium">Overdue!</span>
           </span>
           
           <!-- Planned Time -->
-          <span v-if="task.plannedTime" class="inline-flex items-center text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <span 
+            v-if="task.plannedTime" 
+            class="inline-flex items-center text-xs px-2 py-0.5 rounded"
+            :class="{ 
+              'bg-orange-50 text-orange-700': isPlannedTimeAfterDueDate,
+              'bg-red-100 text-red-700': isMissedPlannedTime,
+              'bg-indigo-50 text-indigo-700': !isPlannedTimeAfterDueDate && !isMissedPlannedTime
+            }"
+          >
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              class="h-3 w-3 mr-1" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             {{ formatDateTime(task.plannedTime) }}
+            <span v-if="isPlannedTimeAfterDueDate" class="ml-1 font-medium">!</span>
+            <span v-if="isMissedPlannedTime" class="ml-1 font-medium">Missed!</span>
           </span>
           
           <!-- Priority -->
@@ -167,6 +188,49 @@ export default {
     // Filter out the current project
     const availableProjects = computed(() => {
       return projects.value.filter(project => project.id !== props.task.projectId);
+    });
+    
+    // Check if planned time is after due date
+    const isPlannedTimeAfterDueDate = computed(() => {
+      // Only validate if both due date and planned time are set
+      if (!props.task.dueDate || !props.task.plannedTime) {
+        return false;
+      }
+      
+      // Create date objects for comparison
+      const dueDate = new Date(props.task.dueDate);
+      dueDate.setHours(23, 59, 59); // End of the due date
+      
+      // Planned time is already a date string
+      const plannedDateTime = new Date(props.task.plannedTime);
+      
+      // Compare dates
+      return plannedDateTime > dueDate;
+    });
+    
+    // Check if task is overdue (past due date and not done)
+    const isOverdue = computed(() => {
+      if (!props.task.dueDate || props.task.status === 'done') {
+        return false;
+      }
+      
+      const dueDate = new Date(props.task.dueDate);
+      dueDate.setHours(23, 59, 59); // End of the due date
+      const now = new Date();
+      
+      return now > dueDate;
+    });
+    
+    // Check if planned time is in the past but task is not started or completed
+    const isMissedPlannedTime = computed(() => {
+      if (!props.task.plannedTime || props.task.status === 'doing' || props.task.status === 'done') {
+        return false;
+      }
+      
+      const plannedDateTime = new Date(props.task.plannedTime);
+      const now = new Date();
+      
+      return now > plannedDateTime;
     });
     
     // Close dropdowns when clicking outside
@@ -328,6 +392,9 @@ export default {
       projects,
       availableProjects,
       isLoadingProjects,
+      isPlannedTimeAfterDueDate,
+      isOverdue,
+      isMissedPlannedTime,
       toggleStatus,
       moveTaskToProject,
       formatDate,

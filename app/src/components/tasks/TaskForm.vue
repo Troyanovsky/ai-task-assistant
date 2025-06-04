@@ -58,8 +58,16 @@
             id="dueDate"
             v-model="formData.dueDate"
             type="date"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 date-input"
+            class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 date-input"
+            :class="{ 
+              'border-orange-500 focus:ring-orange-500 focus:border-orange-500': isPlannedTimeAfterDueDate,
+              'border-red-500 focus:ring-red-500 focus:border-red-500': isDueDateInPast
+            }"
+            :min="currentDate"
           />
+          <p v-if="isDueDateInPast" class="text-xs mt-1 text-red-500">
+            Warning: Due date is in the past
+          </p>
         </div>
         
         <div>
@@ -83,7 +91,11 @@
               id="plannedDate"
               v-model="formData.plannedDate"
               type="date"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 date-input"
+              class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 date-input"
+              :class="{ 
+                'border-orange-500 focus:ring-orange-500 focus:border-orange-500': isPlannedTimeAfterDueDate,
+                'border-red-500 focus:ring-red-500 focus:border-red-500': isPlannedTimeInPast 
+              }"
               :min="currentDate"
             />
           </div>
@@ -92,12 +104,24 @@
               id="plannedTime"
               v-model="formData.plannedTime"
               type="time"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              :class="{ 
+                'border-orange-500 focus:ring-orange-500 focus:border-orange-500': isPlannedTimeAfterDueDate,
+                'border-red-500 focus:ring-red-500 focus:border-red-500': isPlannedTimeInPast 
+              }"
+              :min="formData.plannedDate === currentDate ? currentTime : undefined"
             />
           </div>
         </div>
-        <p v-if="formData.plannedDate && formData.plannedTime" class="text-xs text-gray-500 mt-1">
-          A reminder notification will be automatically set for this time.
+        <p v-if="formData.plannedDate && formData.plannedTime" class="text-xs mt-1" 
+           :class="{
+             'text-orange-500': isPlannedTimeAfterDueDate && !isPlannedTimeInPast,
+             'text-red-500': isPlannedTimeInPast,
+             'text-gray-500': !isPlannedTimeAfterDueDate && !isPlannedTimeInPast
+           }">
+          <span v-if="isPlannedTimeInPast">Warning: Planned time is in the past</span>
+          <span v-else-if="isPlannedTimeAfterDueDate">Warning: Planned time is after due date</span>
+          <span v-else>A reminder notification will be automatically set for this time.</span>
         </p>
       </div>
       
@@ -133,6 +157,7 @@
                   v-model="notification.date"
                   type="date"
                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 date-input"
+                  :min="currentDate"
                 />
               </div>
               <div>
@@ -140,6 +165,7 @@
                   v-model="notification.time"
                   type="time"
                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  :min="notification.date === currentDate ? currentTime : undefined"
                 />
               </div>
             </div>
@@ -200,6 +226,14 @@ export default {
       return new Date().toISOString().split('T')[0];
     });
     
+    // Current time in HH:MM format
+    const currentTime = computed(() => {
+      const now = new Date();
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      return `${hours}:${minutes}`;
+    });
+    
     const formData = reactive({
       name: '',
       description: '',
@@ -220,6 +254,76 @@ export default {
     
     // Track the planned time notification specifically
     const plannedTimeNotification = ref(null);
+
+    // Check if planned time is after due date
+    const isPlannedTimeAfterDueDate = computed(() => {
+      // Only validate if both due date and planned time are set
+      if (!formData.dueDate || !formData.plannedDate || !formData.plannedTime) {
+        return false;
+      }
+      
+      // Create date objects for comparison
+      const dueDate = new Date(formData.dueDate);
+      dueDate.setHours(23, 59, 59); // End of the due date
+      
+      // Create planned date time by combining planned date and time
+      const [year, month, day] = formData.plannedDate.split('-');
+      const [hours, minutes] = formData.plannedTime.split(':');
+      
+      const plannedDateTime = new Date(
+        parseInt(year, 10),
+        parseInt(month, 10) - 1, // Month is 0-indexed
+        parseInt(day, 10),
+        parseInt(hours, 10),
+        parseInt(minutes, 10)
+      );
+      
+      // Compare dates
+      return plannedDateTime > dueDate;
+    });
+    
+    // Check if planned time is in the past
+    const isPlannedTimeInPast = computed(() => {
+      if (!formData.plannedDate || !formData.plannedTime) {
+        return false;
+      }
+      
+      // Create planned datetime
+      const [year, month, day] = formData.plannedDate.split('-');
+      const [hours, minutes] = formData.plannedTime.split(':');
+      
+      const plannedDateTime = new Date(
+        parseInt(year, 10),
+        parseInt(month, 10) - 1,
+        parseInt(day, 10),
+        parseInt(hours, 10),
+        parseInt(minutes, 10)
+      );
+      
+      // Get current time
+      const now = new Date();
+      
+      // Compare with current time
+      return plannedDateTime < now;
+    });
+    
+    // Check if due date is in the past
+    const isDueDateInPast = computed(() => {
+      if (!formData.dueDate) {
+        return false;
+      }
+      
+      // Create due date at beginning of day
+      const dueDate = new Date(formData.dueDate);
+      dueDate.setHours(0, 0, 0, 0);
+      
+      // Get current date at beginning of day
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Compare dates (allow today)
+      return dueDate < today;
+    });
 
     onMounted(async () => {
       if (props.task) {
@@ -328,6 +432,28 @@ export default {
     };
 
     const saveTask = async () => {
+      // Check for past dates and confirm with user
+      if (isDueDateInPast.value || isPlannedTimeInPast.value) {
+        const confirmMessage = [];
+        
+        if (isDueDateInPast.value) {
+          confirmMessage.push("• The due date is in the past");
+        }
+        
+        if (isPlannedTimeInPast.value) {
+          confirmMessage.push("• The planned time is in the past");
+        }
+        
+        const shouldContinue = await window.electron.showConfirmDialog(
+          "Warning: Date issues detected",
+          `The following issues were detected:\n${confirmMessage.join('\n')}\n\nDo you want to continue anyway?`
+        );
+        
+        if (!shouldContinue) {
+          return; // User canceled the save operation
+        }
+      }
+      
       const taskData = {
         name: formData.name.trim(),
         description: formData.description.trim(),
@@ -594,6 +720,10 @@ export default {
       formData,
       notifications,
       currentDate,
+      currentTime,
+      isPlannedTimeAfterDueDate,
+      isPlannedTimeInPast,
+      isDueDateInPast,
       addNewNotification,
       removeNotification,
       saveTask
