@@ -55,12 +55,10 @@ This documentation is the folder structure for the project. It may be used to fi
                 └── index.js
             └── 📁services
                 └── 📁__tests__
-                    └── ai.test.js
                     └── database.test.js
                     └── notification.test.js
                     └── project.test.js
                     └── task.test.js
-                └── ai.js
                 └── database.js
                 └── functionSchemas.js
                 └── notification.js
