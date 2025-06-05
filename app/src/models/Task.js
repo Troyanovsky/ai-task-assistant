@@ -3,6 +3,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import logger from '../services/logger.js';
 
 // Task status constants
 export const STATUS = {
@@ -184,9 +185,9 @@ class Task {
    * @returns {Task} - Task instance
    */
   static fromDatabase(data) {
-    console.log('Creating Task from database data:', data);
+    logger.info('Creating Task from database data:', data);
     const task = new Task(data);
-    console.log('Task created with projectId:', task.projectId);
+    logger.info('Task created with projectId:', task.projectId);
     return task;
   }
 

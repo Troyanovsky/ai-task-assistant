@@ -6,6 +6,36 @@
 import databaseService from './database.js';
 import Project from '../models/Project.js';
 
+// Determine which logger to use based on the environment
+let logger;
+try {
+  // Check if we're in the main process (Node.js environment)
+  if (typeof window === 'undefined') {
+    // We're in the main process
+    logger = require('../../electron-main/logger.js').default;
+  } else {
+    // We're in the renderer process
+    logger = require('./logger.js').default;
+  }
+} catch (error) {
+  // Fallback console logger
+  logger = {
+    error: console.error,
+    warn: console.warn,
+    info: console.info,
+    debug: console.debug,
+    verbose: console.debug,
+    silly: console.debug,
+    logError: (error, context = '') => {
+      if (error instanceof Error) {
+        console.error(`${context}: ${error.message}`, error.stack);
+      } else {
+        console.error(`${context}: ${error}`);
+      }
+    }
+  };
+}
+
 class ProjectManager {
   /**
    * Get all projects
@@ -16,7 +46,7 @@ class ProjectManager {
       const projects = databaseService.query('SELECT * FROM projects ORDER BY created_at DESC');
       return projects.map(project => Project.fromDatabase(project));
     } catch (error) {
-      console.error('Error getting projects:', error);
+      logger.error('Error getting projects:', error);
       return [];
     }
   }
@@ -31,7 +61,7 @@ class ProjectManager {
       const project = databaseService.queryOne('SELECT * FROM projects WHERE id = ?', [id]);
       return project ? Project.fromDatabase(project) : null;
     } catch (error) {
-      console.error(`Error getting project ${id}:`, error);
+      logger.error(`Error getting project ${id}:`, error);
       return null;
     }
   }
@@ -44,7 +74,7 @@ class ProjectManager {
   async addProject(project) {
     try {
       if (!project.validate()) {
-        console.error('Invalid project data');
+        logger.error('Invalid project data');
         return false;
       }
 
@@ -56,7 +86,7 @@ class ProjectManager {
 
       return result && result.changes > 0;
     } catch (error) {
-      console.error('Error adding project:', error);
+      logger.error('Error adding project:', error);
       return false;
     }
   }
@@ -69,7 +99,7 @@ class ProjectManager {
   async updateProject(project) {
     try {
       if (!project.validate()) {
-        console.error('Invalid project data');
+        logger.error('Invalid project data');
         return false;
       }
 
@@ -81,7 +111,7 @@ class ProjectManager {
 
       return result && result.changes > 0;
     } catch (error) {
-      console.error(`Error updating project ${project.id}:`, error);
+      logger.error(`Error updating project ${project.id}:`, error);
       return false;
     }
   }
@@ -96,7 +126,7 @@ class ProjectManager {
       const result = databaseService.delete('DELETE FROM projects WHERE id = ?', [id]);
       return result && result.changes > 0;
     } catch (error) {
-      console.error(`Error deleting project ${id}:`, error);
+      logger.error(`Error deleting project ${id}:`, error);
       return false;
     }
   }
@@ -110,7 +140,7 @@ class ProjectManager {
       const result = databaseService.queryOne('SELECT COUNT(*) as count FROM projects');
       return result ? result.count : 0;
     } catch (error) {
-      console.error('Error getting project count:', error);
+      logger.error('Error getting project count:', error);
       return 0;
     }
   }
@@ -128,7 +158,7 @@ class ProjectManager {
       );
       return projects.map(project => Project.fromDatabase(project));
     } catch (error) {
-      console.error('Error searching projects:', error);
+      logger.error('Error searching projects:', error);
       return [];
     }
   }

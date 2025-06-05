@@ -8,6 +8,7 @@ import databaseService from './src/services/database.js';
 import notificationService from './src/services/notification.js';
 import { setupIpcHandlers } from './electron-main/ipcHandlers.js';
 import aiService from './electron-main/aiService.js';
+import logger from './electron-main/logger.js';
 
 // Set application name for notifications
 app.setName('FokusZeit');
@@ -27,13 +28,13 @@ async function initServices() {
   try {
     // Initialize database
     await databaseService.init();
-    console.log('Database initialized');
+    logger.info('Database initialized');
     
     // Initialize notification service
     notificationService.init();
-    console.log('Notification service initialized');
+    logger.info('Notification service initialized');
   } catch (error) {
-    console.error('Error initializing services:', error);
+    logger.logError(error, 'Error initializing services');
   }
 }
 
@@ -101,19 +102,19 @@ function createWindow() {
   if (process.env.NODE_ENV === 'development') {
     // In development mode, wait for dev server to be ready before loading URL
     const devServerUrl = 'http://localhost:5173';
-    console.log(`Waiting for dev server at ${devServerUrl}...`);
+    logger.info(`Waiting for dev server at ${devServerUrl}...`);
     
     waitForUrl(devServerUrl)
       .then(() => {
-        console.log('Dev server is ready, loading application...');
+        logger.info('Dev server is ready, loading application...');
         mainWindow.loadURL(devServerUrl);
         // Open the DevTools.
         mainWindow.webContents.openDevTools();
       })
       .catch((err) => {
-        console.error('Failed to connect to dev server:', err);
+        logger.error('Failed to connect to dev server:', err);
         // Fallback to loading directly
-        console.log('Attempting to load URL directly...');
+        logger.info('Attempting to load URL directly...');
         mainWindow.loadURL(devServerUrl);
       });
   } else {

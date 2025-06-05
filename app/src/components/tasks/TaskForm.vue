@@ -206,6 +206,7 @@ import { reactive, onMounted, ref, computed } from 'vue';
 import { TYPE } from '../../models/Notification';
 import { Notification } from '../../models/Notification';
 import { v4 as uuidv4 } from 'uuid';
+import logger from '../../services/logger';
 
 export default {
   name: 'TaskForm',
@@ -351,14 +352,14 @@ export default {
           const minutes = plannedDateTime.getMinutes().toString().padStart(2, '0');
           formData.plannedTime = `${hours}:${minutes}`;
           
-          console.log(`Converted UTC plannedTime ${props.task.plannedTime} to local: ${localDate} ${hours}:${minutes}`);
+          logger.info(`Converted UTC plannedTime ${props.task.plannedTime} to local: ${localDate} ${hours}:${minutes}`);
         }
         
         // Fetch existing notifications for the task
         try {
-          console.log(`Fetching notifications for task: ${props.task.id}`);
+          logger.info(`Fetching notifications for task: ${props.task.id}`);
           const existingNotifications = await window.electron.getNotificationsByTask(props.task.id);
-          console.log('Existing notifications:', existingNotifications);
+          logger.info('Existing notifications:', existingNotifications);
           
           if (existingNotifications && existingNotifications.length > 0) {
             // Format notifications for the UI
@@ -375,7 +376,7 @@ export default {
                 const minutes = notificationDate.getMinutes().toString().padStart(2, '0');
                 const time = `${hours}:${minutes}`;
                 
-                console.log(`Notification ${notification.id} time: ${notificationDate.toLocaleString()}, formatted as ${date} ${time}`);
+                logger.info(`Notification ${notification.id} time: ${notificationDate.toLocaleString()}, formatted as ${date} ${time}`);
                 
                 return {
                   id: notification.id,
@@ -393,10 +394,10 @@ export default {
               plannedTimeNotification.value = plannedNotification;
             }
             
-            console.log('Formatted notifications for UI:', notifications.value);
+            logger.info('Formatted notifications for UI:', notifications.value);
           }
         } catch (error) {
-          console.error('Error fetching notifications:', error);
+          logger.error('Error fetching notifications:', error);
         }
       }
     });
@@ -488,7 +489,7 @@ export default {
         
         // Convert to ISO string for storage (automatically converts to UTC)
         taskData.plannedTime = plannedDateTime.toISOString();
-        console.log(`Saving plannedTime: Local ${plannedDateTime.toString()} as UTC ${taskData.plannedTime}`);
+        logger.info(`Saving plannedTime: Local ${plannedDateTime.toString()} as UTC ${taskData.plannedTime}`);
       } else {
         taskData.plannedTime = null;
       }
@@ -498,7 +499,7 @@ export default {
         taskData.createdAt = props.task.createdAt;
       }
       
-      console.log('Saving task with data:', taskData);
+      logger.info('Saving task with data:', taskData);
       
       // For existing tasks, we can save notifications immediately
       if (props.task) {
@@ -529,7 +530,7 @@ export default {
         // Emit save event with a callback to process notifications
         emit('save', taskData, async (savedTaskId) => {
           if (savedTaskId) {
-            console.log(`Task saved with ID: ${savedTaskId}, now saving notifications`);
+            logger.info(`Task saved with ID: ${savedTaskId}, now saving notifications`);
             
             // First create planned time notification if set
             if (plannedTimeValue) {
@@ -542,11 +543,11 @@ export default {
                   message: `It's time to work on: ${taskName}`
                 };
                 
-                console.log('Saving planned time notification:', plannedNotificationData);
+                logger.info('Saving planned time notification:', plannedNotificationData);
                 
                 await window.electron.addNotification(plannedNotificationData);
               } catch (error) {
-                console.error('Error saving planned time notification:', error);
+                logger.error('Error saving planned time notification:', error);
               }
             }
             
@@ -575,17 +576,17 @@ export default {
                   message: `Reminder for task: ${taskName}`
                 };
                 
-                console.log('Saving notification for new task:', notificationData);
+                logger.info('Saving notification for new task:', notificationData);
                 
                 // Add the new notification
                 const success = await window.electron.addNotification(notificationData);
                 if (success) {
-                  console.log('Successfully created notification for new task');
+                  logger.info('Successfully created notification for new task');
                 } else {
-                  console.error('Failed to create notification for new task');
+                  logger.error('Failed to create notification for new task');
                 }
               } catch (error) {
-                console.error('Error saving notification for new task:', error);
+                logger.error('Error saving notification for new task:', error);
               }
             }
           }
@@ -595,10 +596,10 @@ export default {
     
     // Helper function to process notifications for existing tasks
     const processNotifications = async (taskId, taskName, plannedTime) => {
-      console.log(`Processing notifications for task ID: ${taskId}`);
-      console.log(`Notifications to delete: ${notificationsToDelete.value.length}`);
-      console.log(`Notifications to save: ${notifications.value.length}`);
-      console.log(`Planned time: ${plannedTime}`);
+      logger.info(`Processing notifications for task ID: ${taskId}`);
+      logger.info(`Notifications to delete: ${notificationsToDelete.value.length}`);
+      logger.info(`Notifications to save: ${notifications.value.length}`);
+      logger.info(`Planned time: ${plannedTime}`);
       
       // Handle planned time notification
       if (plannedTime) {
@@ -615,7 +616,7 @@ export default {
               message: `It's time to work on: ${taskName}`
             };
             
-            console.log('Updating planned time notification:', updateData);
+            logger.info('Updating planned time notification:', updateData);
             await window.electron.updateNotification(updateData);
           } else {
             // Create new planned time notification
@@ -627,34 +628,34 @@ export default {
               message: `It's time to work on: ${taskName}`
             };
             
-            console.log('Creating new planned time notification:', notificationData);
+            logger.info('Creating new planned time notification:', notificationData);
             await window.electron.addNotification(notificationData);
           }
         } catch (error) {
-          console.error('Error handling planned time notification:', error);
+          logger.error('Error handling planned time notification:', error);
         }
       } else if (plannedTimeNotification.value) {
         // If planned time was removed but we had a notification, delete it
         try {
-          console.log(`Deleting planned time notification: ${plannedTimeNotification.value.id}`);
+          logger.info(`Deleting planned time notification: ${plannedTimeNotification.value.id}`);
           await window.electron.deleteNotification(plannedTimeNotification.value.id);
         } catch (error) {
-          console.error('Error deleting planned time notification:', error);
+          logger.error('Error deleting planned time notification:', error);
         }
       }
       
       // Delete notifications that were removed
       for (const notificationId of notificationsToDelete.value) {
         try {
-          console.log(`Deleting notification: ${notificationId}`);
+          logger.info(`Deleting notification: ${notificationId}`);
           const success = await window.electron.deleteNotification(notificationId);
           if (success) {
-            console.log(`Successfully deleted notification: ${notificationId}`);
+            logger.info(`Successfully deleted notification: ${notificationId}`);
           } else {
-            console.error(`Failed to delete notification: ${notificationId}`);
+            logger.error(`Failed to delete notification: ${notificationId}`);
           }
         } catch (error) {
-          console.error(`Error deleting notification ${notificationId}:`, error);
+          logger.error(`Error deleting notification ${notificationId}:`, error);
         }
       }
       
@@ -674,8 +675,8 @@ export default {
             parseInt(minutes, 10)
           );
           
-          console.log(`Notification date/time: ${notification.date} ${notification.time}`);
-          console.log(`Parsed notification datetime: ${notificationDateTime.toLocaleString()}`);
+          logger.info(`Notification date/time: ${notification.date} ${notification.time}`);
+          logger.info(`Parsed notification datetime: ${notificationDateTime.toLocaleString()}`);
           
           // Create notification data
           const notificationData = {
@@ -687,31 +688,31 @@ export default {
             message: `Reminder for task: ${taskName}`
           };
           
-          console.log('Saving notification:', notificationData);
+          logger.info('Saving notification:', notificationData);
           
           let success = false;
           
           // If it's an existing notification, update it
           if (notification.isExisting) {
-            console.log(`Updating existing notification: ${notification.id}`);
+            logger.info(`Updating existing notification: ${notification.id}`);
             success = await window.electron.updateNotification(notificationData);
             if (success) {
-              console.log(`Successfully updated notification: ${notification.id}`);
+              logger.info(`Successfully updated notification: ${notification.id}`);
             } else {
-              console.error(`Failed to update notification: ${notification.id}`);
+              logger.error(`Failed to update notification: ${notification.id}`);
             }
           } else {
             // Otherwise add a new one
-            console.log('Creating new notification');
+            logger.info('Creating new notification');
             success = await window.electron.addNotification(notificationData);
             if (success) {
-              console.log('Successfully created new notification');
+              logger.info('Successfully created new notification');
             } else {
-              console.error('Failed to create new notification');
+              logger.error('Failed to create new notification');
             }
           }
         } catch (error) {
-          console.error('Error saving notification:', error);
+          logger.error('Error saving notification:', error);
         }
       }
     };

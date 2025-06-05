@@ -1,4 +1,5 @@
 import { Task, STATUS } from '../../models/Task';
+import logger from '../../services/logger';
 
 // Initial state
 const state = {
@@ -44,7 +45,7 @@ const actions = {
       commit('setTasks', tasks);
       dispatch('applyFilters');
     } catch (error) {
-      console.error('Error fetching tasks:', error);
+      logger.error('Error fetching tasks:', error);
       commit('setError', 'Failed to load tasks');
     } finally {
       commit('setLoading', false);
@@ -58,14 +59,14 @@ const actions = {
     try {
       // In Electron, we would use IPC to communicate with the main process
       const tasksData = window.electron ? await window.electron.getTasksByProject(projectId) : [];
-      console.log(`Fetched ${tasksData.length} tasks for project ${projectId}:`, tasksData);
+      logger.info(`Fetched ${tasksData.length} tasks for project ${projectId}:`, tasksData);
       const tasks = tasksData.map(data => Task.fromDatabase(data));
       
       commit('setTasks', tasks);
       commit('setCurrentProjectTasks', tasks);
       dispatch('applyFilters');
     } catch (error) {
-      console.error(`Error fetching tasks for project ${projectId}:`, error);
+      logger.error(`Error fetching tasks for project ${projectId}:`, error);
       commit('setError', 'Failed to load tasks');
     } finally {
       commit('setLoading', false);
@@ -109,7 +110,7 @@ const actions = {
     commit('setError', null);
     
     try {
-      console.log('Adding task with original data:', taskData);
+      logger.info('Adding task with original data:', taskData);
       
       // Create a Task instance
       const task = new Task(taskData);
@@ -142,16 +143,16 @@ const actions = {
             : taskData.plannedTime.toISOString();
         }
         
-        console.log(`Planned time for task: ${dbData.planned_time} (UTC)`);
+        logger.info(`Planned time for task: ${dbData.planned_time} (UTC)`);
       }
       
-      console.log('Task data to be saved:', dbData);
+      logger.info('Task data to be saved:', dbData);
       
       // In Electron, we would use IPC to communicate with the main process
       const success = window.electron ? await window.electron.addTask(dbData) : false;
       
       if (success) {
-        console.log('Task added successfully, refreshing tasks for project:', dbData.project_id);
+        logger.info('Task added successfully, refreshing tasks for project:', dbData.project_id);
         // Refresh the tasks list
         if (dbData.project_id) {
           dispatch('fetchTasksByProject', dbData.project_id);
@@ -166,7 +167,7 @@ const actions = {
         return null;
       }
     } catch (error) {
-      console.error('Error adding task:', error);
+      logger.error('Error adding task:', error);
       commit('setError', 'Failed to add task');
       return null;
     } finally {
@@ -179,7 +180,7 @@ const actions = {
     commit('setError', null);
     
     try {
-      console.log('Updating task:', task);
+      logger.info('Updating task:', task);
       
       // Ensure we're working with a Task instance
       const taskInstance = task instanceof Task ? task : new Task(task);
@@ -212,16 +213,16 @@ const actions = {
             : task.plannedTime.toISOString();
         }
         
-        console.log(`Updated planned time for task: ${dbData.planned_time} (UTC)`);
+        logger.info(`Updated planned time for task: ${dbData.planned_time} (UTC)`);
       }
       
-      console.log('Task data to be updated:', dbData);
+      logger.info('Task data to be updated:', dbData);
       
       // In Electron, we would use IPC to communicate with the main process
       const success = window.electron ? await window.electron.updateTask(dbData) : false;
       
       if (success) {
-        console.log('Task updated successfully, refreshing tasks for project:', dbData.project_id);
+        logger.info('Task updated successfully, refreshing tasks for project:', dbData.project_id);
         // Refresh the tasks list
         if (dbData.project_id) {
           dispatch('fetchTasksByProject', dbData.project_id);
@@ -232,7 +233,7 @@ const actions = {
         commit('setError', 'Failed to update task');
       }
     } catch (error) {
-      console.error('Error updating task:', error);
+      logger.error('Error updating task:', error);
       commit('setError', 'Failed to update task');
     } finally {
       commit('setLoading', false);
@@ -259,7 +260,7 @@ const actions = {
         commit('setError', 'Failed to delete task');
       }
     } catch (error) {
-      console.error('Error deleting task:', error);
+      logger.error('Error deleting task:', error);
       commit('setError', 'Failed to delete task');
     } finally {
       commit('setLoading', false);
@@ -285,7 +286,7 @@ const actions = {
         commit('setError', 'Failed to update task status');
       }
     } catch (error) {
-      console.error('Error updating task status:', error);
+      logger.error('Error updating task status:', error);
       commit('setError', 'Failed to update task status');
     } finally {
       commit('setLoading', false);

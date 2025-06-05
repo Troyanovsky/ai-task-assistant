@@ -6,6 +6,7 @@
 import databaseService from './database.js';
 import { Notification, TYPE } from '../models/Notification.js';
 import { ipcMain, Notification as ElectronNotification } from 'electron';
+import logger from '../../electron-main/logger.js';
 
 class NotificationManager {
   constructor() {
@@ -32,9 +33,9 @@ class NotificationManager {
         this.scheduleNotification(notification);
       });
       
-      console.log(`Loaded ${notifications.length} scheduled notifications`);
+      logger.info(`Loaded ${notifications.length} scheduled notifications`);
     } catch (error) {
-      console.error('Error loading scheduled notifications:', error);
+      logger.logError(error, 'Error loading scheduled notifications');
     }
   }
 
@@ -47,7 +48,7 @@ class NotificationManager {
       const notifications = databaseService.query('SELECT * FROM notifications ORDER BY time ASC');
       return notifications.map(notification => Notification.fromDatabase(notification));
     } catch (error) {
-      console.error('Error getting notifications:', error);
+      logger.logError(error, 'Error getting notifications');
       return [];
     }
   }
@@ -59,15 +60,15 @@ class NotificationManager {
    */
   async getNotificationsByTask(taskId) {
     try {
-      console.log(`Fetching notifications for task ${taskId}`);
+      logger.info(`Fetching notifications for task ${taskId}`);
       const notifications = databaseService.query(
         'SELECT * FROM notifications WHERE task_id = ? ORDER BY time ASC',
         [taskId]
       );
-      console.log(`Found ${notifications.length} notifications for task ${taskId}`);
+      logger.info(`Found ${notifications.length} notifications for task ${taskId}`);
       return notifications.map(notification => Notification.fromDatabase(notification));
     } catch (error) {
-      console.error(`Error getting notifications for task ${taskId}:`, error);
+      logger.logError(error, `Error getting notifications for task ${taskId}`);
       return [];
     }
   }
@@ -86,7 +87,7 @@ class NotificationManager {
       );
       return notifications.map(notification => Notification.fromDatabase(notification));
     } catch (error) {
-      console.error('Error getting upcoming notifications:', error);
+      logger.logError(error, 'Error getting upcoming notifications');
       return [];
     }
   }
@@ -104,13 +105,13 @@ class NotificationManager {
         : new Notification(notification);
       
       if (!notificationInstance.validate()) {
-        console.error('Invalid notification data');
+        logger.error('Invalid notification data');
         return false;
       }
 
       const data = notificationInstance.toDatabase();
       
-      console.log('Adding notification:', {
+      logger.info('Adding notification:', {
         id: data.id,
         taskId: data.task_id,
         time: data.time,
@@ -126,13 +127,13 @@ class NotificationManager {
       if (result && result.changes > 0) {
         // Schedule the notification
         this.scheduleNotification(notificationInstance);
-        console.log(`✅ Notification created successfully: ${data.id} for task ${data.task_id} at ${new Date(data.time).toLocaleString()}`);
+        logger.info(`✅ Notification created successfully: ${data.id} for task ${data.task_id} at ${new Date(data.time).toLocaleString()}`);
         return true;
       }
       
       return false;
     } catch (error) {
-      console.error('Error adding notification:', error);
+      logger.logError(error, 'Error adding notification');
       return false;
     }
   }
@@ -144,7 +145,7 @@ class NotificationManager {
    */
   async updateNotification(notificationData) {
     try {
-      console.log('Updating notification:', notificationData);
+      logger.info('Updating notification:', notificationData);
       
       // Cancel the existing scheduled notification
       this.cancelNotification(notificationData.id);
@@ -153,12 +154,12 @@ class NotificationManager {
       const notification = new Notification(notificationData);
       
       if (!notification.validate()) {
-        console.error('Invalid notification data for update');
+        logger.error('Invalid notification data for update');
         return false;
       }
       
       const data = notification.toDatabase();
-      console.log('Notification data for update:', {
+      logger.debug('Notification data for update:', {
         id: data.id,
         taskId: data.task_id,
         time: data.time,
@@ -174,13 +175,13 @@ class NotificationManager {
       if (result && result.changes > 0) {
         // Re-schedule the notification
         this.scheduleNotification(notification);
-        console.log(`✅ Notification updated successfully: ${data.id} for task ${data.task_id} at ${new Date(data.time).toLocaleString()}`);
+        logger.info(`✅ Notification updated successfully: ${data.id} for task ${data.task_id} at ${new Date(data.time).toLocaleString()}`);
         return true;
       }
       
       return false;
     } catch (error) {
-      console.error(`Error updating notification ${notificationData.id}:`, error);
+      logger.logError(error, `Error updating notification ${notificationData.id}`);
       return false;
     }
   }
@@ -197,12 +198,12 @@ class NotificationManager {
       
       const result = databaseService.delete('DELETE FROM notifications WHERE id = ?', [id]);
       if (result && result.changes > 0) {
-        console.log(`✅ Notification deleted successfully: ${id}`);
+        logger.info(`✅ Notification deleted successfully: ${id}`);
         return true;
       }
       return false;
     } catch (error) {
-      console.error(`Error deleting notification ${id}:`, error);
+      logger.logError(error, `Error deleting notification ${id}`);
       return false;
     }
   }
@@ -219,18 +220,18 @@ class NotificationManager {
       const now = new Date();
       const notificationTime = notification.time;
       
-      console.log(`Scheduling notification ${notification.id} for ${notificationTime.toLocaleString()}`);
-      console.log(`Current time: ${now.toLocaleString()}`);
+      logger.debug(`Scheduling notification ${notification.id} for ${notificationTime.toLocaleString()}`);
+      logger.debug(`Current time: ${now.toLocaleString()}`);
       
       // If the notification time is in the past, don't schedule it
       if (notificationTime <= now) {
-        console.log(`⚠️ Notification ${notification.id} time is in the past, not scheduling`);
+        logger.warn(`⚠️ Notification ${notification.id} time is in the past, not scheduling`);
         return;
       }
       
       // Calculate delay in milliseconds
       const delay = notificationTime.getTime() - now.getTime();
-      console.log(`Notification will trigger in ${Math.round(delay / 1000)} seconds`);
+      logger.debug(`Notification will trigger in ${Math.round(delay / 1000)} seconds`);
       
       // Schedule the notification
       const timeoutId = setTimeout(() => {
@@ -241,9 +242,9 @@ class NotificationManager {
       // Store the timeout ID for later cancellation
       this.scheduledNotifications.set(notification.id, timeoutId);
       
-      console.log(`✅ Scheduled notification ${notification.id} for ${notificationTime.toLocaleString()}`);
+      logger.info(`✅ Scheduled notification ${notification.id} for ${notificationTime.toLocaleString()}`);
     } catch (error) {
-      console.error(`Error scheduling notification ${notification.id}:`, error);
+      logger.logError(error, `Error scheduling notification ${notification.id}`);
     }
   }
 
@@ -257,10 +258,10 @@ class NotificationManager {
       if (timeoutId) {
         clearTimeout(timeoutId);
         this.scheduledNotifications.delete(id);
-        console.log(`Cancelled notification ${id}`);
+        logger.info(`Cancelled notification ${id}`);
       }
     } catch (error) {
-      console.error(`Error cancelling notification ${id}:`, error);
+      logger.logError(error, `Error cancelling notification ${id}`);
     }
   }
 
@@ -277,11 +278,11 @@ class NotificationManager {
       );
       
       if (!task) {
-        console.error(`Task ${notification.taskId} not found for notification`);
+        logger.error(`Task ${notification.taskId} not found for notification`);
         return;
       }
       
-      console.log(`Sending notification for task: ${task.name}`);
+      logger.info(`Sending notification for task: ${task.name}`);
       
       // Create a system notification
       if (ElectronNotification.isSupported()) {
@@ -294,7 +295,7 @@ class NotificationManager {
         
         // Show the notification
         systemNotification.show();
-        console.log(`✅ System notification displayed for task: ${task.name}`);
+        logger.info(`✅ System notification displayed for task: ${task.name}`);
         
         // Handle notification click
         systemNotification.on('click', () => {
@@ -307,18 +308,18 @@ class NotificationManager {
           }
         });
       } else {
-        console.log('⚠️ System notifications are not supported on this platform');
+        logger.warn('⚠️ System notifications are not supported on this platform');
       }
       
       // Emit event to renderer process
       if (ipcMain) {
         ipcMain.emit('notification', null, notification);
-        console.log('Notification event emitted to renderer process');
+        logger.info('Notification event emitted to renderer process');
       }
       
-      console.log(`✅ Notification ${notification.id} sent: ${notification.message}`);
+      logger.info(`✅ Notification ${notification.id} sent: ${notification.message}`);
     } catch (error) {
-      console.error(`Error sending notification ${notification.id}:`, error);
+      logger.logError(error, `Error sending notification ${notification.id}`);
     }
   }
   

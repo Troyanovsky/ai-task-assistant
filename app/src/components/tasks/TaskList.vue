@@ -74,12 +74,11 @@
 <script>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useStore } from 'vuex';
+import { Task } from '../../models/Task.js';
 import TaskItem from './TaskItem.vue';
 import TaskForm from './TaskForm.vue';
 import TaskFilter from './TaskFilter.vue';
-
-// Add this import at the top of your file
-import { Task } from '../../models/Task.js';
+import logger from '../../services/logger';
 
 export default {
   name: 'TaskList',
@@ -127,22 +126,36 @@ export default {
 
     onMounted(() => {
       // Listen for task refresh events from main process
-      window.electron.receive('tasks:refresh', async () => {
-        console.log('Received tasks:refresh event');
-        await fetchTasks();
-      });
-      
-      // Listen for notification changes to refresh tasks
-      window.electron.receive('notifications:refresh', async () => {
-        console.log('Received notifications:refresh event');
-        await fetchTasks();
-      });
+      try {
+        if (window.electron && window.electron.receive) {
+          window.electron.receive('tasks:refresh', async () => {
+            logger.info('Received tasks:refresh event');
+            await fetchTasks();
+          });
+          
+          // Listen for notification changes to refresh tasks
+          window.electron.receive('notifications:refresh', async () => {
+            logger.info('Received notifications:refresh event');
+            await fetchTasks();
+          });
+        } else {
+          logger.warn('Electron API not available - task refresh events will not work');
+        }
+      } catch (error) {
+        logger.logError(error, 'Error setting up task refresh listeners');
+      }
     });
 
     onBeforeUnmount(() => {
       // Remove event listeners when component is unmounted
-      window.electron.removeAllListeners('tasks:refresh');
-      window.electron.removeAllListeners('notifications:refresh');
+      try {
+        if (window.electron && window.electron.removeAllListeners) {
+          window.electron.removeAllListeners('tasks:refresh');
+          window.electron.removeAllListeners('notifications:refresh');
+        }
+      } catch (error) {
+        logger.logError(error, 'Error removing task refresh listeners');
+      }
     });
 
     // Apply filters to tasks
@@ -197,7 +210,7 @@ export default {
         // Hide the form
         showAddTaskForm.value = false;
       } catch (error) {
-        console.error('Error adding task:', error);
+        logger.error('Error adding task:', error);
       }
     };
 
@@ -242,9 +255,9 @@ export default {
           await store.dispatch('tasks/fetchTasksByProject', originalProjectId);
         }
         
-        console.log(`Task ${task.id} moved from project ${originalProjectId} to project ${task.projectId}`);
+        logger.info(`Task ${task.id} moved from project ${originalProjectId} to project ${task.projectId}`);
       } catch (error) {
-        console.error('Error moving task:', error);
+        logger.error('Error moving task:', error);
       }
     };
 

@@ -3,6 +3,7 @@
  */
 
 import schema from '../schema.js';
+import logger from '../../electron-main/logger.js';
 
 async function up(db) {
   try {
@@ -12,10 +13,10 @@ async function up(db) {
     await db.exec(schema.notifications);
     await db.exec(schema.recurrence_rules);
     
-    console.log('Database migration completed successfully');
+    logger.info('Database migration completed successfully');
     return true;
   } catch (error) {
-    console.error('Error during database migration:', error);
+    logger.error('Error during database migration:', error);
     return false;
   }
 }

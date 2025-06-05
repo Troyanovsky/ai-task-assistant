@@ -64,6 +64,7 @@ import { useStore } from 'vuex';
 import ProjectItem from './ProjectItem.vue';
 import ProjectForm from './ProjectForm.vue';
 import Project from '../../models/Project.js';
+import logger from '../../services/logger.js';
 
 export default {
   name: 'ProjectList',
@@ -98,15 +99,29 @@ export default {
       await fetchProjects();
       
       // Listen for project refresh events from main process
-      window.electron.receive('projects:refresh', async () => {
-        console.log('Received projects:refresh event');
-        await fetchProjects();
-      });
+      try {
+        if (window.electron && window.electron.receive) {
+          window.electron.receive('projects:refresh', async () => {
+            logger.info('Received projects:refresh event');
+            await fetchProjects();
+          });
+        } else {
+          logger.warn('Electron API not available - project refresh events will not work');
+        }
+      } catch (error) {
+        logger.logError(error, 'Error setting up project refresh listener');
+      }
     });
     
     onBeforeUnmount(() => {
       // Remove event listener when component is unmounted
-      window.electron.removeAllListeners('projects:refresh');
+      try {
+        if (window.electron && window.electron.removeAllListeners) {
+          window.electron.removeAllListeners('projects:refresh');
+        }
+      } catch (error) {
+        logger.logError(error, 'Error removing project refresh listener');
+      }
     });
 
     const selectProject = (project) => {

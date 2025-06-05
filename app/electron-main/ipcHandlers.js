@@ -3,6 +3,7 @@ import Project from '../src/models/Project.js';
 import projectManager from '../src/services/project.js';
 import taskManager from '../src/services/task.js';
 import notificationService from '../src/services/notification.js';
+import logger from './logger.js';
 
 /**
  * Set up IPC handlers for project and task operations
@@ -15,7 +16,7 @@ export function setupIpcHandlers(mainWindow, aiService) {
     try {
       return await projectManager.getProjects();
     } catch (error) {
-      console.error('IPC Error - getProjects:', error);
+      logger.logError(error, 'IPC Error - getProjects');
       return [];
     }
   });
@@ -25,21 +26,21 @@ export function setupIpcHandlers(mainWindow, aiService) {
       const project = new Project(projectData);
       return await projectManager.addProject(project);
     } catch (error) {
-      console.error('IPC Error - addProject:', error);
+      logger.logError(error, 'IPC Error - addProject');
       return false;
     }
   });
 
   ipcMain.handle('projects:update', async (_, projectData) => {
     try {
-      console.log('Received project update request:', projectData);
+      logger.debug('Received project update request:', projectData);
       const project = new Project(projectData);
-      console.log('Created project instance:', project);
+      logger.debug('Created project instance:', project);
       const result = await projectManager.updateProject(project);
-      console.log('Update result:', result);
+      logger.debug('Update result:', result);
       return result;
     } catch (error) {
-      console.error('IPC Error - updateProject:', error);
+      logger.logError(error, 'IPC Error - updateProject');
       return false;
     }
   });
@@ -48,7 +49,7 @@ export function setupIpcHandlers(mainWindow, aiService) {
     try {
       return await projectManager.deleteProject(projectId);
     } catch (error) {
-      console.error('IPC Error - deleteProject:', error);
+      logger.logError(error, 'IPC Error - deleteProject');
       return false;
     }
   });
@@ -58,7 +59,7 @@ export function setupIpcHandlers(mainWindow, aiService) {
     try {
       return await taskManager.getTasks();
     } catch (error) {
-      console.error('IPC Error - getTasks:', error);
+      logger.logError(error, 'IPC Error - getTasks');
       return [];
     }
   });
@@ -67,7 +68,7 @@ export function setupIpcHandlers(mainWindow, aiService) {
     try {
       return await taskManager.getTasksByProject(projectId);
     } catch (error) {
-      console.error(`IPC Error - getTasksByProject for ${projectId}:`, error);
+      logger.logError(error, `IPC Error - getTasksByProject for ${projectId}`);
       return [];
     }
   });
@@ -77,7 +78,7 @@ export function setupIpcHandlers(mainWindow, aiService) {
       const result = await taskManager.addTask(taskData);
       return result;
     } catch (error) {
-      console.error('IPC Error - addTask:', error);
+      logger.logError(error, 'IPC Error - addTask');
       return false;
     }
   });
@@ -86,7 +87,7 @@ export function setupIpcHandlers(mainWindow, aiService) {
     try {
       return await taskManager.updateTask(taskData);
     } catch (error) {
-      console.error('IPC Error - updateTask:', error);
+      logger.logError(error, 'IPC Error - updateTask');
       return false;
     }
   });
@@ -95,7 +96,7 @@ export function setupIpcHandlers(mainWindow, aiService) {
     try {
       return await taskManager.deleteTask(taskId);
     } catch (error) {
-      console.error(`IPC Error - deleteTask for ${taskId}:`, error);
+      logger.logError(error, `IPC Error - deleteTask for ${taskId}`);
       return false;
     }
   });
@@ -104,7 +105,7 @@ export function setupIpcHandlers(mainWindow, aiService) {
     try {
       return await taskManager.updateTaskStatus(taskId, status);
     } catch (error) {
-      console.error(`IPC Error - updateTaskStatus for ${taskId}:`, error);
+      logger.logError(error, `IPC Error - updateTaskStatus for ${taskId}`);
       return false;
     }
   });
@@ -114,7 +115,7 @@ export function setupIpcHandlers(mainWindow, aiService) {
     try {
       return await notificationService.getNotificationsByTask(taskId);
     } catch (error) {
-      console.error(`IPC Error - getNotificationsByTask for ${taskId}:`, error);
+      logger.logError(error, `IPC Error - getNotificationsByTask for ${taskId}`);
       return [];
     }
   });
@@ -129,7 +130,7 @@ export function setupIpcHandlers(mainWindow, aiService) {
       }
       return result;
     } catch (error) {
-      console.error('IPC Error - addNotification:', error);
+      logger.logError(error, 'IPC Error - addNotification');
       return false;
     }
   });
@@ -144,7 +145,7 @@ export function setupIpcHandlers(mainWindow, aiService) {
       }
       return result;
     } catch (error) {
-      console.error(`IPC Error - updateNotification for ${notificationData.id}:`, error);
+      logger.logError(error, `IPC Error - updateNotification for ${notificationData.id}`);
       return false;
     }
   });
@@ -164,7 +165,7 @@ export function setupIpcHandlers(mainWindow, aiService) {
       }
       return result;
     } catch (error) {
-      console.error(`IPC Error - deleteNotification for ${notificationId}:`, error);
+      logger.logError(error, `IPC Error - deleteNotification for ${notificationId}`);
       return false;
     }
   });

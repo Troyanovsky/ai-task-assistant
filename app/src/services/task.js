@@ -7,6 +7,36 @@ import databaseService from './database.js';
 import { Task, STATUS, PRIORITY } from '../models/Task.js';
 import notificationService from './notification.js';
 
+// Determine which logger to use based on the environment
+let logger;
+try {
+  // Check if we're in the main process (Node.js environment)
+  if (typeof window === 'undefined') {
+    // We're in the main process
+    logger = require('../../electron-main/logger.js').default;
+  } else {
+    // We're in the renderer process
+    logger = require('./logger.js').default;
+  }
+} catch (error) {
+  // Fallback console logger
+  logger = {
+    error: console.error,
+    warn: console.warn,
+    info: console.info,
+    debug: console.debug,
+    verbose: console.debug,
+    silly: console.debug,
+    logError: (error, context = '') => {
+      if (error instanceof Error) {
+        console.error(`${context}: ${error.message}`, error.stack);
+      } else {
+        console.error(`${context}: ${error}`);
+      }
+    }
+  };
+}
+
 class TaskManager {
   /**
    * Get all tasks
@@ -17,7 +47,7 @@ class TaskManager {
       const tasks = databaseService.query('SELECT * FROM tasks ORDER BY created_at DESC');
       return tasks.map(task => Task.fromDatabase(task));
     } catch (error) {
-      console.error('Error getting tasks:', error);
+      logger.error('Error getting tasks:', error);
       return [];
     }
   }
@@ -32,7 +62,7 @@ class TaskManager {
       const task = databaseService.queryOne('SELECT * FROM tasks WHERE id = ?', [id]);
       return task ? Task.fromDatabase(task) : null;
     } catch (error) {
-      console.error(`Error getting task ${id}:`, error);
+      logger.error(`Error getting task ${id}:`, error);
       return null;
     }
   }
@@ -44,15 +74,15 @@ class TaskManager {
    */
   async getTasksByProject(projectId) {
     try {
-      console.log(`Querying tasks for project_id: ${projectId}`);
+      logger.info(`Querying tasks for project_id: ${projectId}`);
       const tasks = databaseService.query(
         'SELECT * FROM tasks WHERE project_id = ? ORDER BY created_at DESC',
         [projectId]
       );
-      console.log(`Found ${tasks.length} tasks for project ${projectId}`);
+      logger.info(`Found ${tasks.length} tasks for project ${projectId}`);
       return tasks.map(task => Task.fromDatabase(task));
     } catch (error) {
-      console.error(`Error getting tasks for project ${projectId}:`, error);
+      logger.error(`Error getting tasks for project ${projectId}:`, error);
       return [];
     }
   }
@@ -64,36 +94,36 @@ class TaskManager {
    */
   async addTask(taskData) {
     try {
-      console.log('Adding task with original data:', taskData);
+      logger.info('Adding task with original data:', taskData);
       
       // Make sure project_id is correctly set
       if (!taskData.project_id && taskData.projectId) {
         taskData.project_id = taskData.projectId;
       }
       
-      console.log('Task data after project_id check:', taskData);
+      logger.info('Task data after project_id check:', taskData);
       
       // Create a Task instance from the data
       const task = new Task(taskData);
       
-      console.log('Task instance created:', task);
-      console.log('Task project ID:', task.projectId);
+      logger.info('Task instance created:', task);
+      logger.info('Task project ID:', task.projectId);
       
       // Validate the task
       const isValid = task.validate();
       if (!isValid) {
-        console.error('Invalid task data - validation failed');
-        console.error('Task validation details:');
-        console.error('- Name:', task.name, task.name && task.name.trim() !== '');
-        console.error('- Project ID:', task.projectId, !!task.projectId);
-        console.error('- Status:', task.status, Object.values(STATUS).includes(task.status));
-        console.error('- Priority:', task.priority, Object.values(PRIORITY).includes(task.priority));
+        logger.error('Invalid task data - validation failed');
+        logger.error('Task validation details:');
+        logger.error('- Name:', task.name, task.name && task.name.trim() !== '');
+        logger.error('- Project ID:', task.projectId, !!task.projectId);
+        logger.error('- Status:', task.status, Object.values(STATUS).includes(task.status));
+        logger.error('- Priority:', task.priority, Object.values(PRIORITY).includes(task.priority));
         return false;
       }
       
       const data = task.toDatabase();
-      console.log('Adding task with database data:', data);
-      console.log('Database project_id:', data.project_id);
+      logger.info('Adding task with database data:', data);
+      logger.info('Database project_id:', data.project_id);
       
       const result = databaseService.insert(
         `INSERT INTO tasks (
@@ -107,14 +137,14 @@ class TaskManager {
         ]
       );
       
-      console.log('Task insert result:', result);
+      logger.info('Task insert result:', result);
       if (result && result.changes > 0) {
         // Return the task data with ID so it can be used for notifications
         return data;
       }
       return false;
     } catch (error) {
-      console.error('Error adding task:', error);
+      logger.error('Error adding task:', error);
       return false;
     }
   }
@@ -126,7 +156,7 @@ class TaskManager {
    */
   async updateTask(taskData) {
     try {
-      console.log('Updating task with original data:', taskData);
+      logger.info('Updating task with original data:', taskData);
       
       // Make sure project_id is correctly set
       if (!taskData.project_id && taskData.projectId) {
@@ -136,7 +166,7 @@ class TaskManager {
       // Get existing task to preserve any fields not included in the update
       const existingTask = await this.getTaskById(taskData.id);
       if (!existingTask) {
-        console.error(`Task ${taskData.id} not found for update`);
+        logger.error(`Task ${taskData.id} not found for update`);
         return false;
       }
       
@@ -149,14 +179,14 @@ class TaskManager {
       // Validate the task
       const isValid = task.validate();
       if (!isValid) {
-        console.error('Invalid task data - validation failed');
+        logger.error('Invalid task data - validation failed');
         return false;
       }
       
       const data = task.toDatabase();
-      console.log('Updating task with database data:', data);
-      console.log('Database due_date:', data.due_date);
-      console.log('Database planned_time:', data.planned_time);
+      logger.info('Updating task with database data:', data);
+      logger.info('Database due_date:', data.due_date);
+      logger.info('Database planned_time:', data.planned_time);
       
       const result = databaseService.update(
         `UPDATE tasks SET 
@@ -173,7 +203,7 @@ class TaskManager {
 
       return result && result.changes > 0;
     } catch (error) {
-      console.error(`Error updating task ${taskData.id}:`, error);
+      logger.error(`Error updating task ${taskData.id}:`, error);
       return false;
     }
   }
@@ -188,7 +218,7 @@ class TaskManager {
       // First check if the task exists
       const task = await this.getTaskById(id);
       if (!task) {
-        console.error(`Task ${id} not found for deletion`);
+        logger.error(`Task ${id} not found for deletion`);
         return false;
       }
       
@@ -199,15 +229,15 @@ class TaskManager {
           await notificationService.deleteNotification(notification.id);
         }
       } catch (notificationError) {
-        console.error(`Error deleting notifications for task ${id}:`, notificationError);
+        logger.error(`Error deleting notifications for task ${id}:`, notificationError);
         // Continue with task deletion even if notification deletion fails
       }
       
-      // Then delete the task
+      // Delete the task
       const result = databaseService.delete('DELETE FROM tasks WHERE id = ?', [id]);
       return result && result.changes > 0;
     } catch (error) {
-      console.error(`Error deleting task ${id}:`, error);
+      logger.error(`Error deleting task ${id}:`, error);
       return false;
     }
   }
@@ -220,22 +250,28 @@ class TaskManager {
    */
   async updateTaskStatus(id, status) {
     try {
+      // Validate status
       if (!Object.values(STATUS).includes(status)) {
-        console.error('Invalid task status');
+        logger.error('Invalid task status');
         return false;
       }
-
+      
+      // Check if task exists
       const task = await this.getTaskById(id);
       if (!task) {
-        console.error(`Task ${id} not found`);
+        logger.error(`Task ${id} not found`);
         return false;
       }
-
-      task.status = status;
-      task.updatedAt = new Date();
-      return await this.updateTask(task);
+      
+      // Update status
+      const result = databaseService.update(
+        'UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?',
+        [status, new Date().toISOString(), id]
+      );
+      
+      return result && result.changes > 0;
     } catch (error) {
-      console.error(`Error updating task status for ${id}:`, error);
+      logger.error(`Error updating task status for ${id}:`, error);
       return false;
     }
   }
@@ -247,18 +283,20 @@ class TaskManager {
    */
   async getTasksByStatus(status) {
     try {
+      // Validate status
       if (!Object.values(STATUS).includes(status)) {
-        console.error('Invalid task status');
+        logger.error('Invalid task status');
         return [];
       }
-
+      
       const tasks = databaseService.query(
         'SELECT * FROM tasks WHERE status = ? ORDER BY created_at DESC',
         [status]
       );
+      
       return tasks.map(task => Task.fromDatabase(task));
     } catch (error) {
-      console.error(`Error getting tasks with status ${status}:`, error);
+      logger.error(`Error getting tasks with status ${status}:`, error);
       return [];
     }
   }
@@ -270,70 +308,75 @@ class TaskManager {
    */
   async getTasksByPriority(priority) {
     try {
+      // Validate priority
       if (!Object.values(PRIORITY).includes(priority)) {
-        console.error('Invalid task priority');
+        logger.error('Invalid task priority');
         return [];
       }
-
+      
       const tasks = databaseService.query(
         'SELECT * FROM tasks WHERE priority = ? ORDER BY created_at DESC',
         [priority]
       );
+      
       return tasks.map(task => Task.fromDatabase(task));
     } catch (error) {
-      console.error(`Error getting tasks with priority ${priority}:`, error);
+      logger.error(`Error getting tasks with priority ${priority}:`, error);
       return [];
     }
   }
 
   /**
-   * Get tasks due soon (within the next 24 hours)
+   * Get tasks due soon (within the next 3 days)
    * @returns {Array} - Array of Task instances
    */
   async getTasksDueSoon() {
     try {
-      const now = new Date();
-      // Set today to noon
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
+      // Get current date and date 3 days from now
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       
-      // Set tomorrow to noon of next day
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      const threeDaysLater = new Date(today);
+      threeDaysLater.setDate(today.getDate() + 3);
       
-      // Convert to ISO string format used for date-only storage
-      const todayStr = today.toISOString().split('T')[0] + 'T12:00:00.000Z';
-      const tomorrowStr = tomorrow.toISOString().split('T')[0] + 'T12:00:00.000Z';
-
+      // Format dates as YYYY-MM-DD for SQLite comparison
+      const todayStr = today.toISOString().split('T')[0];
+      const futureDateStr = threeDaysLater.toISOString().split('T')[0];
+      
       const tasks = databaseService.query(
-        'SELECT * FROM tasks WHERE due_date BETWEEN ? AND ? ORDER BY due_date ASC',
-        [todayStr, tomorrowStr]
+        'SELECT * FROM tasks WHERE due_date BETWEEN ? AND ? AND status != ? ORDER BY due_date ASC',
+        [todayStr, futureDateStr, STATUS.DONE]
       );
+      
       return tasks.map(task => Task.fromDatabase(task));
     } catch (error) {
-      console.error('Error getting tasks due soon:', error);
+      logger.error('Error getting tasks due soon:', error);
       return [];
     }
   }
 
   /**
-   * Get overdue tasks
+   * Get overdue tasks (due date in the past)
    * @returns {Array} - Array of Task instances
    */
   async getOverdueTasks() {
     try {
-      const now = new Date();
-      // Set today to noon
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
-      // Convert to ISO string format used for date-only storage
-      const todayStr = today.toISOString().split('T')[0] + 'T12:00:00.000Z';
+      // Get yesterday's date (to exclude today)
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(23, 59, 59, 999); // End of yesterday
+      
+      // Format date as YYYY-MM-DD for SQLite comparison
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
       
       const tasks = databaseService.query(
         'SELECT * FROM tasks WHERE due_date < ? AND status != ? ORDER BY due_date ASC',
-        [todayStr, STATUS.DONE]
+        [yesterdayStr, STATUS.DONE]
       );
+      
       return tasks.map(task => Task.fromDatabase(task));
     } catch (error) {
-      console.error('Error getting overdue tasks:', error);
+      logger.error('Error getting overdue tasks:', error);
       return [];
     }
   }
@@ -349,52 +392,70 @@ class TaskManager {
         'SELECT * FROM tasks WHERE name LIKE ? OR description LIKE ? ORDER BY created_at DESC',
         [`%${query}%`, `%${query}%`]
       );
+      
       return tasks.map(task => Task.fromDatabase(task));
     } catch (error) {
-      console.error('Error searching tasks:', error);
+      logger.error('Error searching tasks:', error);
       return [];
     }
   }
 
   /**
-   * Prioritize tasks based on due date and priority
+   * Prioritize tasks based on due date, status, and user-set priority
    * @returns {Array} - Array of prioritized Task instances
    */
   async prioritizeTasks() {
     try {
-      // Get all non-completed tasks
-      const tasks = await this.getTasksByStatus(STATUS.DOING);
-      const planningTasks = await this.getTasksByStatus(STATUS.PLANNING);
-      tasks.push(...planningTasks);
-
-      // Sort by priority (high to low)
-      const priorityOrder = {
-        [PRIORITY.HIGH]: 1,
-        [PRIORITY.MEDIUM]: 2,
-        [PRIORITY.LOW]: 3
-      };
+      // Get current date
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().split('T')[0];
       
-      // Sort by due date (sooner first) and then by priority
+      // Get all tasks that are not done
+      const tasks = await this.getTasksByStatus(STATUS.PLANNING, STATUS.DOING);
+      
+      // Sort tasks by:
+      // 1. Overdue tasks first (highest priority)
+      // 2. Tasks due today
+      // 3. Tasks with high priority
+      // 4. Tasks due soon (within 3 days)
+      // 5. Tasks with medium priority
+      // 6. All other tasks
+      
       return tasks.sort((a, b) => {
-        // If both have due dates, compare them
+        // Overdue tasks first
+        if (a.dueDate < todayStr && b.dueDate >= todayStr) return -1;
+        if (b.dueDate < todayStr && a.dueDate >= todayStr) return 1;
+        
+        // Tasks due today
+        if (a.dueDate === todayStr && b.dueDate !== todayStr) return -1;
+        if (b.dueDate === todayStr && a.dueDate !== todayStr) return 1;
+        
+        // Tasks with high priority
+        if (a.priority === PRIORITY.HIGH && b.priority !== PRIORITY.HIGH) return -1;
+        if (b.priority === PRIORITY.HIGH && a.priority !== PRIORITY.HIGH) return 1;
+        
+        // Sort by due date (ascending)
         if (a.dueDate && b.dueDate) {
-          return a.dueDate - b.dueDate;
+          return a.dueDate.localeCompare(b.dueDate);
         }
         
         // Tasks with due dates come before tasks without due dates
         if (a.dueDate && !b.dueDate) return -1;
         if (!a.dueDate && b.dueDate) return 1;
         
-        // If no due dates or they're equal, sort by priority
+        // Sort by priority as a final tiebreaker
+        const priorityOrder = { high: 0, medium: 1, low: 2 };
         return priorityOrder[a.priority] - priorityOrder[b.priority];
       });
     } catch (error) {
-      console.error('Error prioritizing tasks:', error);
+      logger.error('Error prioritizing tasks:', error);
       return [];
     }
   }
 }
 
-// Export a singleton instance
+// Create singleton instance
 const taskManager = new TaskManager();
+
 export default taskManager;

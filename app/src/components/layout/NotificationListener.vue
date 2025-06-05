@@ -6,6 +6,7 @@
 import { onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
+import logger from '../../services/logger.js';
 
 export default {
   name: 'NotificationListener',
@@ -15,7 +16,7 @@ export default {
     
     // Handle notification events
     const handleNotification = (notification) => {
-      console.log('Received notification:', notification);
+      logger.info('Received notification:', notification);
       
       // Handle focus-task type notifications
       if (notification.type === 'focus-task' && notification.taskId) {
@@ -32,19 +33,35 @@ export default {
             }
           })
           .catch(error => {
-            console.error('Error focusing task:', error);
+            logger.logError(error, 'Error focusing task');
           });
       }
     };
     
     onMounted(() => {
-      // Register notification listener
-      window.electron.receive('notification:received', handleNotification);
+      try {
+        // Register notification listener if electron is available
+        if (window.electron) {
+          window.electron.receive('notification:received', handleNotification);
+          logger.info('Notification listener registered');
+        } else {
+          logger.warn('Electron API not available - notifications will not work');
+        }
+      } catch (error) {
+        logger.logError(error, 'Error setting up notification listener');
+      }
     });
     
     onUnmounted(() => {
-      // Remove notification listener
-      window.electron.removeAllListeners('notification:received');
+      try {
+        // Remove notification listener if electron is available
+        if (window.electron) {
+          window.electron.removeAllListeners('notification:received');
+          logger.info('Notification listener removed');
+        }
+      } catch (error) {
+        logger.logError(error, 'Error removing notification listener');
+      }
     });
     
     return {};

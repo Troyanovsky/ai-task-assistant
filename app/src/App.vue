@@ -11,6 +11,7 @@
 import { onMounted } from 'vue';
 import { useStore } from 'vuex';
 import NotificationListener from './components/layout/NotificationListener.vue';
+import logger from './services/logger.js';
 
 export default {
   name: 'App',
@@ -21,9 +22,14 @@ export default {
     const store = useStore();
     
     onMounted(() => {
+      logger.info('App mounted, initializing data');
+      
       // Initialize data
-      store.dispatch('projects/fetchProjects');
-      store.dispatch('tasks/fetchTasks');
+      store.dispatch('projects/fetchProjects')
+        .catch(error => logger.logError(error, 'Failed to fetch projects'));
+        
+      store.dispatch('tasks/fetchTasks')
+        .catch(error => logger.logError(error, 'Failed to fetch tasks'));
     });
     
     return {};

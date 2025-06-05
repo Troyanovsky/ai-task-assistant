@@ -1,11 +1,5 @@
 Issues:
-- Check when we delet tasks, related notifications are deleted; when we delete projects, related tasks are deleted.
-- When AI deletes/updates tasks, it will use user referring name as ID. Fix with prompt or parsing. Shouldn't succesfully delete an non-existent task.
-- Modify query projects/tasks/notifications (and schemas exposed to AI) for flexible filtering and handling optional paramters with default values.
-    - query functions should be flexible with params for task/proj/notifications.
-    - Pay attention to AI created tasks & their notifications.
 - Can we detect if users have turned on system notification? Especially on Mac, I have to go to system settings and turn on notifications for Electron to see my app's notifciations when i npm run electron:dev.
-- Handle UI display when planned time is later than due date. Handle UI display when current time has passed planned time but task is still not done. Handle past due items that are not done. 
 - P1: When creating or editing a task, user should be able to pick dependency (dropdown of other tasks with checkbox), which means this task should be organized after the dependencies are done (dependencies are pre-reqs)
 - P1: Recurrence is not implemented. (Need to design recurrence logic & UI)
 
@@ -15,8 +9,7 @@ Need to:
 
 **app/electron-main/aiService.js:**
 
-4.  **Configuration**: Move AI configuration to a separate module or configuration file to improve maintainability.
-5.  **Error Handling**: Implement more robust error handling, especially around API calls and function executions. Consider using a centralized error logging service.
+5.  **Error Handling**: Implement more robust error handling, especially around API calls and function executions.
 6.  **Context Management**: The way project info and date/time are added to the message could be improved. Consider a more structured approach using JSON or a dedicated context object.
 7.  **Function Call Handling**: The nested function call handling logic is quite complex and repetitive. Refactor this into a more modular and reusable function.
 8.  **Date Parsing**: The date parsing logic in `executeFunctionCall` is complex. Consider using a dedicated date parsing library like `date-fns` or `Moment.js` to simplify and standardize date handling.

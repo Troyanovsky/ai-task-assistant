@@ -1,5 +1,27 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+let electronLog;
+try {
+  electronLog = require('electron-log');
+  
+  // Configure renderer process logger
+  electronLog.transports.file.maxSize = 5 * 1024 * 1024; // 5MB
+  electronLog.transports.file.format = '[{y}-{m}-{d} {h}:{i}:{s}.{ms}] [{level}] {text}';
+  electronLog.transports.console.format = '[{level}] {text}';
+} catch (error) {
+  // Create fallback logger if electron-log is not available
+  electronLog = {
+    error: (...args) => console.error(...args),
+    warn: (...args) => console.warn(...args),
+    info: (...args) => console.info(...args),
+    verbose: (...args) => console.debug(...args),
+    debug: (...args) => console.debug(...args),
+    silly: (...args) => console.debug(...args),
+    transports: { file: {}, console: {} }
+  };
+  electronLog.warn('electron-log not available, using console fallback');
+}
+
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld(
@@ -16,6 +38,27 @@ contextBridge.exposeInMainWorld(
       if (validChannels.includes(channel)) {
         // Deliberately strip event as it includes `sender` 
         ipcRenderer.on(channel, (event, ...args) => func(...args));
+      }
+    }
+  }
+);
+
+// Expose logger to renderer process
+contextBridge.exposeInMainWorld(
+  'logger', {
+    error: (message, ...args) => electronLog.error(message, ...args),
+    warn: (message, ...args) => electronLog.warn(message, ...args),
+    info: (message, ...args) => electronLog.info(message, ...args),
+    verbose: (message, ...args) => electronLog.verbose(message, ...args),
+    debug: (message, ...args) => electronLog.debug(message, ...args),
+    silly: (message, ...args) => electronLog.silly(message, ...args),
+    
+    // Helper for logging errors with stack traces
+    logError: (error, context = '') => {
+      if (error instanceof Error) {
+        electronLog.error(`${context}: ${error.message}`, error.stack);
+      } else {
+        electronLog.error(`${context}: ${error}`);
       }
     }
   }

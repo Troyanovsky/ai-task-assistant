@@ -1,5 +1,7 @@
 // Import Project model - handle both ES modules and CommonJS modules
 import ProjectModule from '../../models/Project';
+import logger from '../../services/logger';
+
 const Project = ProjectModule.default || ProjectModule;
 
 // Initial state
@@ -32,7 +34,7 @@ const actions = {
       
       commit('setProjects', projects);
     } catch (error) {
-      console.error('Error fetching projects:', error);
+      logger.error('Error fetching projects:', error);
       commit('setError', 'Failed to load projects');
     } finally {
       commit('setLoading', false);
@@ -60,7 +62,7 @@ const actions = {
         commit('setError', 'Failed to add project');
       }
     } catch (error) {
-      console.error('Error adding project:', error);
+      logger.error('Error adding project:', error);
       commit('setError', 'Failed to add project');
     } finally {
       commit('setLoading', false);
@@ -84,7 +86,7 @@ const actions = {
         commit('setError', 'Failed to update project');
       }
     } catch (error) {
-      console.error('Error updating project:', error);
+      logger.error('Error updating project:', error);
       commit('setError', 'Failed to update project');
     } finally {
       commit('setLoading', false);
@@ -111,7 +113,7 @@ const actions = {
         commit('setError', 'Failed to delete project');
       }
     } catch (error) {
-      console.error('Error deleting project:', error);
+      logger.error('Error deleting project:', error);
       commit('setError', 'Failed to delete project');
     } finally {
       commit('setLoading', false);

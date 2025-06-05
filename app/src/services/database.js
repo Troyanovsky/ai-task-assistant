@@ -8,6 +8,7 @@ import path from 'path';
 import fs from 'fs';
 import { app } from 'electron';
 import * as initialMigration from '../../database/migrations/initial.js';
+import logger from '../../electron-main/logger.js';
 
 class DatabaseService {
   constructor() {
@@ -32,7 +33,7 @@ class DatabaseService {
       
       // Connect to the database
       this.db = new Database(this.dbPath, { 
-        verbose: console.log,
+        verbose: (message) => logger.debug(`SQLite: ${message}`),
         fileMustExist: false
       });
       
@@ -42,10 +43,10 @@ class DatabaseService {
       // Run migrations
       await this.runMigrations();
       
-      console.log('Database initialized successfully');
+      logger.info('Database initialized successfully');
       return true;
     } catch (error) {
-      console.error('Error initializing database:', error);
+      logger.logError(error, 'Error initializing database');
       return false;
     }
   }
@@ -60,7 +61,7 @@ class DatabaseService {
       await initialMigration.up(this.db);
       return true;
     } catch (error) {
-      console.error('Error running migrations:', error);
+      logger.logError(error, 'Error running migrations');
       return false;
     }
   }
@@ -72,6 +73,7 @@ class DatabaseService {
     if (this.db) {
       this.db.close();
       this.db = null;
+      logger.info('Database connection closed');
     }
   }
 
@@ -86,7 +88,7 @@ class DatabaseService {
       const stmt = this.db.prepare(sql);
       return stmt.all(params);
     } catch (error) {
-      console.error('Error executing query:', error);
+      logger.logError(error, 'Error executing query');
       throw error;
     }
   }
@@ -102,7 +104,7 @@ class DatabaseService {
       const stmt = this.db.prepare(sql);
       return stmt.get(params);
     } catch (error) {
-      console.error('Error executing query:', error);
+      logger.logError(error, 'Error executing query');
       throw error;
     }
   }
@@ -119,7 +121,7 @@ class DatabaseService {
       const result = stmt.run(params);
       return result;
     } catch (error) {
-      console.error('Error executing insert:', error);
+      logger.logError(error, 'Error executing insert');
       throw error;
     }
   }
@@ -136,7 +138,7 @@ class DatabaseService {
       const result = stmt.run(params);
       return result;
     } catch (error) {
-      console.error('Error executing update:', error);
+      logger.logError(error, 'Error executing update');
       throw error;
     }
   }
@@ -153,7 +155,7 @@ class DatabaseService {
       const result = stmt.run(params);
       return result;
     } catch (error) {
-      console.error('Error executing delete:', error);
+      logger.logError(error, 'Error executing delete');
       throw error;
     }
   }

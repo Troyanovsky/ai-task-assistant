@@ -5,6 +5,7 @@ import projectManager from '../src/services/project.js';
 import taskManager from '../src/services/task.js';
 import notificationService from '../src/services/notification.js';
 import { Notification, TYPE } from '../src/models/Notification.js';
+import logger from './logger.js';
 
 // Initialize persistent store
 const store = new Store({
@@ -47,6 +48,8 @@ function configureAI(config) {
     store.set('aiSettings.apiUrl', aiState.apiUrl);
     store.set('aiSettings.model', aiState.model);
     
+    logger.info('AI service configured successfully');
+    
     return { 
       success: true, 
       isConfigured: aiState.isConfigured,
@@ -55,7 +58,7 @@ function configureAI(config) {
       model: aiState.model
     };
   } catch (error) {
-    console.error('Error configuring AI:', error);
+    logger.logError(error, 'Error configuring AI');
     return { success: false, error: error.message };
   }
 }
@@ -264,7 +267,7 @@ async function sendMessage(message, mainWindow) {
 
     return { success: true, chatHistory: aiState.chatHistory };
   } catch (error) {
-    console.error('Error sending message:', error);
+    logger.logError(error, 'Error sending message');
     
     // Add error message to chat history
     const errorMessage = {
@@ -329,7 +332,7 @@ Use the tools provided to you to help the user with their task & project managem
         formattedSystemMessage = formattedSystemMessage.replace('{{PROJECTS_INFO}}', 'No projects available.');
       }
     } catch (error) {
-      console.error('Error fetching projects for AI context:', error);
+      logger.logError(error, 'Error fetching projects for AI context');
       formattedSystemMessage = formattedSystemMessage.replace('{{PROJECTS_INFO}}', 'Error fetching projects.');
     }
     
@@ -444,7 +447,7 @@ Use the tools provided to you to help the user with their task & project managem
       model: requestPayload.model,
       messages: requestPayload.messages
     };
-    console.log('🔄 Electron Main Process - AI API Request:', JSON.stringify(loggablePayload, null, 2));
+    logger.info('🔄 Electron Main Process - AI API Request:', JSON.stringify(loggablePayload, null, 2));
 
     // Make API request
     const response = await axios.post(
@@ -459,7 +462,7 @@ Use the tools provided to you to help the user with their task & project managem
     );
 
     // Log raw API response
-    console.log('✅ Electron Main Process - AI API Response:', JSON.stringify(response.data, null, 2));
+    logger.info('✅ Electron Main Process - AI API Response:', JSON.stringify(response.data, null, 2));
 
     // Process the response
     const aiResponse = response.data.choices[0].message;
@@ -488,7 +491,7 @@ Use the tools provided to you to help the user with their task & project managem
       text: aiResponse.content || "I'll help you with that."
     };
   } catch (error) {
-    console.error('Error calling LLM API:', error);
+    logger.logError(error, 'Error calling LLM API');
     throw new Error(`Failed to process input: ${error.message}`);
   }
 }
@@ -499,7 +502,7 @@ Use the tools provided to you to help the user with their task & project managem
  * @returns {Promise<Object>} - Result of the function execution
  */
 async function executeFunctionCall(functionCall) {
-  console.log('🔄 Electron Main Process - Executing function call:', functionCall);
+  logger.info('🔄 Electron Main Process - Executing function call:', functionCall);
   const { id, name, arguments: args } = functionCall;
   
   try {
@@ -514,16 +517,16 @@ async function executeFunctionCall(functionCall) {
         if (args.projectId && typeof args.projectId === 'string') {
           // Check if this is a project name rather than ID
           if (!args.projectId.includes('-')) {
-            console.log(`Looking up project ID for project name: ${args.projectId}`);
+            logger.info(`Looking up project ID for project name: ${args.projectId}`);
             // It's likely a project name, look up the project by name
             const projects = await projectManager.getProjects();
             const project = projects.find(p => p.name.toLowerCase() === args.projectId.toLowerCase());
             
             if (project) {
-              console.log(`Found project with name "${args.projectId}": ${project.id}`);
+              logger.info(`Found project with name "${args.projectId}": ${project.id}`);
               args.projectId = project.id;
             } else {
-              console.log(`No project found with name "${args.projectId}"`);
+              logger.info(`No project found with name "${args.projectId}"`);
               return {
                 ...baseResult,
                 success: false,
@@ -537,19 +540,19 @@ async function executeFunctionCall(functionCall) {
         // Handle dueDate as YYYY-MM-DD string format
         if (args.dueDate && typeof args.dueDate === 'string') {
           try {
-            console.log(`Original dueDate input: ${args.dueDate}`);
+            logger.info(`Original dueDate input: ${args.dueDate}`);
             
             // If it already has time component, extract just the date part
             if (args.dueDate.includes('T')) {
               args.dueDate = args.dueDate.split('T')[0];
-              console.log(`Extracted date part from ISO string: ${args.dueDate}`);
+              logger.info(`Extracted date part from ISO string: ${args.dueDate}`);
             }
             
             // Validate the date format (YYYY-MM-DD)
             const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
             if (!dateRegex.test(args.dueDate)) {
               // If not in YYYY-MM-DD format, try to convert it
-              console.log(`Date ${args.dueDate} doesn't match YYYY-MM-DD format, parsing as Date`);
+              logger.info(`Date ${args.dueDate} doesn't match YYYY-MM-DD format, parsing as Date`);
               
               // Fix: Create date with UTC to prevent timezone issues
               const [year, month, day] = args.dueDate.split('-');
@@ -558,7 +561,7 @@ async function executeFunctionCall(functionCall) {
                 const paddedMonth = month.padStart(2, '0');
                 const paddedDay = day.padStart(2, '0');
                 args.dueDate = `${year}-${paddedMonth}-${paddedDay}`;
-                console.log(`Formatted date with padding: ${args.dueDate}`);
+                logger.info(`Formatted date with padding: ${args.dueDate}`);
               } else {
                 // If we can't split it, use the Date object but force UTC
                 const parsedDate = new Date(args.dueDate);
@@ -568,17 +571,17 @@ async function executeFunctionCall(functionCall) {
                   const utcMonth = String(parsedDate.getUTCMonth() + 1).padStart(2, '0');
                   const utcDay = String(parsedDate.getUTCDate()).padStart(2, '0');
                   args.dueDate = `${utcYear}-${utcMonth}-${utcDay}`;
-                  console.log(`Parsed and formatted date using UTC: ${args.dueDate}`);
+                  logger.info(`Parsed and formatted date using UTC: ${args.dueDate}`);
                 } else {
-                  console.log(`Invalid date format: ${args.dueDate}`);
+                  logger.info(`Invalid date format: ${args.dueDate}`);
                   args.dueDate = null;
                 }
               }
             } else {
-              console.log(`Date already in correct YYYY-MM-DD format: ${args.dueDate}`);
+              logger.info(`Date already in correct YYYY-MM-DD format: ${args.dueDate}`);
             }
           } catch (error) {
-            console.log(`Error parsing due date: ${args.dueDate}`, error);
+            logger.logError(error, 'Error parsing due date');
             args.dueDate = null;
           }
         }
@@ -592,14 +595,14 @@ async function executeFunctionCall(functionCall) {
             // If invalid or looks like a local date format, try parsing it as a local date
             if (isNaN(plannedTime) || !args.plannedTime.includes('T')) {
               // This is likely a local date format (e.g., "May 31, 2023 15:30" or "5/31/2023 15:30")
-              console.log(`Converting local date format for planned time: ${args.plannedTime}`);
+              logger.info(`Converting local date format for planned time: ${args.plannedTime}`);
               
               // Try to parse date using more flexible approach
               plannedTime = new Date(args.plannedTime);
               
               // If still invalid, try some common formats
               if (isNaN(plannedTime)) {
-                console.log(`Failed to parse date directly, attempting structured parsing`);
+                logger.info(`Failed to parse date directly, attempting structured parsing`);
                 // Try to extract date and time components from common formats
                 const dateTimeParts = args.plannedTime.split(/,\s*| /);
                 if (dateTimeParts.length >= 2) {
@@ -613,14 +616,14 @@ async function executeFunctionCall(functionCall) {
             }
             
             if (!isNaN(plannedTime)) {
-              console.log(`Successfully parsed plannedTime from "${args.plannedTime}" to: ${plannedTime.toISOString()}`);
+              logger.info(`Successfully parsed plannedTime from "${args.plannedTime}" to: ${plannedTime.toISOString()}`);
               args.plannedTime = plannedTime.toISOString();
             } else {
-              console.log(`Invalid date format for planned time: ${args.plannedTime}`);
+              logger.info(`Invalid date format for planned time: ${args.plannedTime}`);
               throw new Error(`Could not parse date/time from: ${args.plannedTime}`);
             }
           } catch (error) {
-            console.log(`Error parsing planned time: ${args.plannedTime}`, error);
+            logger.logError(error, 'Error parsing planned time');
             throw new Error(`Failed to parse planned time: ${error.message}`);
           }
         }
@@ -638,19 +641,19 @@ async function executeFunctionCall(functionCall) {
         // Handle dueDate as YYYY-MM-DD string format
         if (args.dueDate && typeof args.dueDate === 'string') {
           try {
-            console.log(`Original dueDate input: ${args.dueDate}`);
+            logger.info(`Original dueDate input: ${args.dueDate}`);
             
             // If it already has time component, extract just the date part
             if (args.dueDate.includes('T')) {
               args.dueDate = args.dueDate.split('T')[0];
-              console.log(`Extracted date part from ISO string: ${args.dueDate}`);
+              logger.info(`Extracted date part from ISO string: ${args.dueDate}`);
             }
             
             // Validate the date format (YYYY-MM-DD)
             const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
             if (!dateRegex.test(args.dueDate)) {
               // If not in YYYY-MM-DD format, try to convert it
-              console.log(`Date ${args.dueDate} doesn't match YYYY-MM-DD format, parsing as Date`);
+              logger.info(`Date ${args.dueDate} doesn't match YYYY-MM-DD format, parsing as Date`);
               
               // Fix: Create date with UTC to prevent timezone issues
               const [year, month, day] = args.dueDate.split('-');
@@ -659,7 +662,7 @@ async function executeFunctionCall(functionCall) {
                 const paddedMonth = month.padStart(2, '0');
                 const paddedDay = day.padStart(2, '0');
                 args.dueDate = `${year}-${paddedMonth}-${paddedDay}`;
-                console.log(`Formatted date with padding: ${args.dueDate}`);
+                logger.info(`Formatted date with padding: ${args.dueDate}`);
               } else {
                 // If we can't split it, use the Date object but force UTC
                 const parsedDate = new Date(args.dueDate);
@@ -669,17 +672,17 @@ async function executeFunctionCall(functionCall) {
                   const utcMonth = String(parsedDate.getUTCMonth() + 1).padStart(2, '0');
                   const utcDay = String(parsedDate.getUTCDate()).padStart(2, '0');
                   args.dueDate = `${utcYear}-${utcMonth}-${utcDay}`;
-                  console.log(`Parsed and formatted date using UTC: ${args.dueDate}`);
+                  logger.info(`Parsed and formatted date using UTC: ${args.dueDate}`);
                 } else {
-                  console.log(`Invalid date format: ${args.dueDate}`);
+                  logger.info(`Invalid date format: ${args.dueDate}`);
                   args.dueDate = null;
                 }
               }
             } else {
-              console.log(`Date already in correct YYYY-MM-DD format: ${args.dueDate}`);
+              logger.info(`Date already in correct YYYY-MM-DD format: ${args.dueDate}`);
             }
           } catch (error) {
-            console.log(`Error parsing due date: ${args.dueDate}`, error);
+            logger.logError(error, 'Error parsing due date');
             args.dueDate = null;
           }
         }
@@ -693,14 +696,14 @@ async function executeFunctionCall(functionCall) {
             // If invalid or looks like a local date format, try parsing it as a local date
             if (isNaN(plannedTime) || !args.plannedTime.includes('T')) {
               // This is likely a local date format (e.g., "May 31, 2023 15:30" or "5/31/2023 15:30")
-              console.log(`Converting local date format for planned time: ${args.plannedTime}`);
+              logger.info(`Converting local date format for planned time: ${args.plannedTime}`);
               
               // Try to parse date using more flexible approach
               plannedTime = new Date(args.plannedTime);
               
               // If still invalid, try some common formats
               if (isNaN(plannedTime)) {
-                console.log(`Failed to parse date directly, attempting structured parsing`);
+                logger.info(`Failed to parse date directly, attempting structured parsing`);
                 // Try to extract date and time components from common formats
                 const dateTimeParts = args.plannedTime.split(/,\s*| /);
                 if (dateTimeParts.length >= 2) {
@@ -714,14 +717,14 @@ async function executeFunctionCall(functionCall) {
             }
             
             if (!isNaN(plannedTime)) {
-              console.log(`Successfully parsed plannedTime from "${args.plannedTime}" to: ${plannedTime.toISOString()}`);
+              logger.info(`Successfully parsed plannedTime from "${args.plannedTime}" to: ${plannedTime.toISOString()}`);
               args.plannedTime = plannedTime.toISOString();
             } else {
-              console.log(`Invalid date format for planned time: ${args.plannedTime}`);
+              logger.info(`Invalid date format for planned time: ${args.plannedTime}`);
               throw new Error(`Could not parse date/time from: ${args.plannedTime}`);
             }
           } catch (error) {
-            console.log(`Error parsing planned time: ${args.plannedTime}`, error);
+            logger.logError(error, 'Error parsing planned time');
             throw new Error(`Failed to parse planned time: ${error.message}`);
           }
         }
@@ -797,10 +800,10 @@ async function executeFunctionCall(functionCall) {
       case 'queryTasks':
         // Start with all tasks
         let allTasks = await taskManager.getTasks();
-        console.log(`QueryTasks - Found ${allTasks.length} total tasks`);
+        logger.info(`QueryTasks - Found ${allTasks.length} total tasks`);
         allTasks.forEach(task => {
           if (task.dueDate) {
-            console.log(`Task ${task.id} - ${task.name} - Due date: ${task.dueDate} (${new Date(task.dueDate).toLocaleString()})`);
+            logger.info(`Task ${task.id} - ${task.name} - Due date: ${task.dueDate} (${new Date(task.dueDate).toLocaleString()})`);
           }
         });
         
@@ -866,12 +869,12 @@ async function executeFunctionCall(functionCall) {
         if (args.dueDateStart) {
           try {
             const startDate = new Date(args.dueDateStart);
-            console.log(`Filtering by due date start: ${args.dueDateStart} -> ${startDate.toLocaleString()}`);
+            logger.info(`Filtering by due date start: ${args.dueDateStart} -> ${startDate.toLocaleString()}`);
             
             if (!isNaN(startDate)) {
               // Set the start date to the beginning of the day (00:00:00)
               startDate.setHours(0, 0, 0, 0);
-              console.log(`Adjusted start date: ${startDate.toLocaleString()}`);
+              logger.info(`Adjusted start date: ${startDate.toLocaleString()}`);
               
               filteredTasks = filteredTasks.filter(task => {
                 if (!task.dueDate) return false;
@@ -881,26 +884,26 @@ async function executeFunctionCall(functionCall) {
                 
                 // Compare dates ignoring time part
                 const result = taskDueDate >= startDate;
-                console.log(`  Task ${task.id} - ${task.name} - Due date: ${taskDueDate.toLocaleString()} >= ${startDate.toLocaleString()} = ${result}`);
+                logger.info(`  Task ${task.id} - ${task.name} - Due date: ${taskDueDate.toLocaleString()} >= ${startDate.toLocaleString()} = ${result}`);
                 return result;
               });
               
               filteringApplied = true;
             }
           } catch (error) {
-            console.log(`Error parsing dueDateStart: ${args.dueDateStart}`, error);
+            logger.logError(error, 'Error parsing dueDateStart');
           }
         }
         
         if (args.dueDateEnd) {
           try {
             const endDate = new Date(args.dueDateEnd);
-            console.log(`Filtering by due date end: ${args.dueDateEnd} -> ${endDate.toLocaleString()}`);
+            logger.info(`Filtering by due date end: ${args.dueDateEnd} -> ${endDate.toLocaleString()}`);
             
             if (!isNaN(endDate)) {
               // Set the end date to the end of the day (23:59:59.999)
               endDate.setHours(23, 59, 59, 999);
-              console.log(`Adjusted end date: ${endDate.toLocaleString()}`);
+              logger.info(`Adjusted end date: ${endDate.toLocaleString()}`);
               
               filteredTasks = filteredTasks.filter(task => {
                 if (!task.dueDate) return false;
@@ -910,14 +913,14 @@ async function executeFunctionCall(functionCall) {
                 
                 // Compare dates ignoring time part
                 const result = taskDueDate <= endDate;
-                console.log(`  Task ${task.id} - ${task.name} - Due date: ${taskDueDate.toLocaleString()} <= ${endDate.toLocaleString()} = ${result}`);
+                logger.info(`  Task ${task.id} - ${task.name} - Due date: ${taskDueDate.toLocaleString()} <= ${endDate.toLocaleString()} = ${result}`);
                 return result;
               });
               
               filteringApplied = true;
             }
           } catch (error) {
-            console.log(`Error parsing dueDateEnd: ${args.dueDateEnd}`, error);
+            logger.logError(error, 'Error parsing dueDateEnd');
           }
         }
         
@@ -932,7 +935,7 @@ async function executeFunctionCall(functionCall) {
               filteringApplied = true;
             }
           } catch (error) {
-            console.log(`Error parsing plannedTimeStart: ${args.plannedTimeStart}`, error);
+            logger.logError(error, 'Error parsing plannedTimeStart');
           }
         }
         
@@ -946,7 +949,7 @@ async function executeFunctionCall(functionCall) {
               filteringApplied = true;
             }
           } catch (error) {
-            console.log(`Error parsing plannedTimeEnd: ${args.plannedTimeEnd}`, error);
+            logger.logError(error, 'Error parsing plannedTimeEnd');
           }
         }
         
@@ -1049,14 +1052,14 @@ async function executeFunctionCall(functionCall) {
             // If invalid or looks like a local date format, try parsing it as a local date
             if (isNaN(notificationTime) || !args.time.includes('T')) {
               // This is likely a local date format
-              console.log(`Converting local date format for notification: ${args.time}`);
+              logger.info(`Converting local date format for notification: ${args.time}`);
               notificationTime = new Date(args.time);
             }
             
             if (!isNaN(notificationTime)) {
               args.time = notificationTime.toISOString();
             } else {
-              console.log(`Invalid date format for notification: ${args.time}`);
+              logger.info(`Invalid date format for notification: ${args.time}`);
               return {
                 ...baseResult,
                 success: false,
@@ -1065,7 +1068,7 @@ async function executeFunctionCall(functionCall) {
               };
             }
           } catch (error) {
-            console.log(`Error parsing notification time: ${args.time}`, error);
+            logger.logError(error, 'Error parsing notification time');
             return {
               ...baseResult,
               success: false,
@@ -1114,17 +1117,17 @@ async function executeFunctionCall(functionCall) {
             // If invalid or looks like a local date format, try parsing it as a local date
             if (isNaN(notificationTime) || !args.time.includes('T')) {
               // This is likely a local date format
-              console.log(`Converting local date format for notification: ${args.time}`);
+              logger.info(`Converting local date format for notification: ${args.time}`);
               notificationTime = new Date(args.time);
             }
             
             if (!isNaN(notificationTime)) {
               args.time = notificationTime.toISOString();
             } else {
-              console.log(`Invalid date format for notification: ${args.time}`);
+              logger.info(`Invalid date format for notification: ${args.time}`);
             }
           } catch (error) {
-            console.log(`Error parsing notification time: ${args.time}`, error);
+            logger.logError(error, 'Error parsing notification time');
           }
         }
         
@@ -1174,10 +1177,10 @@ async function executeFunctionCall(functionCall) {
       case 'queryNotifications':
         // Start with all notifications
         let allNotifications = await notificationService.getNotifications();
-        console.log(`QueryNotifications - Found ${allNotifications.length} total notifications`);
+        logger.info(`QueryNotifications - Found ${allNotifications.length} total notifications`);
         allNotifications.forEach(notification => {
           if (notification.time) {
-            console.log(`Notification ${notification.id} - Task ID: ${notification.taskId} - Time: ${notification.time} (${new Date(notification.time).toLocaleString()})`);
+            logger.info(`Notification ${notification.id} - Task ID: ${notification.taskId} - Time: ${notification.time} (${new Date(notification.time).toLocaleString()})`);
           }
         });
         
@@ -1204,13 +1207,13 @@ async function executeFunctionCall(functionCall) {
         if (args.timeStart) {
           try {
             const startTime = new Date(args.timeStart);
-            console.log(`Filtering notifications by time start: ${args.timeStart} -> ${startTime.toLocaleString()}`);
+            logger.info(`Filtering notifications by time start: ${args.timeStart} -> ${startTime.toLocaleString()}`);
             
             if (!isNaN(startTime)) {
               // For date-only inputs, set to beginning of day
               if (!args.timeStart.includes('T') && !args.timeStart.includes(':')) {
                 startTime.setHours(0, 0, 0, 0);
-                console.log(`Adjusted notification start time: ${startTime.toLocaleString()}`);
+                logger.info(`Adjusted notification start time: ${startTime.toLocaleString()}`);
               }
               
               filteredNotifications = filteredNotifications.filter(notification => {
@@ -1221,27 +1224,27 @@ async function executeFunctionCall(functionCall) {
                 
                 // Compare times
                 const result = notificationTime >= startTime;
-                console.log(`  Notification ${notification.id} - Time: ${notificationTime.toLocaleString()} >= ${startTime.toLocaleString()} = ${result}`);
+                logger.info(`  Notification ${notification.id} - Time: ${notificationTime.toLocaleString()} >= ${startTime.toLocaleString()} = ${result}`);
                 return result;
               });
               
               notifFilteringApplied = true;
             }
           } catch (error) {
-            console.log(`Error parsing timeStart: ${args.timeStart}`, error);
+            logger.logError(error, 'Error parsing timeStart');
           }
         }
         
         if (args.timeEnd) {
           try {
             const endTime = new Date(args.timeEnd);
-            console.log(`Filtering notifications by time end: ${args.timeEnd} -> ${endTime.toLocaleString()}`);
+            logger.info(`Filtering notifications by time end: ${args.timeEnd} -> ${endTime.toLocaleString()}`);
             
             if (!isNaN(endTime)) {
               // For date-only inputs, set to end of day
               if (!args.timeEnd.includes('T') && !args.timeEnd.includes(':')) {
                 endTime.setHours(23, 59, 59, 999);
-                console.log(`Adjusted notification end time: ${endTime.toLocaleString()}`);
+                logger.info(`Adjusted notification end time: ${endTime.toLocaleString()}`);
               }
               
               filteredNotifications = filteredNotifications.filter(notification => {
@@ -1252,14 +1255,14 @@ async function executeFunctionCall(functionCall) {
                 
                 // Compare times
                 const result = notificationTime <= endTime;
-                console.log(`  Notification ${notification.id} - Time: ${notificationTime.toLocaleString()} <= ${endTime.toLocaleString()} = ${result}`);
+                logger.info(`  Notification ${notification.id} - Time: ${notificationTime.toLocaleString()} <= ${endTime.toLocaleString()} = ${result}`);
                 return result;
               });
               
               notifFilteringApplied = true;
             }
           } catch (error) {
-            console.log(`Error parsing timeEnd: ${args.timeEnd}`, error);
+            logger.logError(error, 'Error parsing timeEnd');
           }
         }
         
@@ -1296,7 +1299,7 @@ async function executeFunctionCall(functionCall) {
         throw new Error(`Function "${name}" is not available`);
     }
   } catch (error) {
-    console.error(`Error executing function "${name}":`, error);
+    logger.logError(error, `Error executing function "${name}"`);
     return { 
       ...baseResult,
       success: false, 
