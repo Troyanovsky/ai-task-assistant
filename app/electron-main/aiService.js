@@ -108,35 +108,12 @@ async function sendMessage(message, mainWindow) {
       return { success: false, error: 'AI service not configured', chatHistory: aiState.chatHistory };
     }
 
-    // Fetch projects to provide context to the AI
-    let projectsInfo = "";
-    try {
-      const projects = await projectManager.getProjects();
-      if (projects && projects.length > 0) {
-        projectsInfo = "<available_projects>\n";
-        projects.forEach(project => {
-          projectsInfo += `- ${project.name} (ID: ${project.id})\n`;
-        });
-        projectsInfo += "</available_projects>\n";
-      }
-    } catch (error) {
-      console.error('Error fetching projects for AI context:', error);
-    }
-
-    // Add current date and time to the context
-    const now = new Date();
-    const localTimeString = now.toLocaleString();
-    const dateTimeInfo = `<current_datetime>${localTimeString}</current_datetime>\n`;
-
-    // Prepend projects info and date/time to the user message
-    const enhancedMessage = projectsInfo + dateTimeInfo + message;
-
-    // Process with LLM API using the enhanced message
-    const response = await processWithLLM(enhancedMessage);
+    // Process with LLM API using the user message directly
+    const response = await processWithLLM(message);
     
     // Add AI response to history
     const aiMessage = {
-      text: response.text,
+      text: response.text || "I'll help you with that.",
       sender: 'ai',
       timestamp: new Date(),
       functionCalls: response.functionCalls
@@ -153,38 +130,29 @@ async function sendMessage(message, mainWindow) {
       
       // Execute each function call and collect results
       for (const functionCall of response.functionCalls) {
-        // Add a message indicating function execution is in progress
-        const executingMessage = {
-          text: `Executing: ${functionCall.name}`,
-          sender: 'system',
-          timestamp: new Date(),
-          isExecutionProgress: true
-        };
-        aiState.chatHistory.push(executingMessage);
-        mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
-        
         // Execute the function
         const result = await executeFunctionCall(functionCall);
         
         // Store the result for later processing
         functionResults.push({
           functionName: functionCall.name,
+          functionCallId: functionCall.id, // Store the original function call ID
           data: result
         });
         
-        // Add function result to chat history
-        if (result && result.message) {
-          const resultMessage = {
-            text: result.message,
-            sender: 'system',
-            timestamp: new Date(),
-            isExecutionResult: true
-          };
-          aiState.chatHistory.push(resultMessage);
-          // Send updated chat history to frontend immediately after function execution
-          mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
-          
-          // Trigger UI updates if needed based on function type
+        // Add tool message to chat history
+        const toolMessage = {
+          role: 'tool',
+          tool_call_id: functionCall.id,
+          content: JSON.stringify(result),
+          sender: 'tool', // Add a sender property for consistency with other messages
+          timestamp: new Date(),
+          functionName: functionCall.name // Add function name for frontend display
+        };
+        aiState.chatHistory.push(toolMessage);
+        
+        // Trigger UI updates if needed based on function type
+        if (result) {
           if (functionCall.name === 'addProject' || functionCall.name === 'updateProject' || functionCall.name === 'deleteProject') {
             mainWindow.webContents.send('projects:refresh');
           }
@@ -206,12 +174,15 @@ async function sendMessage(message, mainWindow) {
         }
       }
       
+      // Send updated chat history to frontend after adding tool messages
+      mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
+      
       // Send all function results back to the LLM for a final response
       const followUpResponse = await processWithLLM(null, functionResults);
       
       // Add the follow-up response to chat history
       const followUpMessage = {
-        text: followUpResponse.text,
+        text: followUpResponse.text || "I'll help you with that.",
         sender: 'ai',
         timestamp: new Date(),
         functionCalls: followUpResponse.functionCalls
@@ -228,38 +199,29 @@ async function sendMessage(message, mainWindow) {
         
         // Execute each nested function call and collect results
         for (const nestedFunctionCall of followUpResponse.functionCalls) {
-          // Add a message indicating nested function execution is in progress
-          const nestedExecutingMessage = {
-            text: `Executing: ${nestedFunctionCall.name}`,
-            sender: 'system',
-            timestamp: new Date(),
-            isExecutionProgress: true
-          };
-          aiState.chatHistory.push(nestedExecutingMessage);
-          mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
-          
           // Execute the nested function
           const nestedResult = await executeFunctionCall(nestedFunctionCall);
           
           // Store the result for later processing
           nestedFunctionResults.push({
             functionName: nestedFunctionCall.name,
+            functionCallId: nestedFunctionCall.id, // Store the original function call ID
             data: nestedResult
           });
           
-          // Add nested function result to chat history
-          if (nestedResult && nestedResult.message) {
-            const nestedResultMessage = {
-              text: nestedResult.message,
-              sender: 'system',
-              timestamp: new Date(),
-              isExecutionResult: true
-            };
-            aiState.chatHistory.push(nestedResultMessage);
-            // Send updated chat history to frontend after nested function execution
-            mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
-            
-            // Trigger UI updates if needed based on function type
+          // Add nested tool message to chat history
+          const nestedToolMessage = {
+            role: 'tool',
+            tool_call_id: nestedFunctionCall.id,
+            content: JSON.stringify(nestedResult),
+            sender: 'tool', // Add a sender property for consistency with other messages
+            timestamp: new Date(),
+            functionName: nestedFunctionCall.name // Add function name for frontend display
+          };
+          aiState.chatHistory.push(nestedToolMessage);
+          
+          // Trigger UI updates if needed based on function type
+          if (nestedResult) {
             if (nestedFunctionCall.name === 'addProject' || nestedFunctionCall.name === 'updateProject' || nestedFunctionCall.name === 'deleteProject') {
               mainWindow.webContents.send('projects:refresh');
             }
@@ -280,6 +242,9 @@ async function sendMessage(message, mainWindow) {
             }
           }
         }
+        
+        // Send updated chat history to frontend after adding nested tool messages
+        mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
         
         // Send all nested function results back to the LLM for a final response
         const finalResponse = await processWithLLM(null, nestedFunctionResults);
@@ -339,76 +304,129 @@ You're FokusZeit, an AI task assistant.
 Use the tools provided to you to help the user with their task & project management.
 </goal>
 
+<available_projects>
+{{PROJECTS_INFO}}
+</available_projects>
+
+<current_datetime>{{CURRENT_DATETIME}}</current_datetime>
+
 <tips>
 - For some queries, you may need to execute multiple tools in a row to find info that the user didn't provide, like task id or notification id.
 - Most of the time, the user won't refer to tasks/projects/notifications with id but names or vague descriptions. In this case, use queryTasks or queryNotifications to find out the id.
 </tips>`;
 
+    // Fetch projects to provide context
+    let formattedSystemMessage = systemMessage;
+    try {
+      const projects = await projectManager.getProjects();
+      if (projects && projects.length > 0) {
+        let projectsList = "";
+        projects.forEach(project => {
+          projectsList += `- ${project.name} (ID: ${project.id})\n`;
+        });
+        formattedSystemMessage = formattedSystemMessage.replace('{{PROJECTS_INFO}}', projectsList);
+      } else {
+        formattedSystemMessage = formattedSystemMessage.replace('{{PROJECTS_INFO}}', 'No projects available.');
+      }
+    } catch (error) {
+      console.error('Error fetching projects for AI context:', error);
+      formattedSystemMessage = formattedSystemMessage.replace('{{PROJECTS_INFO}}', 'Error fetching projects.');
+    }
+    
+    // Add current date and time
+    const now = new Date();
+    const localTimeString = now.toLocaleString();
+    formattedSystemMessage = formattedSystemMessage.replace('{{CURRENT_DATETIME}}', localTimeString);
+
     // Format chat history for the API
     const messages = [
       // Add system message
-      { role: 'system', content: systemMessage },
-      ...aiState.chatHistory
-        .filter((msg, index) => index < aiState.chatHistory.length - 1) // Exclude the just added user message
-        .map(msg => ({
-          role: msg.sender === 'user' ? 'user' : 'assistant',
-          content: msg.text,
-          // Include function call information for assistant messages if present
-          ...(msg.sender === 'ai' && msg.functionCalls && msg.functionCalls.length > 0 ? {
-            tool_calls: msg.functionCalls.map((fc, idx) => ({
-              type: 'function',
-              id: `call_${Date.now()}_${idx}`,
-              function: {
-                name: fc.name,
-                arguments: JSON.stringify(fc.arguments)
-              }
-            }))
-          } : {})
-        }))
+      { role: 'system', content: formattedSystemMessage },
     ];
     
-    // Add the function results if provided
+    // Track function call IDs that will be added via functionResults
+    // to avoid duplicating them from chat history
+    const functionCallIdsToSkip = new Set();
+    
+    // If we have direct function results, get their IDs to avoid duplication
     if (functionResults) {
       // Handle single function result (backward compatibility)
       if (!Array.isArray(functionResults)) {
         functionResults = [functionResults];
       }
       
-      // Add each function result as a tool message
-      functionResults.forEach((result, idx) => {
+      // Collect IDs to skip
+      functionResults.forEach(result => {
+        if (result.functionCallId) {
+          functionCallIdsToSkip.add(result.functionCallId);
+        }
+      });
+    }
+    
+    // Process chat history and add to messages
+    for (let i = 0; i < aiState.chatHistory.length; i++) {
+      const msg = aiState.chatHistory[i];
+      
+      // Skip the last user message if we're processing a new user input
+      // (since we'll add it separately below)
+      if (functionResults === null && i === aiState.chatHistory.length - 1 && msg.sender === 'user') {
+        continue;
+      }
+      
+      // Skip tool messages that will be added via functionResults
+      if (msg.sender === 'tool' && msg.tool_call_id && functionCallIdsToSkip.has(msg.tool_call_id)) {
+        continue;
+      }
+      
+      // Handle different message types
+      if (msg.sender === 'user') {
+        messages.push({
+          role: 'user',
+          content: msg.text
+        });
+      } else if (msg.sender === 'ai') {
+        const assistantMessage = {
+          role: 'assistant',
+          content: msg.text
+        };
+        
+        // Include function call information if present
+        if (msg.functionCalls && msg.functionCalls.length > 0) {
+          assistantMessage.tool_calls = msg.functionCalls.map((fc, idx) => ({
+            type: 'function',
+            id: fc.id || `call_${Date.now()}_${idx}`,
+            function: {
+              name: fc.name,
+              arguments: JSON.stringify(fc.arguments)
+            }
+          }));
+        }
+        
+        messages.push(assistantMessage);
+      } else if (msg.sender === 'tool' || msg.role === 'tool') {
+        // Handle tool messages that were added to chat history
         messages.push({
           role: 'tool',
-          tool_call_id: `call_${Date.now() - 1}_${idx}`, // Use a predictable ID that matches the previous call
-          name: result.functionName,
+          tool_call_id: msg.tool_call_id,
+          content: msg.content
+        });
+      }
+    }
+    
+    // Add the function results if provided
+    if (functionResults) {
+      // Add each function result as a tool message
+      functionResults.forEach((result, idx) => {
+        // Get the corresponding function call ID if available
+        const toolCallId = result.functionCallId || `call_${Date.now()}_${idx}`;
+        
+        messages.push({
+          role: 'tool',
+          tool_call_id: toolCallId,
           content: JSON.stringify(result.data)
         });
       });
-      
-      // Fetch projects to provide context for function result processing
-      try {
-        const projects = await projectManager.getProjects();
-        if (projects && projects.length > 0) {
-          let projectsInfo = "<available_projects>\n";
-          projects.forEach(project => {
-            projectsInfo += `- ${project.name} (ID: ${project.id})\n`;
-          });
-          projectsInfo += "</available_projects>\n";
-          
-          // Add current date and time
-          const now = new Date();
-          const localTimeString = now.toLocaleString();
-          const dateTimeInfo = `<current_datetime>${localTimeString}</current_datetime>\n`;
-          
-          // Add a system message with project information and date/time for context
-          messages.push({
-            role: 'system',
-            content: projectsInfo + dateTimeInfo
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching projects for AI context in function result processing:', error);
-      }
-    } else {
+    } else if (userInput) {
       // If no function result, add the user message
       messages.push({ role: 'user', content: userInput });
     }
@@ -452,7 +470,7 @@ Use the tools provided to you to help the user with their task & project managem
       const functionCalls = aiResponse.tool_calls
         .filter(toolCall => toolCall.type === 'function')
         .map(toolCall => ({
-          id: toolCall.id,
+          id: toolCall.id, // Preserve the original tool call ID
           name: toolCall.function.name,
           arguments: JSON.parse(toolCall.function.arguments)
         }));
@@ -467,7 +485,7 @@ Use the tools provided to you to help the user with their task & project managem
 
     // Regular text response
     return {
-      text: aiResponse.content
+      text: aiResponse.content || "I'll help you with that."
     };
   } catch (error) {
     console.error('Error calling LLM API:', error);
@@ -485,6 +503,11 @@ async function executeFunctionCall(functionCall) {
   const { id, name, arguments: args } = functionCall;
   
   try {
+    // Common result properties to include the original function call ID
+    const baseResult = {
+      functionCallId: id // Store the original function call ID
+    };
+
     switch (name) {
       case 'addTask':
         // Check if the project ID is actually a project name
@@ -502,6 +525,7 @@ async function executeFunctionCall(functionCall) {
             } else {
               console.log(`No project found with name "${args.projectId}"`);
               return {
+                ...baseResult,
                 success: false,
                 error: `Project "${args.projectId}" not found`,
                 message: `I couldn't find a project named "${args.projectId}". Please specify a valid project name or ID.`
@@ -603,6 +627,7 @@ async function executeFunctionCall(functionCall) {
         
         const task = await taskManager.addTask(args);
         return { 
+          ...baseResult,
           success: true, 
           task,
           taskId: task.id,
@@ -703,6 +728,7 @@ async function executeFunctionCall(functionCall) {
         
         await taskManager.updateTask(args);
         return { 
+          ...baseResult,
           success: true,
           taskId: args.id,
           message: `Task "${args.id}" has been updated.`
@@ -718,6 +744,7 @@ async function executeFunctionCall(functionCall) {
           };
         }
         return { 
+          ...baseResult,
           success: true,
           taskId: args.id,
           message: `Task with ID ${args.id} has been deleted.`
@@ -738,6 +765,7 @@ async function executeFunctionCall(functionCall) {
               args.projectId = project.id;
             } else {
               return {
+                ...baseResult,
                 success: false,
                 error: `Project "${args.projectId}" not found`,
                 message: `I couldn't find a project named "${args.projectId}". Please specify a valid project name or ID.`
@@ -757,6 +785,7 @@ async function executeFunctionCall(functionCall) {
         }
         
         return { 
+          ...baseResult,
           success: true, 
           tasks,
           taskIds: tasks.map(task => task.id),
@@ -955,6 +984,7 @@ async function executeFunctionCall(functionCall) {
         });
         
         return {
+          ...baseResult,
           success: true,
           tasks: formattedTasks,
           taskIds: formattedTasks.map(task => task.id),
@@ -966,6 +996,7 @@ async function executeFunctionCall(functionCall) {
       case 'getProjects':
         const projects = await projectManager.getProjects();
         return { 
+          ...baseResult,
           success: true, 
           projects,
           projectIds: projects.map(project => project.id),
@@ -978,6 +1009,7 @@ async function executeFunctionCall(functionCall) {
         const project = new Project(args);
         const newProject = await projectManager.addProject(project);
         return { 
+          ...baseResult,
           success: true, 
           project: project,
           projectId: project.id,
@@ -988,6 +1020,7 @@ async function executeFunctionCall(functionCall) {
         const updatedProject = new Project(args);
         const updateProjectResult = await projectManager.updateProject(updatedProject);
         return {
+          ...baseResult,
           success: updateProjectResult,
           projectId: updatedProject.id,
           message: updateProjectResult 
@@ -998,6 +1031,7 @@ async function executeFunctionCall(functionCall) {
       case 'deleteProject':
         const deleteProjectResult = await projectManager.deleteProject(args.id);
         return {
+          ...baseResult,
           success: deleteProjectResult,
           projectId: args.id,
           message: deleteProjectResult
@@ -1024,6 +1058,7 @@ async function executeFunctionCall(functionCall) {
             } else {
               console.log(`Invalid date format for notification: ${args.time}`);
               return {
+                ...baseResult,
                 success: false,
                 error: `Invalid date format for notification time: ${args.time}`,
                 message: `I couldn't create the notification because the time format is invalid.`
@@ -1032,6 +1067,7 @@ async function executeFunctionCall(functionCall) {
           } catch (error) {
             console.log(`Error parsing notification time: ${args.time}`, error);
             return {
+              ...baseResult,
               success: false,
               error: `Invalid date format for notification time: ${args.time}`,
               message: `I couldn't create the notification because the time format is invalid.`
@@ -1042,6 +1078,7 @@ async function executeFunctionCall(functionCall) {
         // Validate notification type
         if (!Object.values(TYPE).includes(args.type)) {
           return {
+            ...baseResult,
             success: false,
             error: `Invalid notification type: ${args.type}`,
             message: `I couldn't create the notification because "${args.type}" is not a valid notification type. Valid types are: ${Object.values(TYPE).join(', ')}`
@@ -1058,6 +1095,7 @@ async function executeFunctionCall(functionCall) {
         
         const addResult = await notificationService.addNotification(notification);
         return { 
+          ...baseResult,
           success: addResult,
           notification,
           notificationId: notification.id,
@@ -1093,6 +1131,7 @@ async function executeFunctionCall(functionCall) {
         // Validate notification type if provided
         if (args.type && !Object.values(TYPE).includes(args.type)) {
           return {
+            ...baseResult,
             success: false,
             error: `Invalid notification type: ${args.type}`,
             message: `I couldn't update the notification because "${args.type}" is not a valid notification type. Valid types are: ${Object.values(TYPE).join(', ')}`
@@ -1101,6 +1140,7 @@ async function executeFunctionCall(functionCall) {
         
         const updateNotificationResult = await notificationService.updateNotification(args);
         return {
+          ...baseResult,
           success: updateNotificationResult,
           notificationId: args.id,
           message: updateNotificationResult
@@ -1111,6 +1151,7 @@ async function executeFunctionCall(functionCall) {
       case 'deleteNotification':
         const deleteNotificationResult = await notificationService.deleteNotification(args.id);
         return {
+          ...baseResult,
           success: deleteNotificationResult,
           notificationId: args.id,
           message: deleteNotificationResult
@@ -1121,6 +1162,7 @@ async function executeFunctionCall(functionCall) {
       case 'getNotificationsByTask':
         const notifications = await notificationService.getNotificationsByTask(args.taskId);
         return { 
+          ...baseResult,
           success: true, 
           notifications,
           notificationIds: notifications.map(notification => notification.id),
@@ -1241,6 +1283,7 @@ async function executeFunctionCall(functionCall) {
         });
         
         return {
+          ...baseResult,
           success: true,
           notifications: formattedNotifications,
           notificationIds: formattedNotifications.map(notification => notification.id),
@@ -1255,6 +1298,7 @@ async function executeFunctionCall(functionCall) {
   } catch (error) {
     console.error(`Error executing function "${name}":`, error);
     return { 
+      ...baseResult,
       success: false, 
       error: error.message,
       message: `Sorry, I couldn't complete that action: ${error.message}`

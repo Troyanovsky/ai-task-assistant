@@ -4,12 +4,13 @@
     :class="{ 
       'user-message': message.sender === 'user', 
       'ai-message': message.sender === 'ai',
-      'system-message': message.sender === 'system'
+      'system-message': message.sender === 'system',
+      'tool-message': message.sender === 'tool'
     }"
   >
     <div class="flex items-start">
       <div 
-        v-if="message.sender !== 'system'"
+        v-if="message.sender !== 'system' && message.sender !== 'tool'"
         class="message-avatar flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mr-2"
         :class="{
           'bg-blue-500 text-white': message.sender === 'user',
@@ -20,15 +21,23 @@
         <span v-else>AI</span>
       </div>
       
-      <div class="message-content" :class="{ 'ml-10': message.sender === 'system' }">
+      <div class="message-content" :class="{ 
+        'ml-10': message.sender === 'system',
+        'ml-10': message.sender === 'tool' 
+      }">
         <div class="message-bubble p-3 rounded-lg" 
           :class="{
             'bg-blue-100': message.sender === 'user',
             'bg-white border border-gray-200': message.sender === 'ai',
-            'bg-gray-100 border border-gray-200 italic text-sm': message.sender === 'system'
+            'bg-gray-100 border border-gray-200 italic text-sm': message.sender === 'system',
+            'bg-purple-50 border border-purple-200 text-sm': message.sender === 'tool'
           }"
         >
-          <div class="whitespace-pre-wrap">{{ message.text }}</div>
+          <div v-if="message.sender !== 'tool'" class="whitespace-pre-wrap">{{ message.text }}</div>
+          
+          <div v-if="message.sender === 'tool'" class="text-purple-700">
+            <span class="font-semibold">Executing tool:</span> {{ message.functionName || 'Unknown tool' }}
+          </div>
           
           <div v-if="message.functionCall" class="mt-2 pt-2 border-t border-gray-200 text-xs text-gray-500">
             <div>Function: {{ message.functionCall.name }}</div>
@@ -76,13 +85,15 @@ export default {
 
 .user-message .message-content,
 .ai-message .message-content,
-.system-message .message-content {
+.system-message .message-content,
+.tool-message .message-content {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
 }
 
-.system-message .message-bubble {
+.system-message .message-bubble,
+.tool-message .message-bubble {
   max-width: 90%;
 }
 </style> 

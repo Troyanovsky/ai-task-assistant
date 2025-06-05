@@ -88,7 +88,7 @@ export const functionSchemas = [
           plannedTime: {
             type: "string",
             format: "date-time",
-            description: "Planned time to work on the task. Provide in user's local time zone in a readable format like 'YYYY-MM-DD HH:MM'."
+            description: "Planned time to work on the task. Provide in the following format: 'YYYY-MM-DD HH:MM'."
           },
           projectId: { 
             type: "string",
