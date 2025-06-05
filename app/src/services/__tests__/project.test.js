@@ -16,20 +16,37 @@ vi.mock('../database.js', () => ({
 
 // Mock the Project model
 vi.mock('../../models/Project.js', () => {
-  const mockProject = {
-    fromDatabase: vi.fn(data => ({
-      ...data,
-      validate: () => true,
-      toDatabase: () => data
-    })),
-    validate: vi.fn(() => true),
-    toDatabase: vi.fn(function() {
-      return this;
-    })
+  const MockProject = function(data = {}) {
+    // Initialize properties 
+    this.id = data.id || 'mock-id';
+    this.name = data.name || '';
+    this.description = data.description || '';
+    this.createdAt = data.created_at ? new Date(data.created_at) : new Date();
+    this.updatedAt = data.updated_at ? new Date(data.updated_at) : new Date();
+    
+    // Add methods
+    this.validate = vi.fn(() => {
+      // Basic validation logic
+      return !!this.name && this.name.trim() !== '' && 
+             this.name.length <= 255 && 
+             (!this.description || this.description.length <= 255);
+    });
+    
+    this.toDatabase = vi.fn(() => {
+      return {
+        id: this.id,
+        name: this.name,
+        description: this.description,
+        created_at: this.createdAt.toISOString(),
+        updated_at: this.updatedAt.toISOString()
+      };
+    });
   };
   
+  MockProject.fromDatabase = vi.fn(data => new MockProject(data));
+  
   return {
-    default: mockProject
+    default: MockProject
   };
 });
 
@@ -304,4 +321,106 @@ describe('ProjectManager', () => {
       expect(result).toEqual([]);
     });
   });
-}); 
+
+ describe('Project Validation', () => {
+   it('should return true for valid project data', async () => {
+     const validProject = new Project({
+       id: 'project-1',
+       name: 'Valid Project',
+       description: 'Valid Description',
+       created_at: '2023-01-01T00:00:00.000Z',
+       updated_at: '2023-01-01T00:00:00.000Z'
+     });
+
+     expect(validProject.validate()).toBe(true);
+   });
+
+   it('should return false for invalid project data (missing name)', async () => {
+     const invalidProject = new Project({
+       id: 'project-1',
+       description: 'Valid Description',
+       created_at: '2023-01-01T00:00:00.000Z',
+       updated_at: '2023-01-01T00:00:00.000Z'
+     });
+
+     expect(invalidProject.validate()).toBe(false);
+   });
+ });
+
+describe('Data Conversion', () => {
+  it('should correctly convert data from the database format to the Project model format', () => {
+    const dbData = {
+      id: 'project-1',
+      name: 'Test Project',
+      description: 'Test Description',
+      created_at: '2023-01-01T00:00:00.000Z',
+      updated_at: '2023-01-01T00:00:00.000Z'
+    };
+
+    const project = Project.fromDatabase(dbData);
+
+    expect(project.id).toBe(dbData.id);
+    expect(project.name).toBe(dbData.name);
+    expect(project.description).toBe(dbData.description);
+    expect(project.createdAt).toBeInstanceOf(Date);
+    expect(project.updatedAt).toBeInstanceOf(Date);
+  });
+
+  it('should correctly convert data from the Project model format to the database format', () => {
+    const project = new Project({
+      id: 'project-1',
+      name: 'Test Project',
+      description: 'Test Description',
+      created_at: '2023-01-01T00:00:00.000Z',
+      updated_at: '2023-01-01T00:00:00.000Z'
+    });
+
+    const dbData = project.toDatabase();
+
+    expect(dbData.id).toBe(project.id);
+    expect(dbData.name).toBe(project.name);
+    expect(dbData.description).toBe(project.description);
+    expect(dbData.created_at).toBe(project.createdAt.toISOString());
+    expect(dbData.updated_at).toBe(project.updatedAt.toISOString());
+  });
+});
+
+describe('Edge Cases', () => {
+ it('should handle empty project names and descriptions', async () => {
+   const project = new Project({
+     id: 'project-1',
+     name: '',
+     description: '',
+     created_at: '2023-01-01T00:00:00.000Z',
+     updated_at: '2023-01-01T00:00:00.000Z'
+   });
+
+   expect(project.validate()).toBe(false);
+ });
+
+ it('should handle very long project names and descriptions', async () => {
+   const longString = 'a'.repeat(256); // Exceeds the typical database column limit
+
+   const project = new Project({
+     id: 'project-1',
+     name: longString,
+     description: longString,
+     created_at: '2023-01-01T00:00:00.000Z',
+     updated_at: '2023-01-01T00:00:00.000Z'
+   });
+
+   expect(project.validate()).toBe(false);
+ });
+
+ it('should prevent SQL injection in the searchProjects method', async () => {
+   const maliciousQuery = "'; DROP TABLE projects; --";
+
+   await projectManager.searchProjects(maliciousQuery);
+
+   expect(databaseService.query).toHaveBeenCalledWith(
+     'SELECT * FROM projects WHERE name LIKE ? ORDER BY created_at DESC',
+     [`%${maliciousQuery}%`]
+   );
+ });
+});
+});

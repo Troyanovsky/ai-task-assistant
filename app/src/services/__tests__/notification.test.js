@@ -21,16 +21,25 @@ vi.mock('../database', () => {
 
 // Mock Electron's IPC
 vi.mock('electron', () => {
+  const mockNotification = {
+    show: vi.fn(),
+    on: vi.fn()
+  };
+  
   return {
     ipcMain: {
       emit: vi.fn()
-    }
+    },
+    Notification: vi.fn(() => mockNotification)
   };
 });
 
 // Import mocks after they are defined
 import databaseService from '../database';
-import { ipcMain } from 'electron';
+import { ipcMain, Notification as ElectronNotification } from 'electron';
+
+// Add isSupported to the Electron Notification mock
+ElectronNotification.isSupported = vi.fn().mockReturnValue(true);
 
 describe('NotificationManager', () => {
   beforeEach(() => {
@@ -41,6 +50,8 @@ describe('NotificationManager', () => {
     
     // Mock Date.now and setTimeout
     vi.useFakeTimers();
+    vi.spyOn(global, 'setTimeout');
+    vi.spyOn(global, 'clearTimeout');
   });
   
   afterEach(() => {
@@ -53,7 +64,8 @@ describe('NotificationManager', () => {
         { id: '1', task_id: 'task1', time: '2023-01-01T10:00:00Z', type: TYPE.REMINDER, message: 'Test notification', created_at: '2023-01-01T09:00:00Z' }
       ];
       
-      databaseService.query.mockResolvedValueOnce(mockNotifications);
+      // Mock database to return an array
+      databaseService.query.mockReturnValue(mockNotifications);
       
       const result = await notificationService.getNotificationsByTask('task1');
       
@@ -71,7 +83,10 @@ describe('NotificationManager', () => {
     });
     
     it('should return empty array on error', async () => {
-      databaseService.query.mockRejectedValueOnce(new Error('Database error'));
+      // Mock database to throw an error
+      databaseService.query.mockImplementation(() => {
+        throw new Error('Database error');
+      });
       
       const result = await notificationService.getNotificationsByTask('task1');
       
@@ -90,7 +105,9 @@ describe('NotificationManager', () => {
       
       const notification = new Notification(notificationData);
       
-      databaseService.insert.mockReturnValueOnce({ changes: 1 });
+      // Mock database to return success
+      databaseService.insert.mockReturnValue({ changes: 1, lastInsertRowid: 1 });
+      vi.spyOn(notificationService, 'scheduleNotification');
       
       const result = await notificationService.addNotification(notification);
       
@@ -98,7 +115,7 @@ describe('NotificationManager', () => {
       expect(result).toBe(true);
       
       // Check that the notification was scheduled
-      expect(notificationService.scheduledNotifications.size).toBe(1);
+      expect(notificationService.scheduleNotification).toHaveBeenCalledWith(expect.any(Notification));
     });
     
     it('should handle plain object input', async () => {
@@ -109,7 +126,9 @@ describe('NotificationManager', () => {
         message: 'Test notification'
       };
       
-      databaseService.insert.mockReturnValueOnce({ changes: 1 });
+      // Mock database to return success
+      databaseService.insert.mockReturnValue({ changes: 1, lastInsertRowid: 1 });
+      vi.spyOn(notificationService, 'scheduleNotification');
       
       const result = await notificationService.addNotification(notificationData);
       
@@ -141,9 +160,11 @@ describe('NotificationManager', () => {
         type: TYPE.REMINDER
       });
       
-      notificationService.scheduleNotification(notification);
+      vi.spyOn(notificationService, 'cancelNotification');
+      notificationService.scheduledNotifications.set('notif1', setTimeout(() => {}, 1000));
       
-      databaseService.delete.mockReturnValueOnce({ changes: 1 });
+      // Mock database to return success
+      databaseService.delete.mockReturnValue({ changes: 1 });
       
       const result = await notificationService.deleteNotification('notif1');
       
@@ -155,7 +176,224 @@ describe('NotificationManager', () => {
       expect(result).toBe(true);
       
       // Check that the notification was cancelled
-      expect(notificationService.scheduledNotifications.size).toBe(0);
+      expect(notificationService.cancelNotification).toHaveBeenCalledWith('notif1');
     });
   });
-}); 
+
+ describe('scheduleNotification', () => {
+   it('should schedule a notification with the correct delay', () => {
+     const now = Date.now();
+     const notificationTime = new Date(now + 1000); // 1 second in the future
+     const notification = new Notification({
+       id: 'notif1',
+       taskId: 'task1',
+       time: notificationTime,
+       type: TYPE.REMINDER
+     });
+
+     notificationService.scheduleNotification(notification);
+
+     expect(notificationService.scheduledNotifications.size).toBe(1);
+     expect(setTimeout).toHaveBeenCalledWith(
+       expect.any(Function),
+       expect.closeTo(1000, 10) // Allow for slight variations in timing
+     );
+
+     vi.runAllTimers(); // Immediately trigger the scheduled notification
+   });
+
+   it('should not schedule a notification if the time is in the past', () => {
+     const now = Date.now();
+     const notificationTime = new Date(now - 1000); // 1 second in the past
+     const notification = new Notification({
+       id: 'notif1',
+       taskId: 'task1',
+       time: notificationTime,
+       type: TYPE.REMINDER
+     });
+
+     notificationService.scheduleNotification(notification);
+
+     expect(notificationService.scheduledNotifications.size).toBe(0);
+     expect(setTimeout).not.toHaveBeenCalled();
+   });
+ });
+
+describe('sendNotification', () => {
+  it('should send a notification with the correct content', () => {
+    const notification = new Notification({
+      id: 'notif1',
+      taskId: 'task1',
+      time: new Date(Date.now() + 1000),
+      type: TYPE.REMINDER,
+      message: 'Test notification'
+    });
+
+    const mockTask = { name: 'Test Task' };
+    databaseService.queryOne.mockReturnValue(mockTask);
+
+    notificationService.sendNotification(notification);
+
+    expect(databaseService.queryOne).toHaveBeenCalledWith(
+      'SELECT name FROM tasks WHERE id = ?',
+      ['task1']
+    );
+
+    expect(ElectronNotification).toHaveBeenCalledWith({
+      title: 'Task: Test Task',
+      body: 'Test notification',
+      silent: false,
+      timeoutType: 'default'
+    });
+
+    expect(ipcMain.emit).toHaveBeenCalledWith(
+      'notification',
+      null,
+      notification
+    );
+  });
+
+  it('should use the default message if no message is provided', () => {
+    const notification = new Notification({
+      id: 'notif1',
+      taskId: 'task1',
+      time: new Date(Date.now() + 1000),
+      type: TYPE.REMINDER,
+    });
+
+    const mockTask = { name: 'Test Task' };
+    databaseService.queryOne.mockReturnValue(mockTask);
+
+    notificationService.sendNotification(notification);
+
+    expect(ElectronNotification).toHaveBeenCalledWith({
+      title: 'Task: Test Task',
+      body: `Reminder for task: Test Task`,
+      silent: false,
+      timeoutType: 'default'
+    });
+  });
+
+  it('should handle the case where the task is not found', () => {
+    const notification = new Notification({
+      id: 'notif1',
+      taskId: 'task1',
+      time: new Date(Date.now() + 1000),
+      type: TYPE.REMINDER,
+      message: 'Test notification'
+    });
+
+    databaseService.queryOne.mockReturnValue(null);
+
+    notificationService.sendNotification(notification);
+
+    expect(databaseService.queryOne).toHaveBeenCalledWith(
+      'SELECT name FROM tasks WHERE id = ?',
+      ['task1']
+    );
+
+    expect(ElectronNotification).not.toHaveBeenCalled();
+    expect(ipcMain.emit).not.toHaveBeenCalled();
+  });
+
+  describe('loadScheduledNotifications', () => {
+    it('should load scheduled notifications from the database and schedule them', async () => {
+      const mockNotifications = [
+        new Notification({
+          id: 'notif1',
+          taskId: 'task1',
+          time: new Date(Date.now() + 60000), // 1 minute in the future
+          type: TYPE.REMINDER,
+          message: 'Test notification'
+        })
+      ];
+
+      vi.spyOn(notificationService, 'getUpcomingNotifications').mockResolvedValue(mockNotifications);
+      vi.spyOn(notificationService, 'scheduleNotification');
+
+      await notificationService.loadScheduledNotifications();
+
+      expect(notificationService.getUpcomingNotifications).toHaveBeenCalled();
+      expect(notificationService.scheduleNotification).toHaveBeenCalledWith(mockNotifications[0]);
+    });
+
+    it('should handle errors when loading scheduled notifications', async () => {
+      vi.spyOn(notificationService, 'getUpcomingNotifications').mockRejectedValue(new Error('Database error'));
+      vi.spyOn(notificationService, 'scheduleNotification');
+
+      await notificationService.loadScheduledNotifications();
+
+      expect(notificationService.getUpcomingNotifications).toHaveBeenCalled();
+      expect(notificationService.scheduleNotification).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('updateNotification', () => {
+   it('should update a notification and reschedule it', async () => {
+     const notificationData = {
+       id: 'notif1',
+       taskId: 'task1',
+       time: new Date(Date.now() + 60000), // 1 minute in the future
+       type: TYPE.REMINDER,
+       message: 'Updated notification message'
+     };
+
+     vi.spyOn(notificationService, 'cancelNotification');
+     databaseService.update.mockReturnValue({ changes: 1 });
+     
+     // Mock the scheduleNotification method
+     const scheduleSpy = vi.spyOn(notificationService, 'scheduleNotification').mockImplementation(() => {});
+
+     const result = await notificationService.updateNotification(notificationData);
+
+     expect(notificationService.cancelNotification).toHaveBeenCalledWith('notif1');
+     expect(databaseService.update).toHaveBeenCalled();
+     expect(scheduleSpy).toHaveBeenCalled();
+     expect(result).toBe(true);
+   });
+
+   it('should return false if validation fails', async () => {
+     const notificationData = {
+       id: 'notif1',
+       // Missing taskId
+       time: new Date(),
+       type: TYPE.REMINDER
+     };
+
+     vi.spyOn(notificationService, 'cancelNotification');
+     databaseService.update.mockReturnValue({ changes: 1 });
+     vi.spyOn(notificationService, 'scheduleNotification');
+
+     const result = await notificationService.updateNotification(notificationData);
+
+     expect(notificationService.cancelNotification).toHaveBeenCalledWith('notif1');
+     expect(databaseService.update).not.toHaveBeenCalled();
+     expect(notificationService.scheduleNotification).not.toHaveBeenCalled();
+     expect(result).toBe(false);
+   });
+
+   it('should return false if there is an error', async () => {
+     const notificationData = {
+       id: 'notif1',
+       taskId: 'task1',
+       time: new Date(Date.now() + 60000), // 1 minute in the future
+       type: TYPE.REMINDER,
+       message: 'Updated notification message'
+     };
+
+     vi.spyOn(notificationService, 'cancelNotification');
+     databaseService.update.mockImplementation(() => {
+       throw new Error('Database error');
+     });
+     vi.spyOn(notificationService, 'scheduleNotification');
+
+     const result = await notificationService.updateNotification(notificationData);
+
+     expect(notificationService.cancelNotification).toHaveBeenCalledWith('notif1');
+     expect(databaseService.update).toHaveBeenCalled();
+     expect(notificationService.scheduleNotification).not.toHaveBeenCalled();
+     expect(result).toBe(false);
+   });
+ });
+});

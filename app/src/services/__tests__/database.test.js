@@ -170,7 +170,24 @@ describe('DatabaseService', () => {
       
       expect(() => {
         databaseService.query('SELECT * FROM test');
+      }).toThrow(Error);
+      expect(() => {
+        databaseService.query('SELECT * FROM test');
       }).toThrow('Query error');
+    });
+
+    it('should handle query errors with specific error message', () => {
+      databaseService.db = mockDb;
+      mockDb.prepare.mockImplementation(() => {
+        throw new Error('Specific query error');
+      });
+
+      expect(() => {
+        databaseService.query('SELECT * FROM test');
+      }).toThrow(Error);
+      expect(() => {
+        databaseService.query('SELECT * FROM test');
+      }).toThrow('Specific query error');
     });
   });
 
@@ -194,7 +211,24 @@ describe('DatabaseService', () => {
       
       expect(() => {
         databaseService.queryOne('SELECT * FROM test WHERE id = ?', [1]);
+      }).toThrow(Error);
+      expect(() => {
+        databaseService.queryOne('SELECT * FROM test WHERE id = ?', [1]);
       }).toThrow('Query error');
+    });
+
+    it('should handle queryOne errors with specific error message', () => {
+      databaseService.db = mockDb;
+      mockDb.prepare.mockImplementation(() => {
+        throw new Error('Specific query error');
+      });
+
+      expect(() => {
+        databaseService.queryOne('SELECT * FROM test WHERE id = ?', [1]);
+      }).toThrow(Error);
+      expect(() => {
+        databaseService.queryOne('SELECT * FROM test WHERE id = ?', [1]);
+      }).toThrow('Specific query error');
     });
   });
 
@@ -221,7 +255,24 @@ describe('DatabaseService', () => {
       
       expect(() => {
         databaseService.insert('INSERT INTO test (name) VALUES (?)', ['Test']);
+      }).toThrow(Error);
+      expect(() => {
+        databaseService.insert('INSERT INTO test (name) VALUES (?)', ['Test']);
       }).toThrow('Insert error');
+    });
+
+    it('should handle insert errors with specific error message', () => {
+      databaseService.db = mockDb;
+      mockDb.prepare.mockImplementation(() => {
+        throw new Error('Specific insert error');
+      });
+
+      expect(() => {
+        databaseService.insert('INSERT INTO test (name) VALUES (?)', ['Test']);
+      }).toThrow(Error);
+      expect(() => {
+        databaseService.insert('INSERT INTO test (name) VALUES (?)', ['Test']);
+      }).toThrow('Specific insert error');
     });
   });
 
@@ -248,7 +299,24 @@ describe('DatabaseService', () => {
       
       expect(() => {
         databaseService.update('UPDATE test SET name = ? WHERE id = ?', ['New Name', 1]);
+      }).toThrow(Error);
+      expect(() => {
+        databaseService.update('UPDATE test SET name = ? WHERE id = ?', ['New Name', 1]);
       }).toThrow('Update error');
+    });
+
+    it('should handle update errors with specific error message', () => {
+      databaseService.db = mockDb;
+      mockDb.prepare.mockImplementation(() => {
+        throw new Error('Specific update error');
+      });
+
+      expect(() => {
+        databaseService.update('UPDATE test SET name = ? WHERE id = ?', ['New Name', 1]);
+      }).toThrow(Error);
+      expect(() => {
+        databaseService.update('UPDATE test SET name = ? WHERE id = ?', ['New Name', 1]);
+      }).toThrow('Specific update error');
     });
   });
 
@@ -272,7 +340,24 @@ describe('DatabaseService', () => {
       
       expect(() => {
         databaseService.delete('DELETE FROM test WHERE id = ?', [1]);
+      }).toThrow(Error);
+      expect(() => {
+        databaseService.delete('DELETE FROM test WHERE id = ?', [1]);
       }).toThrow('Delete error');
+    });
+
+    it('should handle delete errors with specific error message', () => {
+      databaseService.db = mockDb;
+      mockDb.prepare.mockImplementation(() => {
+        throw new Error('Specific delete error');
+      });
+
+      expect(() => {
+        databaseService.delete('DELETE FROM test WHERE id = ?', [1]);
+      }).toThrow(Error);
+      expect(() => {
+        databaseService.delete('DELETE FROM test WHERE id = ?', [1]);
+      }).toThrow('Specific delete error');
     });
   });
 
@@ -286,4 +371,43 @@ describe('DatabaseService', () => {
       expect(typeof result).toBe('function');
     });
   });
-}); 
+
+ describe('Edge Cases', () => {
+   it('should handle empty queries', () => {
+     databaseService.db = mockDb;
+     mockStatement.all.mockReturnValue([]);
+
+     const result = databaseService.query('');
+
+     expect(mockDb.prepare).toHaveBeenCalledWith('');
+     expect(mockStatement.all).toHaveBeenCalledWith({});
+     expect(result).toEqual([]);
+   });
+
+   it('should handle invalid SQL syntax', () => {
+     databaseService.db = mockDb;
+     mockDb.prepare.mockImplementation(() => {
+       throw new Error('SQLITE_SYNTAX_ERROR');
+     });
+
+     expect(() => {
+       databaseService.query('SELECT * FROM invalid_table');
+     }).toThrow(Error);
+     expect(() => {
+       databaseService.query('SELECT * FROM invalid_table');
+     }).toThrow('SQLITE_SYNTAX_ERROR');
+   });
+
+   it('should handle large data sets', () => {
+     databaseService.db = mockDb;
+     const largeDataSet = Array.from({ length: 1000 }, (_, i) => ({ id: i, name: `Item ${i}` }));
+     mockStatement.all.mockReturnValue(largeDataSet);
+
+     const result = databaseService.query('SELECT * FROM test');
+
+     expect(mockDb.prepare).toHaveBeenCalledWith('SELECT * FROM test');
+     expect(mockStatement.all).toHaveBeenCalledWith({});
+     expect(result).toEqual(largeDataSet);
+   });
+ });
+});
