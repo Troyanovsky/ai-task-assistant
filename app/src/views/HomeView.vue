@@ -12,17 +12,28 @@
           </router-link>
         </div>
         <div class="flex-1 overflow-y-auto p-4">
-          <project-list @project-selected="selectProject" />
+          <project-list 
+            @project-selected="selectProject"
+            @smart-project-selected="selectSmartProject" 
+          />
         </div>
       </div>
       
       <!-- Middle Panel: Tasks -->
       <div class="w-2/4 bg-white flex flex-col h-full">
         <div class="p-4 border-b border-gray-300 h-[60px] flex items-center">
-          <h2 class="font-bold text-lg">Tasks</h2>
+          <h2 class="font-bold text-lg">
+            <span v-if="selectedProject">{{ selectedProject.name }}</span>
+            <span v-else-if="smartProjectType === 'today'">Today's Tasks</span>
+            <span v-else-if="smartProjectType === 'overdue'">Overdue Tasks</span>
+            <span v-else>Tasks</span>
+          </h2>
         </div>
         <div class="flex-1 overflow-y-auto p-4">
-          <task-list :selected-project="selectedProject" />
+          <task-list 
+            :selected-project="selectedProject"
+            :smart-project-type="smartProjectType" 
+          />
         </div>
       </div>
       
@@ -35,7 +46,7 @@
 </template>
 
 <script>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useStore } from 'vuex';
 import ProjectList from '../components/projects/ProjectList.vue';
 import TaskList from '../components/tasks/TaskList.vue';
@@ -50,18 +61,27 @@ export default {
   },
   setup() {
     const store = useStore();
+    const smartProjectType = ref(null);
     
     // Get selected project from store
     const selectedProject = computed(() => store.getters['projects/selectedProject']);
 
     // Dispatch action to select project
     const selectProject = (project) => {
+      smartProjectType.value = null;
       store.dispatch('projects/selectProject', project);
+    };
+    
+    // Handle smart project selection
+    const selectSmartProject = (type) => {
+      smartProjectType.value = type;
     };
 
     return {
       selectedProject,
-      selectProject
+      smartProjectType,
+      selectProject,
+      selectSmartProject
     };
   }
 };

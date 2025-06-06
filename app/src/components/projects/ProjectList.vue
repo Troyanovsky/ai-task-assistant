@@ -4,6 +4,42 @@
       <!-- <h3 class="text-lg font-semibold">Projects</h3> -->
     </div>
 
+    <!-- Smart Projects Section -->
+    <div class="mb-4">
+      <h4 class="text-sm text-gray-500 font-medium mb-2">Smart Projects</h4>
+      <div class="space-y-2">
+        <div 
+          @click="selectSmartProject('today')"
+          class="p-3 rounded cursor-pointer flex justify-between items-center"
+          :class="selectedSmartProject === 'today' ? 'bg-blue-100 border-blue-300 border' : 'bg-white border-gray-200 border hover:bg-gray-50'"
+        >
+          <div class="flex-1 min-w-0">
+            <h4 class="font-medium truncate">Today</h4>
+            <p class="text-sm text-gray-600 truncate max-w-xs">
+              Tasks due or planned for today
+            </p>
+          </div>
+        </div>
+        <div 
+          @click="selectSmartProject('overdue')"
+          class="p-3 rounded cursor-pointer flex justify-between items-center"
+          :class="selectedSmartProject === 'overdue' ? 'bg-blue-100 border-blue-300 border' : 'bg-white border-gray-200 border hover:bg-gray-50'"
+        >
+          <div class="flex-1 min-w-0">
+            <h4 class="font-medium truncate">Overdue</h4>
+            <p class="text-sm text-gray-600 truncate max-w-xs">
+              Tasks that are past due date
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Your Projects Section -->
+    <div class="mb-4">
+      <h4 class="text-sm text-gray-500 font-medium mb-2">Your Projects</h4>
+    </div>
+
     <!-- Project Form Dialog for Add -->
     <div v-if="showAddProjectForm && !editingProject" class="mb-4 p-3 bg-white rounded shadow-md">
       <project-form
@@ -27,7 +63,7 @@
         v-for="project in projects"
         :key="project.id"
         :project="project"
-        :is-selected="selectedProject && selectedProject.id === project.id"
+        :is-selected="selectedProject && selectedProject.id === project.id && !selectedSmartProject"
         v-show="!editingProject || editingProject.id !== project.id"
         @click="selectProject(project)"
         @edit="editProject(project)"
@@ -72,11 +108,12 @@ export default {
     ProjectItem,
     ProjectForm
   },
-  emits: ['project-selected'],
+  emits: ['project-selected', 'smart-project-selected'],
   setup(props, { emit }) {
     const store = useStore();
     const showAddProjectForm = ref(false);
     const editingProject = ref(null);
+    const selectedSmartProject = ref(null);
 
     // Get data from store using getters
     const projects = computed(() => store.getters['projects/allProjects']);
@@ -89,7 +126,7 @@ export default {
       await store.dispatch('projects/fetchProjects');
       
       // Select first project by default if available and none is selected
-      if (projects.value.length > 0 && !selectedProject.value) {
+      if (projects.value.length > 0 && !selectedProject.value && !selectedSmartProject.value) {
         selectProject(projects.value[0]);
       }
     };
@@ -97,6 +134,9 @@ export default {
     onMounted(async () => {
       // Fetch projects on component mount
       await fetchProjects();
+      
+      // Also fetch all tasks for smart projects
+      await store.dispatch('tasks/fetchTasks');
       
       // Listen for project refresh events from main process
       try {
@@ -125,8 +165,19 @@ export default {
     });
 
     const selectProject = (project) => {
+      // Clear smart project selection
+      selectedSmartProject.value = null;
+      
       store.dispatch('projects/selectProject', project);
       emit('project-selected', project);
+    };
+    
+    const selectSmartProject = (type) => {
+      // Clear regular project selection
+      store.dispatch('projects/selectProject', null);
+      
+      selectedSmartProject.value = type;
+      emit('smart-project-selected', type);
     };
 
     const addProject = async (projectData) => {
@@ -167,11 +218,13 @@ export default {
     return {
       projects,
       selectedProject,
+      selectedSmartProject,
       showAddProjectForm,
       editingProject,
       isLoading,
       error,
       selectProject,
+      selectSmartProject,
       addProject,
       updateProject,
       editProject,

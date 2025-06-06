@@ -2,7 +2,7 @@
   <div class="task-list">
     <!-- Task Filter -->
     <task-filter
-      v-if="selectedProject"
+      v-if="selectedProject && !smartProjectType"
       :filters="filters"
       @update:filters="updateFilters"
       class="mb-4"
@@ -10,7 +10,7 @@
 
     <!-- Add Task Button -->
     <div 
-      v-if="selectedProject"
+      v-if="selectedProject && !smartProjectType"
       @click="showAddTaskForm = true"
       class="p-3 rounded cursor-pointer bg-white border-gray-200 border hover:bg-gray-50 text-center text-blue-500 mb-4"
     >
@@ -37,8 +37,8 @@
     </div>
 
     <!-- Tasks List -->
-    <div v-if="filteredTasks.length > 0" class="space-y-3">
-      <template v-for="task in filteredTasks" :key="task.id">
+    <div v-if="displayedTasks.length > 0" class="space-y-3">
+      <template v-for="task in displayedTasks" :key="task.id">
         <task-item
           v-if="!isTaskBeingEdited(task)"
           :task="task"
@@ -49,11 +49,17 @@
         />
       </template>
     </div>
-    <div v-else-if="tasks.length > 0" class="text-gray-500 text-sm mt-2 text-center">
+    <div v-else-if="tasks.length > 0 && !smartProjectType" class="text-gray-500 text-sm mt-2 text-center">
       No tasks match your filters.
     </div>
-    <div v-else-if="selectedProject" class="text-gray-500 text-sm mt-2 text-center">
+    <div v-else-if="selectedProject && !smartProjectType" class="text-gray-500 text-sm mt-2 text-center">
       No tasks in this project. Create your first task.
+    </div>
+    <div v-else-if="smartProjectType === 'today' && allTasks.length > 0" class="text-gray-500 text-sm mt-2 text-center">
+      No tasks due or planned for today.
+    </div>
+    <div v-else-if="smartProjectType === 'overdue' && allTasks.length > 0" class="text-gray-500 text-sm mt-2 text-center">
+      No overdue tasks.
     </div>
     <div v-else class="text-gray-500 text-sm mt-2 text-center">
       Select a project to view and manage tasks.
@@ -91,6 +97,10 @@ export default {
     selectedProject: {
       type: Object,
       default: null
+    },
+    smartProjectType: {
+      type: String,
+      default: null
     }
   },
   setup(props) {
@@ -103,7 +113,10 @@ export default {
       search: ''
     });
 
-    // Get data from store using getters
+    // Get all tasks for smart projects
+    const allTasks = computed(() => store.getters['tasks/allTasks']);
+
+    // Get tasks for the selected project
     const tasks = computed(() => {
       if (!props.selectedProject) return [];
       return store.getters['tasks/tasksByProject'](props.selectedProject.id);
@@ -111,6 +124,60 @@ export default {
     
     const isLoading = computed(() => store.getters['tasks/isLoading']);
     const error = computed(() => store.getters['tasks/error']);
+
+    // Smart project tasks
+    const todayTasks = computed(() => {
+      if (!allTasks.value.length) return [];
+      
+      const today = new Date();
+      const todayDateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+      
+      return allTasks.value.filter(task => {
+        // Check if due date is today
+        if (task.dueDate === todayDateStr) {
+          return true;
+        }
+        
+        // Check if planned time is today
+        if (task.plannedTime) {
+          const plannedDate = new Date(task.plannedTime);
+          return (
+            plannedDate.getFullYear() === today.getFullYear() &&
+            plannedDate.getMonth() === today.getMonth() &&
+            plannedDate.getDate() === today.getDate()
+          );
+        }
+        
+        return false;
+      });
+    });
+    
+    const overdueTasks = computed(() => {
+      if (!allTasks.value.length) return [];
+      
+      const today = new Date();
+      const todayDateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+      
+      return allTasks.value.filter(task => {
+        // Check if due date is before today and task is not done
+        if (task.dueDate && task.dueDate < todayDateStr && task.status !== 'done') {
+          return true;
+        }
+        
+        return false;
+      });
+    });
+    
+    // Tasks to display based on selection
+    const displayedTasks = computed(() => {
+      if (props.smartProjectType === 'today') {
+        return todayTasks.value;
+      } else if (props.smartProjectType === 'overdue') {
+        return overdueTasks.value;
+      } else {
+        return filteredTasks.value;
+      }
+    });
 
     // Function to check if a task is currently being edited
     const isTaskBeingEdited = (task) => {
@@ -121,6 +188,9 @@ export default {
     const fetchTasks = async () => {
       if (props.selectedProject) {
         await store.dispatch('tasks/fetchTasksByProject', props.selectedProject.id);
+      } else if (props.smartProjectType) {
+        // For smart projects, we need all tasks
+        await store.dispatch('tasks/fetchTasks');
       }
     };
 
@@ -185,12 +255,14 @@ export default {
       return result;
     });
 
-    // Fetch tasks when selected project changes
+    // Fetch tasks when selected project or smart project type changes
     watch(
-      () => props.selectedProject, 
-      async (newProject) => {
+      [() => props.selectedProject, () => props.smartProjectType], 
+      async ([newProject, newSmartProjectType]) => {
         if (newProject) {
           await store.dispatch('tasks/fetchTasksByProject', newProject.id);
+        } else if (newSmartProjectType) {
+          await store.dispatch('tasks/fetchTasks');
         }
       },
       { immediate: true }
@@ -219,6 +291,11 @@ export default {
       const taskInstance = new Task(taskData);
       await store.dispatch('tasks/updateTask', taskInstance);
       editingTask.value = null;
+      
+      // If we're in a smart project, refresh all tasks
+      if (props.smartProjectType) {
+        await store.dispatch('tasks/fetchTasks');
+      }
     };
 
     const updateTaskStatus = async (taskId, newStatus) => {
@@ -227,6 +304,11 @@ export default {
         status: newStatus,
         projectId: props.selectedProject ? props.selectedProject.id : null
       });
+      
+      // If we're in a smart project, refresh all tasks
+      if (props.smartProjectType) {
+        await store.dispatch('tasks/fetchTasks');
+      }
     };
 
     const editTask = (task) => {
@@ -239,6 +321,11 @@ export default {
           taskId,
           projectId: props.selectedProject ? props.selectedProject.id : null
         });
+        
+        // If we're in a smart project, refresh all tasks
+        if (props.smartProjectType) {
+          await store.dispatch('tasks/fetchTasks');
+        }
       }
     };
     
@@ -255,6 +342,11 @@ export default {
           await store.dispatch('tasks/fetchTasksByProject', originalProjectId);
         }
         
+        // If we're in a smart project, refresh all tasks
+        if (props.smartProjectType) {
+          await store.dispatch('tasks/fetchTasks');
+        }
+        
         logger.info(`Task ${task.id} moved from project ${originalProjectId} to project ${task.projectId}`);
       } catch (error) {
         logger.error('Error moving task:', error);
@@ -268,7 +360,9 @@ export default {
 
     return {
       tasks,
+      allTasks,
       filteredTasks,
+      displayedTasks,
       isLoading,
       error,
       showAddTaskForm,
