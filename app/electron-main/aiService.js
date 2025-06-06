@@ -32,6 +32,77 @@ const aiState = {
 aiState.isConfigured = Boolean(aiState.apiKey);
 
 /**
+ * Helper function to update chat history and send update to frontend
+ * @param {Object} message - Message to add to chat history
+ * @param {BrowserWindow} mainWindow - Main window instance for sending updates
+ */
+function updateChatHistory(message, mainWindow) {
+  aiState.chatHistory.push(message);
+  if (mainWindow) {
+    mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
+  }
+}
+
+/**
+ * Helper function to process function calls and collect results
+ * @param {Array} functionCalls - Array of function calls to process
+ * @param {BrowserWindow} mainWindow - Main window instance for sending updates
+ * @returns {Array} - Array of function results
+ */
+async function processFunctionCalls(functionCalls, mainWindow) {
+  // Create an array to store all function results
+  const functionResults = [];
+  
+  // Execute each function call and collect results
+  for (const functionCall of functionCalls) {
+    // Execute the function
+    const result = await executeFunctionCall(functionCall);
+    
+    // Store the result for later processing
+    functionResults.push({
+      functionName: functionCall.name,
+      functionCallId: functionCall.id, // Store the original function call ID
+      data: result
+    });
+    
+    // Add tool message to chat history
+    const toolMessage = {
+      role: 'tool',
+      tool_call_id: functionCall.id,
+      content: JSON.stringify(result),
+      sender: 'tool', // Add a sender property for consistency with other messages
+      timestamp: new Date(),
+      functionName: functionCall.name // Add function name for frontend display
+    };
+    updateChatHistory(toolMessage, mainWindow);
+    
+    // Trigger UI updates if needed based on function type
+    if (result) {
+      if (functionCall.name === 'addProject' || functionCall.name === 'updateProject' || functionCall.name === 'deleteProject') {
+        mainWindow.webContents.send('projects:refresh');
+      }
+      
+      if (functionCall.name === 'addTask' || functionCall.name === 'updateTask' || functionCall.name === 'deleteTask') {
+        mainWindow.webContents.send('tasks:refresh');
+      }
+      
+      if (functionCall.name === 'addNotification' || functionCall.name === 'updateNotification' || functionCall.name === 'deleteNotification') {
+        mainWindow.webContents.send('notifications:refresh');
+        
+        // If we have a taskId, also send the notifications:changed event
+        if (result.notification && result.notification.taskId) {
+          mainWindow.webContents.send('notifications:changed', result.notification.taskId);
+        } else if (result.taskId) {
+          mainWindow.webContents.send('notifications:changed', result.taskId);
+        }
+      }
+    }
+  }
+  
+  return functionResults;
+}
+
+/**
  * Configure AI service with provided settings
  * @param {Object} config - Configuration object
  * @returns {Object} - Configuration status
@@ -94,10 +165,7 @@ async function sendMessage(message, mainWindow) {
       sender: 'user',
       timestamp: new Date()
     };
-    aiState.chatHistory.push(userMessage);
-    
-    // Send updated chat history to frontend immediately after user message
-    mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
+    updateChatHistory(userMessage, mainWindow);
 
     // Check if AI is configured
     if (!aiState.isConfigured) {
@@ -106,8 +174,7 @@ async function sendMessage(message, mainWindow) {
         sender: 'ai',
         timestamp: new Date()
       };
-      aiState.chatHistory.push(errorMessage);
-      mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
+      updateChatHistory(errorMessage, mainWindow);
       return { success: false, error: 'AI service not configured', chatHistory: aiState.chatHistory };
     }
 
@@ -121,66 +188,14 @@ async function sendMessage(message, mainWindow) {
       timestamp: new Date(),
       functionCalls: response.functionCalls
     };
-    aiState.chatHistory.push(aiMessage);
-    
-    // Send updated chat history to frontend immediately after AI response
-    mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
+    updateChatHistory(aiMessage, mainWindow);
 
     // Handle function calls if present
     if (response.functionCalls && response.functionCalls.length > 0) {
-      // Create an array to store all function results
-      const functionResults = [];
+      // Process the function calls and collect results
+      const functionResults = await processFunctionCalls(response.functionCalls, mainWindow);
       
-      // Execute each function call and collect results
-      for (const functionCall of response.functionCalls) {
-        // Execute the function
-        const result = await executeFunctionCall(functionCall);
-        
-        // Store the result for later processing
-        functionResults.push({
-          functionName: functionCall.name,
-          functionCallId: functionCall.id, // Store the original function call ID
-          data: result
-        });
-        
-        // Add tool message to chat history
-        const toolMessage = {
-          role: 'tool',
-          tool_call_id: functionCall.id,
-          content: JSON.stringify(result),
-          sender: 'tool', // Add a sender property for consistency with other messages
-          timestamp: new Date(),
-          functionName: functionCall.name // Add function name for frontend display
-        };
-        aiState.chatHistory.push(toolMessage);
-        
-        // Trigger UI updates if needed based on function type
-        if (result) {
-          if (functionCall.name === 'addProject' || functionCall.name === 'updateProject' || functionCall.name === 'deleteProject') {
-            mainWindow.webContents.send('projects:refresh');
-          }
-          
-          if (functionCall.name === 'addTask' || functionCall.name === 'updateTask' || functionCall.name === 'deleteTask') {
-            mainWindow.webContents.send('tasks:refresh');
-          }
-          
-          if (functionCall.name === 'addNotification' || functionCall.name === 'updateNotification' || functionCall.name === 'deleteNotification') {
-            mainWindow.webContents.send('notifications:refresh');
-            
-            // If we have a taskId, also send the notifications:changed event
-            if (result.notification && result.notification.taskId) {
-              mainWindow.webContents.send('notifications:changed', result.notification.taskId);
-            } else if (result.taskId) {
-              mainWindow.webContents.send('notifications:changed', result.taskId);
-            }
-          }
-        }
-      }
-      
-      // Send updated chat history to frontend after adding tool messages
-      mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
-      
-      // Send all function results back to the LLM for a final response
+      // Send all function results back to the LLM for a follow-up response
       const followUpResponse = await processWithLLM(null, functionResults);
       
       // Add the follow-up response to chat history
@@ -190,64 +205,12 @@ async function sendMessage(message, mainWindow) {
         timestamp: new Date(),
         functionCalls: followUpResponse.functionCalls
       };
-      aiState.chatHistory.push(followUpMessage);
-      
-      // Send updated chat history to frontend immediately after follow-up response
-      mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
+      updateChatHistory(followUpMessage, mainWindow);
       
       // Handle nested function calls if present in follow-up response
       if (followUpResponse.functionCalls && followUpResponse.functionCalls.length > 0) {
-        // Create an array to store all nested function results
-        const nestedFunctionResults = [];
-        
-        // Execute each nested function call and collect results
-        for (const nestedFunctionCall of followUpResponse.functionCalls) {
-          // Execute the nested function
-          const nestedResult = await executeFunctionCall(nestedFunctionCall);
-          
-          // Store the result for later processing
-          nestedFunctionResults.push({
-            functionName: nestedFunctionCall.name,
-            functionCallId: nestedFunctionCall.id, // Store the original function call ID
-            data: nestedResult
-          });
-          
-          // Add nested tool message to chat history
-          const nestedToolMessage = {
-            role: 'tool',
-            tool_call_id: nestedFunctionCall.id,
-            content: JSON.stringify(nestedResult),
-            sender: 'tool', // Add a sender property for consistency with other messages
-            timestamp: new Date(),
-            functionName: nestedFunctionCall.name // Add function name for frontend display
-          };
-          aiState.chatHistory.push(nestedToolMessage);
-          
-          // Trigger UI updates if needed based on function type
-          if (nestedResult) {
-            if (nestedFunctionCall.name === 'addProject' || nestedFunctionCall.name === 'updateProject' || nestedFunctionCall.name === 'deleteProject') {
-              mainWindow.webContents.send('projects:refresh');
-            }
-            
-            if (nestedFunctionCall.name === 'addTask' || nestedFunctionCall.name === 'updateTask' || nestedFunctionCall.name === 'deleteTask') {
-              mainWindow.webContents.send('tasks:refresh');
-            }
-            
-            if (nestedFunctionCall.name === 'addNotification' || nestedFunctionCall.name === 'updateNotification' || nestedFunctionCall.name === 'deleteNotification') {
-              mainWindow.webContents.send('notifications:refresh');
-              
-              // If we have a taskId, also send the notifications:changed event
-              if (nestedResult.notification && nestedResult.notification.taskId) {
-                mainWindow.webContents.send('notifications:changed', nestedResult.notification.taskId);
-              } else if (nestedResult.taskId) {
-                mainWindow.webContents.send('notifications:changed', nestedResult.taskId);
-              }
-            }
-          }
-        }
-        
-        // Send updated chat history to frontend after adding nested tool messages
-        mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
+        // Process the nested function calls and collect results
+        const nestedFunctionResults = await processFunctionCalls(followUpResponse.functionCalls, mainWindow);
         
         // Send all nested function results back to the LLM for a final response
         const finalResponse = await processWithLLM(null, nestedFunctionResults);
@@ -259,9 +222,7 @@ async function sendMessage(message, mainWindow) {
           timestamp: new Date(),
           functionCalls: finalResponse.functionCalls
         };
-        aiState.chatHistory.push(finalMessage);
-        // Send final updated chat history to frontend
-        mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
+        updateChatHistory(finalMessage, mainWindow);
       }
     }
 
@@ -275,9 +236,7 @@ async function sendMessage(message, mainWindow) {
       sender: 'ai',
       timestamp: new Date()
     };
-    aiState.chatHistory.push(errorMessage);
-    // Send error update to frontend
-    mainWindow.webContents.send('ai:chatHistoryUpdate', aiState.chatHistory);
+    updateChatHistory(errorMessage, mainWindow);
     
     return { 
       success: false, 
