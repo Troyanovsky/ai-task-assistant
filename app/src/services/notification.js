@@ -5,7 +5,7 @@
 
 import databaseService from './database.js';
 import { Notification, TYPE } from '../models/Notification.js';
-import { ipcMain, Notification as ElectronNotification } from 'electron';
+import { ipcMain, Notification as ElectronNotification, BrowserWindow } from 'electron';
 import logger from '../../electron-main/logger.js';
 
 class NotificationManager {
@@ -299,10 +299,10 @@ class NotificationManager {
         
         // Handle notification click
         systemNotification.on('click', () => {
-          // Emit an event to the renderer process to focus on the task
-          if (ipcMain) {
-            ipcMain.emit('notification', null, {
-              type: 'focus-task',
+          // Get all windows and send to the main window
+          const mainWindow = BrowserWindow.getAllWindows()[0];
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('notification:focus-task', {
               taskId: notification.taskId
             });
           }
@@ -311,10 +311,13 @@ class NotificationManager {
         logger.warn('⚠️ System notifications are not supported on this platform');
       }
       
-      // Emit event to renderer process
-      if (ipcMain) {
-        ipcMain.emit('notification', null, notification);
-        logger.info('Notification event emitted to renderer process');
+      // Send notification to renderer process using webContents
+      const mainWindow = BrowserWindow.getAllWindows()[0];
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('notification:received', notification);
+        logger.info('Notification event sent to renderer process');
+      } else {
+        logger.warn('⚠️ No active window found to send notification');
       }
       
       logger.info(`✅ Notification ${notification.id} sent: ${notification.message}`);

@@ -26,17 +26,23 @@ vi.mock('electron', () => {
     on: vi.fn()
   };
   
+  const mockWebContents = { send: vi.fn() };
+  const mockWindow = { webContents: mockWebContents, isDestroyed: () => false };
+  
   return {
     ipcMain: {
       emit: vi.fn()
     },
-    Notification: vi.fn(() => mockNotification)
+    Notification: vi.fn(() => mockNotification),
+    BrowserWindow: {
+      getAllWindows: vi.fn().mockReturnValue([mockWindow])
+    }
   };
 });
 
 // Import mocks after they are defined
 import databaseService from '../database';
-import { ipcMain, Notification as ElectronNotification } from 'electron';
+import { ipcMain, Notification as ElectronNotification, BrowserWindow } from 'electron';
 
 // Add isSupported to the Electron Notification mock
 ElectronNotification.isSupported = vi.fn().mockReturnValue(true);
@@ -246,9 +252,8 @@ describe('sendNotification', () => {
       timeoutType: 'default'
     });
 
-    expect(ipcMain.emit).toHaveBeenCalledWith(
-      'notification',
-      null,
+    expect(BrowserWindow.getAllWindows()[0].webContents.send).toHaveBeenCalledWith(
+      'notification:received',
       notification
     );
   });
@@ -293,7 +298,7 @@ describe('sendNotification', () => {
     );
 
     expect(ElectronNotification).not.toHaveBeenCalled();
-    expect(ipcMain.emit).not.toHaveBeenCalled();
+    expect(BrowserWindow.getAllWindows()[0].webContents.send).not.toHaveBeenCalled();
   });
 
   describe('loadScheduledNotifications', () => {
