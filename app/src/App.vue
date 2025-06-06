@@ -10,7 +10,7 @@
 <script>
 import { onMounted } from 'vue';
 import { useStore } from 'vuex';
-import NotificationListener from './components/layout/NotificationListener.vue';
+import NotificationListener from './components/system/NotificationListener.vue';
 import logger from './services/logger.js';
 
 export default {
