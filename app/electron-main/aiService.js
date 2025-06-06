@@ -32,6 +32,133 @@ const aiState = {
 aiState.isConfigured = Boolean(aiState.apiKey);
 
 /**
+ * Utility function to resolve a project ID from a name or ID
+ * @param {string} projectId - Project ID or name
+ * @returns {Promise<string|null>} - Resolved project ID or null if not found
+ */
+async function resolveProjectId(projectId) {
+  // If it's already a UUID format (contains hyphens), return it as is
+  if (typeof projectId === 'string' && projectId.includes('-')) {
+    return projectId;
+  }
+  
+  // It's likely a project name, look up the project by name
+  logger.info(`Looking up project ID for project name: ${projectId}`);
+  const projects = await projectManager.getProjects();
+  const project = projects.find(p => p.name.toLowerCase() === projectId.toLowerCase());
+  
+  if (project) {
+    logger.info(`Found project with name "${projectId}": ${project.id}`);
+    return project.id;
+  } else {
+    logger.info(`No project found with name "${projectId}"`);
+    return null;
+  }
+}
+
+/**
+ * Utility function to format a date string to YYYY-MM-DD format
+ * @param {string} dateString - Date string to format
+ * @returns {string|null} - Formatted date string or null if invalid
+ */
+function formatToYYYYMMDD(dateString) {
+  try {
+    logger.info(`Original date input: ${dateString}`);
+    
+    // If it already has time component, extract just the date part
+    if (dateString.includes('T')) {
+      dateString = dateString.split('T')[0];
+      logger.info(`Extracted date part from ISO string: ${dateString}`);
+    }
+    
+    // Validate the date format (YYYY-MM-DD)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(dateString)) {
+      // If not in YYYY-MM-DD format, try to convert it
+      logger.info(`Date ${dateString} doesn't match YYYY-MM-DD format, parsing as Date`);
+      
+      // Fix: Create date with UTC to prevent timezone issues
+      const [year, month, day] = dateString.split('-');
+      if (year && month && day) {
+        // Ensure month and day are zero-padded
+        const paddedMonth = month.padStart(2, '0');
+        const paddedDay = day.padStart(2, '0');
+        dateString = `${year}-${paddedMonth}-${paddedDay}`;
+        logger.info(`Formatted date with padding: ${dateString}`);
+      } else {
+        // If we can't split it, use the Date object but force UTC
+        const parsedDate = new Date(dateString);
+        if (!isNaN(parsedDate)) {
+          // Use UTC methods to avoid timezone issues
+          const utcYear = parsedDate.getUTCFullYear();
+          const utcMonth = String(parsedDate.getUTCMonth() + 1).padStart(2, '0');
+          const utcDay = String(parsedDate.getUTCDate()).padStart(2, '0');
+          dateString = `${utcYear}-${utcMonth}-${utcDay}`;
+          logger.info(`Parsed and formatted date using UTC: ${dateString}`);
+        } else {
+          logger.info(`Invalid date format: ${dateString}`);
+          return null;
+        }
+      }
+    } else {
+      logger.info(`Date already in correct YYYY-MM-DD format: ${dateString}`);
+    }
+    
+    return dateString;
+  } catch (error) {
+    logger.logError(error, 'Error parsing date');
+    return null;
+  }
+}
+
+/**
+ * Utility function to parse a date-time string to ISO format
+ * @param {string} timeString - Date-time string to parse
+ * @param {string} context - Context for logging
+ * @returns {string|null} - Parsed date-time in ISO format or null if invalid
+ */
+function parseToISODateTime(timeString, context = 'date-time') {
+  try {
+    // Try parsing as ISO first to see if it's already in ISO format
+    let parsedTime = new Date(timeString);
+    
+    // If invalid or looks like a local date format, try parsing it as a local date
+    if (isNaN(parsedTime) || !timeString.includes('T')) {
+      // This is likely a local date format (e.g., "May 31, 2023 15:30" or "5/31/2023 15:30")
+      logger.info(`Converting local date format for ${context}: ${timeString}`);
+      
+      // Try to parse date using more flexible approach
+      parsedTime = new Date(timeString);
+      
+      // If still invalid, try some common formats
+      if (isNaN(parsedTime)) {
+        logger.info(`Failed to parse date directly, attempting structured parsing`);
+        // Try to extract date and time components from common formats
+        const dateTimeParts = timeString.split(/,\s*| /);
+        if (dateTimeParts.length >= 2) {
+          // Last part is likely the time
+          const timePart = dateTimeParts[dateTimeParts.length - 1];
+          // Join the rest as the date part
+          const datePart = dateTimeParts.slice(0, dateTimeParts.length - 1).join(' ');
+          parsedTime = new Date(`${datePart} ${timePart}`);
+        }
+      }
+    }
+    
+    if (!isNaN(parsedTime)) {
+      logger.info(`Successfully parsed ${context} from "${timeString}" to: ${parsedTime.toISOString()}`);
+      return parsedTime.toISOString();
+    } else {
+      logger.info(`Invalid date format for ${context}: ${timeString}`);
+      return null;
+    }
+  } catch (error) {
+    logger.logError(error, `Error parsing ${context}`);
+    return null;
+  }
+}
+
+/**
  * Helper function to update chat history and send update to frontend
  * @param {Object} message - Message to add to chat history
  * @param {BrowserWindow} mainWindow - Main window instance for sending updates
@@ -267,10 +394,10 @@ Use the tools provided to you to help the user with their task & project managem
 </goal>
 
 <available_projects>
-{{PROJECTS_INFO}}
+{{__PROJECTS_INFO__}}
 </available_projects>
 
-<current_datetime>{{CURRENT_DATETIME}}</current_datetime>
+<current_datetime>{{__CURRENT_DATETIME__}}</current_datetime>
 
 <tips>
 - For some queries, you may need to execute multiple tools in a row to find info that the user didn't provide, like task id or notification id.
@@ -286,19 +413,19 @@ Use the tools provided to you to help the user with their task & project managem
         projects.forEach(project => {
           projectsList += `- ${project.name} (ID: ${project.id})\n`;
         });
-        formattedSystemMessage = formattedSystemMessage.replace('{{PROJECTS_INFO}}', projectsList);
+        formattedSystemMessage = formattedSystemMessage.replace('{{__PROJECTS_INFO__}}', projectsList);
       } else {
-        formattedSystemMessage = formattedSystemMessage.replace('{{PROJECTS_INFO}}', 'No projects available.');
+        formattedSystemMessage = formattedSystemMessage.replace('{{__PROJECTS_INFO__}}', 'No projects available.');
       }
     } catch (error) {
       logger.logError(error, 'Error fetching projects for AI context');
-      formattedSystemMessage = formattedSystemMessage.replace('{{PROJECTS_INFO}}', 'Error fetching projects.');
+      formattedSystemMessage = formattedSystemMessage.replace('{{__PROJECTS_INFO__}}', 'Error fetching projects.');
     }
     
     // Add current date and time
     const now = new Date();
     const localTimeString = now.toLocaleString();
-    formattedSystemMessage = formattedSystemMessage.replace('{{CURRENT_DATETIME}}', localTimeString);
+    formattedSystemMessage = formattedSystemMessage.replace('{{__CURRENT_DATETIME__}}', localTimeString);
 
     // Format chat history for the API
     const messages = [
@@ -472,118 +599,33 @@ async function executeFunctionCall(functionCall) {
 
     switch (name) {
       case 'addTask':
-        // Check if the project ID is actually a project name
+        // Resolve project ID if provided
         if (args.projectId && typeof args.projectId === 'string') {
-          // Check if this is a project name rather than ID
-          if (!args.projectId.includes('-')) {
-            logger.info(`Looking up project ID for project name: ${args.projectId}`);
-            // It's likely a project name, look up the project by name
-            const projects = await projectManager.getProjects();
-            const project = projects.find(p => p.name.toLowerCase() === args.projectId.toLowerCase());
-            
-            if (project) {
-              logger.info(`Found project with name "${args.projectId}": ${project.id}`);
-              args.projectId = project.id;
-            } else {
-              logger.info(`No project found with name "${args.projectId}"`);
-              return {
-                ...baseResult,
-                success: false,
-                error: `Project "${args.projectId}" not found`,
-                message: `I couldn't find a project named "${args.projectId}". Please specify a valid project name or ID.`
-              };
-            }
+          const resolvedProjectId = await resolveProjectId(args.projectId);
+          if (resolvedProjectId) {
+            args.projectId = resolvedProjectId;
+          } else {
+            return {
+              ...baseResult,
+              success: false,
+              error: `Project "${args.projectId}" not found`,
+              message: `I couldn't find a project named "${args.projectId}". Please specify a valid project name or ID.`
+            };
           }
         }
         
         // Handle dueDate as YYYY-MM-DD string format
         if (args.dueDate && typeof args.dueDate === 'string') {
-          try {
-            logger.info(`Original dueDate input: ${args.dueDate}`);
-            
-            // If it already has time component, extract just the date part
-            if (args.dueDate.includes('T')) {
-              args.dueDate = args.dueDate.split('T')[0];
-              logger.info(`Extracted date part from ISO string: ${args.dueDate}`);
-            }
-            
-            // Validate the date format (YYYY-MM-DD)
-            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-            if (!dateRegex.test(args.dueDate)) {
-              // If not in YYYY-MM-DD format, try to convert it
-              logger.info(`Date ${args.dueDate} doesn't match YYYY-MM-DD format, parsing as Date`);
-              
-              // Fix: Create date with UTC to prevent timezone issues
-              const [year, month, day] = args.dueDate.split('-');
-              if (year && month && day) {
-                // Ensure month and day are zero-padded
-                const paddedMonth = month.padStart(2, '0');
-                const paddedDay = day.padStart(2, '0');
-                args.dueDate = `${year}-${paddedMonth}-${paddedDay}`;
-                logger.info(`Formatted date with padding: ${args.dueDate}`);
-              } else {
-                // If we can't split it, use the Date object but force UTC
-                const parsedDate = new Date(args.dueDate);
-                if (!isNaN(parsedDate)) {
-                  // Use UTC methods to avoid timezone issues
-                  const utcYear = parsedDate.getUTCFullYear();
-                  const utcMonth = String(parsedDate.getUTCMonth() + 1).padStart(2, '0');
-                  const utcDay = String(parsedDate.getUTCDate()).padStart(2, '0');
-                  args.dueDate = `${utcYear}-${utcMonth}-${utcDay}`;
-                  logger.info(`Parsed and formatted date using UTC: ${args.dueDate}`);
-                } else {
-                  logger.info(`Invalid date format: ${args.dueDate}`);
-                  args.dueDate = null;
-                }
-              }
-            } else {
-              logger.info(`Date already in correct YYYY-MM-DD format: ${args.dueDate}`);
-            }
-          } catch (error) {
-            logger.logError(error, 'Error parsing due date');
-            args.dueDate = null;
-          }
+          args.dueDate = formatToYYYYMMDD(args.dueDate);
         }
         
         // Convert local time string to ISO format if provided for plannedTime
         if (args.plannedTime && typeof args.plannedTime === 'string') {
-          try {
-            // Try parsing as ISO first to see if it's already in ISO format
-            let plannedTime = new Date(args.plannedTime);
-            
-            // If invalid or looks like a local date format, try parsing it as a local date
-            if (isNaN(plannedTime) || !args.plannedTime.includes('T')) {
-              // This is likely a local date format (e.g., "May 31, 2023 15:30" or "5/31/2023 15:30")
-              logger.info(`Converting local date format for planned time: ${args.plannedTime}`);
-              
-              // Try to parse date using more flexible approach
-              plannedTime = new Date(args.plannedTime);
-              
-              // If still invalid, try some common formats
-              if (isNaN(plannedTime)) {
-                logger.info(`Failed to parse date directly, attempting structured parsing`);
-                // Try to extract date and time components from common formats
-                const dateTimeParts = args.plannedTime.split(/,\s*| /);
-                if (dateTimeParts.length >= 2) {
-                  // Last part is likely the time
-                  const timePart = dateTimeParts[dateTimeParts.length - 1];
-                  // Join the rest as the date part
-                  const datePart = dateTimeParts.slice(0, dateTimeParts.length - 1).join(' ');
-                  plannedTime = new Date(`${datePart} ${timePart}`);
-                }
-              }
-            }
-            
-            if (!isNaN(plannedTime)) {
-              logger.info(`Successfully parsed plannedTime from "${args.plannedTime}" to: ${plannedTime.toISOString()}`);
-              args.plannedTime = plannedTime.toISOString();
-            } else {
-              logger.info(`Invalid date format for planned time: ${args.plannedTime}`);
-              throw new Error(`Could not parse date/time from: ${args.plannedTime}`);
-            }
-          } catch (error) {
-            logger.logError(error, 'Error parsing planned time');
-            throw new Error(`Failed to parse planned time: ${error.message}`);
+          const isoDateTime = parseToISODateTime(args.plannedTime, 'planned time');
+          if (isoDateTime) {
+            args.plannedTime = isoDateTime;
+          } else {
+            throw new Error(`Could not parse date/time from: ${args.plannedTime}`);
           }
         }
         
@@ -599,92 +641,16 @@ async function executeFunctionCall(functionCall) {
       case 'updateTask':
         // Handle dueDate as YYYY-MM-DD string format
         if (args.dueDate && typeof args.dueDate === 'string') {
-          try {
-            logger.info(`Original dueDate input: ${args.dueDate}`);
-            
-            // If it already has time component, extract just the date part
-            if (args.dueDate.includes('T')) {
-              args.dueDate = args.dueDate.split('T')[0];
-              logger.info(`Extracted date part from ISO string: ${args.dueDate}`);
-            }
-            
-            // Validate the date format (YYYY-MM-DD)
-            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-            if (!dateRegex.test(args.dueDate)) {
-              // If not in YYYY-MM-DD format, try to convert it
-              logger.info(`Date ${args.dueDate} doesn't match YYYY-MM-DD format, parsing as Date`);
-              
-              // Fix: Create date with UTC to prevent timezone issues
-              const [year, month, day] = args.dueDate.split('-');
-              if (year && month && day) {
-                // Ensure month and day are zero-padded
-                const paddedMonth = month.padStart(2, '0');
-                const paddedDay = day.padStart(2, '0');
-                args.dueDate = `${year}-${paddedMonth}-${paddedDay}`;
-                logger.info(`Formatted date with padding: ${args.dueDate}`);
-              } else {
-                // If we can't split it, use the Date object but force UTC
-                const parsedDate = new Date(args.dueDate);
-                if (!isNaN(parsedDate)) {
-                  // Use UTC methods to avoid timezone issues
-                  const utcYear = parsedDate.getUTCFullYear();
-                  const utcMonth = String(parsedDate.getUTCMonth() + 1).padStart(2, '0');
-                  const utcDay = String(parsedDate.getUTCDate()).padStart(2, '0');
-                  args.dueDate = `${utcYear}-${utcMonth}-${utcDay}`;
-                  logger.info(`Parsed and formatted date using UTC: ${args.dueDate}`);
-                } else {
-                  logger.info(`Invalid date format: ${args.dueDate}`);
-                  args.dueDate = null;
-                }
-              }
-            } else {
-              logger.info(`Date already in correct YYYY-MM-DD format: ${args.dueDate}`);
-            }
-          } catch (error) {
-            logger.logError(error, 'Error parsing due date');
-            args.dueDate = null;
-          }
+          args.dueDate = formatToYYYYMMDD(args.dueDate);
         }
         
         // Convert local time string to ISO format if provided for plannedTime
         if (args.plannedTime && typeof args.plannedTime === 'string') {
-          try {
-            // Try parsing as ISO first to see if it's already in ISO format
-            let plannedTime = new Date(args.plannedTime);
-            
-            // If invalid or looks like a local date format, try parsing it as a local date
-            if (isNaN(plannedTime) || !args.plannedTime.includes('T')) {
-              // This is likely a local date format (e.g., "May 31, 2023 15:30" or "5/31/2023 15:30")
-              logger.info(`Converting local date format for planned time: ${args.plannedTime}`);
-              
-              // Try to parse date using more flexible approach
-              plannedTime = new Date(args.plannedTime);
-              
-              // If still invalid, try some common formats
-              if (isNaN(plannedTime)) {
-                logger.info(`Failed to parse date directly, attempting structured parsing`);
-                // Try to extract date and time components from common formats
-                const dateTimeParts = args.plannedTime.split(/,\s*| /);
-                if (dateTimeParts.length >= 2) {
-                  // Last part is likely the time
-                  const timePart = dateTimeParts[dateTimeParts.length - 1];
-                  // Join the rest as the date part
-                  const datePart = dateTimeParts.slice(0, dateTimeParts.length - 1).join(' ');
-                  plannedTime = new Date(`${datePart} ${timePart}`);
-                }
-              }
-            }
-            
-            if (!isNaN(plannedTime)) {
-              logger.info(`Successfully parsed plannedTime from "${args.plannedTime}" to: ${plannedTime.toISOString()}`);
-              args.plannedTime = plannedTime.toISOString();
-            } else {
-              logger.info(`Invalid date format for planned time: ${args.plannedTime}`);
-              throw new Error(`Could not parse date/time from: ${args.plannedTime}`);
-            }
-          } catch (error) {
-            logger.logError(error, 'Error parsing planned time');
-            throw new Error(`Failed to parse planned time: ${error.message}`);
+          const isoDateTime = parseToISODateTime(args.plannedTime, 'planned time');
+          if (isoDateTime) {
+            args.plannedTime = isoDateTime;
+          } else {
+            throw new Error(`Could not parse date/time from: ${args.plannedTime}`);
           }
         }
         
@@ -717,22 +683,17 @@ async function executeFunctionCall(functionCall) {
         let tasks = await taskManager.getRecentTasks();
         
         if (args.projectId) {
-          // Check if this is a project name rather than ID
-          if (typeof args.projectId === 'string' && !args.projectId.includes('-')) {
-            // It's likely a project name, look up the project by name
-            const projects = await projectManager.getProjects();
-            const project = projects.find(p => p.name.toLowerCase() === args.projectId.toLowerCase());
-            
-            if (project) {
-              args.projectId = project.id;
-            } else {
-              return {
-                ...baseResult,
-                success: false,
-                error: `Project "${args.projectId}" not found`,
-                message: `I couldn't find a project named "${args.projectId}". Please specify a valid project name or ID.`
-              };
-            }
+          // Resolve project ID if provided
+          const resolvedProjectId = await resolveProjectId(args.projectId);
+          if (resolvedProjectId) {
+            args.projectId = resolvedProjectId;
+          } else {
+            return {
+              ...baseResult,
+              success: false,
+              error: `Project "${args.projectId}" not found`,
+              message: `I couldn't find a project named "${args.projectId}". Please specify a valid project name or ID.`
+            };
           }
           
           tasks = tasks.filter(task => task.projectId === args.projectId);
@@ -796,15 +757,9 @@ async function executeFunctionCall(functionCall) {
           // Convert project names to IDs if needed
           const projectIds = [];
           for (const projectId of args.projectIds) {
-            if (typeof projectId === 'string' && !projectId.includes('-')) {
-              // This might be a project name, look it up
-              const projects = await projectManager.getProjects();
-              const project = projects.find(p => p.name.toLowerCase() === projectId.toLowerCase());
-              if (project) {
-                projectIds.push(project.id);
-              }
-            } else {
-              projectIds.push(projectId);
+            const resolvedId = await resolveProjectId(projectId);
+            if (resolvedId) {
+              projectIds.push(resolvedId);
             }
           }
           
@@ -1004,30 +959,10 @@ async function executeFunctionCall(functionCall) {
       case 'addNotification':
         // Convert local time string to ISO format if provided
         if (args.time && typeof args.time === 'string') {
-          try {
-            // Try parsing as ISO first
-            let notificationTime = new Date(args.time);
-            
-            // If invalid or looks like a local date format, try parsing it as a local date
-            if (isNaN(notificationTime) || !args.time.includes('T')) {
-              // This is likely a local date format
-              logger.info(`Converting local date format for notification: ${args.time}`);
-              notificationTime = new Date(args.time);
-            }
-            
-            if (!isNaN(notificationTime)) {
-              args.time = notificationTime.toISOString();
-            } else {
-              logger.info(`Invalid date format for notification: ${args.time}`);
-              return {
-                ...baseResult,
-                success: false,
-                error: `Invalid date format for notification time: ${args.time}`,
-                message: `I couldn't create the notification because the time format is invalid.`
-              };
-            }
-          } catch (error) {
-            logger.logError(error, 'Error parsing notification time');
+          const isoDateTime = parseToISODateTime(args.time, 'notification time');
+          if (isoDateTime) {
+            args.time = isoDateTime;
+          } else {
             return {
               ...baseResult,
               success: false,
@@ -1069,24 +1004,11 @@ async function executeFunctionCall(functionCall) {
       case 'updateNotification':
         // Convert local time string to ISO format if provided
         if (args.time && typeof args.time === 'string') {
-          try {
-            // Try parsing as ISO first
-            let notificationTime = new Date(args.time);
-            
-            // If invalid or looks like a local date format, try parsing it as a local date
-            if (isNaN(notificationTime) || !args.time.includes('T')) {
-              // This is likely a local date format
-              logger.info(`Converting local date format for notification: ${args.time}`);
-              notificationTime = new Date(args.time);
-            }
-            
-            if (!isNaN(notificationTime)) {
-              args.time = notificationTime.toISOString();
-            } else {
-              logger.info(`Invalid date format for notification: ${args.time}`);
-            }
-          } catch (error) {
-            logger.logError(error, 'Error parsing notification time');
+          const isoDateTime = parseToISODateTime(args.time, 'notification time');
+          if (isoDateTime) {
+            args.time = isoDateTime;
+          } else {
+            logger.info(`Invalid date format for notification: ${args.time}`);
           }
         }
         
