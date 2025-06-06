@@ -191,9 +191,24 @@ describe('Tasks Store Module', () => {
       it('should fetch tasks successfully', async () => {
         const commit = createCommit();
         const dispatch = createDispatch();
-        window.electron.getTasks.mockResolvedValue(mockTasks);
+        window.electron.getRecentTasks = vi.fn().mockResolvedValue(mockTasks);
         
         await tasksModule.actions.fetchTasks({ commit, dispatch });
+        
+        expect(commit).toHaveBeenCalledWith('setLoading', true);
+        expect(commit).toHaveBeenCalledWith('setError', null);
+        expect(window.electron.getRecentTasks).toHaveBeenCalled();
+        expect(commit).toHaveBeenCalledWith('setTasks', expect.any(Array));
+        expect(dispatch).toHaveBeenCalledWith('applyFilters');
+        expect(commit).toHaveBeenCalledWith('setLoading', false);
+      });
+      
+      it('should fetch all tasks when fetchAll is true', async () => {
+        const commit = createCommit();
+        const dispatch = createDispatch();
+        window.electron.getTasks.mockResolvedValue(mockTasks);
+        
+        await tasksModule.actions.fetchTasks({ commit, dispatch }, { fetchAll: true });
         
         expect(commit).toHaveBeenCalledWith('setLoading', true);
         expect(commit).toHaveBeenCalledWith('setError', null);
@@ -219,9 +234,24 @@ describe('Tasks Store Module', () => {
       it('should fetch tasks for a specific project successfully', async () => {
         const commit = createCommit();
         const dispatch = createDispatch();
-        window.electron.getTasksByProject.mockResolvedValue(mockTasks);
+        window.electron.getRecentTasksByProject = vi.fn().mockResolvedValue(mockTasks);
         
         await tasksModule.actions.fetchTasksByProject({ commit, dispatch }, 'project-1');
+        
+        expect(commit).toHaveBeenCalledWith('setLoading', true);
+        expect(commit).toHaveBeenCalledWith('setError', null);
+        expect(window.electron.getRecentTasksByProject).toHaveBeenCalledWith('project-1');
+        expect(commit).toHaveBeenCalledWith('setTasks', expect.any(Array));
+        expect(dispatch).toHaveBeenCalledWith('applyFilters');
+        expect(commit).toHaveBeenCalledWith('setLoading', false);
+      });
+      
+      it('should fetch all tasks for a specific project when fetchAll is true', async () => {
+        const commit = createCommit();
+        const dispatch = createDispatch();
+        window.electron.getTasksByProject.mockResolvedValue(mockTasks);
+        
+        await tasksModule.actions.fetchTasksByProject({ commit, dispatch }, 'project-1', { fetchAll: true });
         
         expect(commit).toHaveBeenCalledWith('setLoading', true);
         expect(commit).toHaveBeenCalledWith('setError', null);

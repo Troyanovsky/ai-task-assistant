@@ -802,6 +802,9 @@ describe('Edge Cases', () => {
          } else if (params[0] === STATUS.DOING) {
            return mockTasksDoing;
          }
+       } else if (query.includes('WHERE status IN')) {
+         // Handle the new IN query for multiple statuses
+         return [...mockTasksPlanning, ...mockTasksDoing];
        }
        return [];
      });
@@ -810,8 +813,8 @@ describe('Edge Cases', () => {
 
      // Verify the task order matches the expected prioritization logic
      expect(prioritizedTasks.length).toBe(5);
-     expect(prioritizedTasks[0].id).toBe('task-2'); // Earlier due date
-     expect(prioritizedTasks[1].id).toBe('task-1'); // Later due date, high priority
+     expect(prioritizedTasks[0].id).toBe('task-2'); // Medium priority with earlier due date
+     expect(prioritizedTasks[1].id).toBe('task-1'); // High priority
      expect(prioritizedTasks[2].id).toBe('task-3'); // Latest due date
      expect(prioritizedTasks[3].id).toBe('task-4'); // High priority, no due date
      expect(prioritizedTasks[4].id).toBe('task-5'); // Medium priority, no due date

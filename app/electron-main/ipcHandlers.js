@@ -64,11 +64,29 @@ export function setupIpcHandlers(mainWindow, aiService) {
     }
   });
 
+  ipcMain.handle('tasks:getRecent', async () => {
+    try {
+      return await taskManager.getRecentTasks();
+    } catch (error) {
+      logger.logError(error, 'IPC Error - getRecentTasks');
+      return [];
+    }
+  });
+
   ipcMain.handle('tasks:getByProject', async (_, projectId) => {
     try {
       return await taskManager.getTasksByProject(projectId);
     } catch (error) {
       logger.logError(error, `IPC Error - getTasksByProject for ${projectId}`);
+      return [];
+    }
+  });
+
+  ipcMain.handle('tasks:getRecentByProject', async (_, projectId) => {
+    try {
+      return await taskManager.getRecentTasksByProject(projectId);
+    } catch (error) {
+      logger.logError(error, `IPC Error - getRecentTasksByProject for ${projectId}`);
       return [];
     }
   });

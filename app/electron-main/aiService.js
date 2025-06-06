@@ -755,7 +755,7 @@ async function executeFunctionCall(functionCall) {
         
       case 'getTasks':
         // Legacy function for backward compatibility
-        let tasks = await taskManager.getTasks();
+        let tasks = await taskManager.getRecentTasks();
         
         if (args.projectId) {
           // Check if this is a project name rather than ID
@@ -799,7 +799,7 @@ async function executeFunctionCall(functionCall) {
 
       case 'queryTasks':
         // Start with all tasks
-        let allTasks = await taskManager.getTasks();
+        let allTasks = await taskManager.getRecentTasks();
         logger.info(`QueryTasks - Found ${allTasks.length} total tasks`);
         allTasks.forEach(task => {
           if (task.dueDate) {

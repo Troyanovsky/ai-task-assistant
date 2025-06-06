@@ -33,13 +33,15 @@ const getters = {
 
 // Actions
 const actions = {
-  async fetchTasks({ commit, dispatch }) {
+  async fetchTasks({ commit, dispatch }, { fetchAll = false } = {}) {
     commit('setLoading', true);
     commit('setError', null);
     
     try {
       // In Electron, we would use IPC to communicate with the main process
-      const tasksData = window.electron ? await window.electron.getTasks() : [];
+      const tasksData = window.electron ? 
+        (fetchAll ? await window.electron.getTasks() : await window.electron.getRecentTasks()) : 
+        [];
       const tasks = tasksData.map(data => Task.fromDatabase(data));
       
       commit('setTasks', tasks);
@@ -52,13 +54,19 @@ const actions = {
     }
   },
   
-  async fetchTasksByProject({ commit, dispatch }, projectId) {
+  async fetchAllTasks({ commit, dispatch }) {
+    return dispatch('fetchTasks', { fetchAll: true });
+  },
+  
+  async fetchTasksByProject({ commit, dispatch }, projectId, { fetchAll = false } = {}) {
     commit('setLoading', true);
     commit('setError', null);
     
     try {
       // In Electron, we would use IPC to communicate with the main process
-      const tasksData = window.electron ? await window.electron.getTasksByProject(projectId) : [];
+      const tasksData = window.electron ? 
+        (fetchAll ? await window.electron.getTasksByProject(projectId) : await window.electron.getRecentTasksByProject(projectId)) : 
+        [];
       logger.info(`Fetched ${tasksData.length} tasks for project ${projectId}:`, tasksData);
       const tasks = tasksData.map(data => Task.fromDatabase(data));
       
@@ -71,6 +79,10 @@ const actions = {
     } finally {
       commit('setLoading', false);
     }
+  },
+  
+  async fetchAllTasksByProject({ commit, dispatch }, projectId) {
+    return dispatch('fetchTasksByProject', projectId, { fetchAll: true });
   },
   
   filterTasks({ commit, dispatch }, filter) {

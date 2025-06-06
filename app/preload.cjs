@@ -73,7 +73,9 @@ contextBridge.exposeInMainWorld(
     deleteProject: (projectId) => ipcRenderer.invoke('projects:delete', projectId),
     
     getTasks: () => ipcRenderer.invoke('tasks:getAll'),
+    getRecentTasks: () => ipcRenderer.invoke('tasks:getRecent'),
     getTasksByProject: (projectId) => ipcRenderer.invoke('tasks:getByProject', projectId),
+    getRecentTasksByProject: (projectId) => ipcRenderer.invoke('tasks:getRecentByProject', projectId),
     addTask: (task) => ipcRenderer.invoke('tasks:add', task),
     updateTask: (task) => ipcRenderer.invoke('tasks:update', task),
     deleteTask: (taskId) => ipcRenderer.invoke('tasks:delete', taskId),

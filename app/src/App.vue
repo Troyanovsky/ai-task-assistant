@@ -28,6 +28,7 @@ export default {
       store.dispatch('projects/fetchProjects')
         .catch(error => logger.logError(error, 'Failed to fetch projects'));
         
+      // Fetch only recent tasks by default (not done or done within past 2 days)
       store.dispatch('tasks/fetchTasks')
         .catch(error => logger.logError(error, 'Failed to fetch tasks'));
     });

@@ -53,6 +53,35 @@ class TaskManager {
   }
 
   /**
+   * Get recent tasks (not done or done within past 2 days)
+   * @returns {Array} - Array of Task instances
+   */
+  async getRecentTasks() {
+    try {
+      // Get current date
+      const today = new Date();
+      
+      // Get date 2 days ago
+      const twoDaysAgo = new Date(today);
+      twoDaysAgo.setDate(today.getDate() - 2);
+      
+      // Format date as YYYY-MM-DD for SQLite comparison
+      const twoDaysAgoStr = twoDaysAgo.toISOString().split('T')[0];
+      
+      // Get tasks that are either not done OR are done but due within past 2 days
+      const tasks = databaseService.query(
+        'SELECT * FROM tasks WHERE status != ? OR (status = ? AND due_date >= ?) ORDER BY created_at DESC',
+        [STATUS.DONE, STATUS.DONE, twoDaysAgoStr]
+      );
+      
+      return tasks.map(task => Task.fromDatabase(task));
+    } catch (error) {
+      logger.error('Error getting recent tasks:', error);
+      return [];
+    }
+  }
+
+  /**
    * Get a task by ID
    * @param {string} id - Task ID
    * @returns {Task|null} - Task instance or null
@@ -83,6 +112,36 @@ class TaskManager {
       return tasks.map(task => Task.fromDatabase(task));
     } catch (error) {
       logger.error(`Error getting tasks for project ${projectId}:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Get recent tasks by project ID (not done or done within past 2 days)
+   * @param {string} projectId - Project ID
+   * @returns {Array} - Array of Task instances
+   */
+  async getRecentTasksByProject(projectId) {
+    try {
+      // Get current date
+      const today = new Date();
+      
+      // Get date 2 days ago
+      const twoDaysAgo = new Date(today);
+      twoDaysAgo.setDate(today.getDate() - 2);
+      
+      // Format date as YYYY-MM-DD for SQLite comparison
+      const twoDaysAgoStr = twoDaysAgo.toISOString().split('T')[0];
+      
+      logger.info(`Querying recent tasks for project_id: ${projectId}`);
+      const tasks = databaseService.query(
+        'SELECT * FROM tasks WHERE project_id = ? AND (status != ? OR (status = ? AND due_date >= ?)) ORDER BY created_at DESC',
+        [projectId, STATUS.DONE, STATUS.DONE, twoDaysAgoStr]
+      );
+      logger.info(`Found ${tasks.length} recent tasks for project ${projectId}`);
+      return tasks.map(task => Task.fromDatabase(task));
+    } catch (error) {
+      logger.error(`Error getting recent tasks for project ${projectId}:`, error);
       return [];
     }
   }
@@ -278,25 +337,37 @@ class TaskManager {
 
   /**
    * Get tasks by status
-   * @param {string} status - Task status
+   * @param {...string} statuses - Task statuses
    * @returns {Array} - Array of Task instances
    */
-  async getTasksByStatus(status) {
+  async getTasksByStatus(...statuses) {
     try {
-      // Validate status
-      if (!Object.values(STATUS).includes(status)) {
+      // Validate statuses
+      if (statuses.length === 0 || !statuses.every(status => Object.values(STATUS).includes(status))) {
         logger.error('Invalid task status');
         return [];
       }
       
-      const tasks = databaseService.query(
-        'SELECT * FROM tasks WHERE status = ? ORDER BY created_at DESC',
-        [status]
-      );
-      
-      return tasks.map(task => Task.fromDatabase(task));
+      if (statuses.length === 1) {
+        const tasks = databaseService.query(
+          'SELECT * FROM tasks WHERE status = ? ORDER BY created_at DESC',
+          [statuses[0]]
+        );
+        
+        return tasks.map(task => Task.fromDatabase(task));
+      } else {
+        // Create placeholders for SQL query
+        const placeholders = statuses.map(() => '?').join(', ');
+        
+        const tasks = databaseService.query(
+          `SELECT * FROM tasks WHERE status IN (${placeholders}) ORDER BY created_at DESC`,
+          statuses
+        );
+        
+        return tasks.map(task => Task.fromDatabase(task));
+      }
     } catch (error) {
-      logger.error(`Error getting tasks with status ${status}:`, error);
+      logger.error(`Error getting tasks with status ${statuses.join(', ')}:`, error);
       return [];
     }
   }
@@ -412,7 +483,9 @@ class TaskManager {
       const todayStr = today.toISOString().split('T')[0];
       
       // Get all tasks that are not done
+      logger.info('Getting tasks for prioritization with statuses:', STATUS.PLANNING, STATUS.DOING);
       const tasks = await this.getTasksByStatus(STATUS.PLANNING, STATUS.DOING);
+      logger.info(`Retrieved ${tasks.length} tasks for prioritization`);
       
       // Sort tasks by:
       // 1. Overdue tasks first (highest priority)
@@ -423,26 +496,30 @@ class TaskManager {
       // 6. All other tasks
       
       return tasks.sort((a, b) => {
+        // Convert dueDate to string for comparison if it's a Date object
+        const aDueDate = a.dueDate instanceof Date ? a.dueDate.toISOString().split('T')[0] : a.dueDate;
+        const bDueDate = b.dueDate instanceof Date ? b.dueDate.toISOString().split('T')[0] : b.dueDate;
+        
         // Overdue tasks first
-        if (a.dueDate < todayStr && b.dueDate >= todayStr) return -1;
-        if (b.dueDate < todayStr && a.dueDate >= todayStr) return 1;
+        if (aDueDate < todayStr && bDueDate >= todayStr) return -1;
+        if (bDueDate < todayStr && aDueDate >= todayStr) return 1;
         
         // Tasks due today
-        if (a.dueDate === todayStr && b.dueDate !== todayStr) return -1;
-        if (b.dueDate === todayStr && a.dueDate !== todayStr) return 1;
+        if (aDueDate === todayStr && bDueDate !== todayStr) return -1;
+        if (bDueDate === todayStr && aDueDate !== todayStr) return 1;
         
         // Tasks with high priority
         if (a.priority === PRIORITY.HIGH && b.priority !== PRIORITY.HIGH) return -1;
         if (b.priority === PRIORITY.HIGH && a.priority !== PRIORITY.HIGH) return 1;
         
         // Sort by due date (ascending)
-        if (a.dueDate && b.dueDate) {
-          return a.dueDate.localeCompare(b.dueDate);
+        if (aDueDate && bDueDate) {
+          return aDueDate.localeCompare(bDueDate);
         }
         
         // Tasks with due dates come before tasks without due dates
-        if (a.dueDate && !b.dueDate) return -1;
-        if (!a.dueDate && b.dueDate) return 1;
+        if (aDueDate && !bDueDate) return -1;
+        if (!aDueDate && bDueDate) return 1;
         
         // Sort by priority as a final tiebreaker
         const priorityOrder = { high: 0, medium: 1, low: 2 };

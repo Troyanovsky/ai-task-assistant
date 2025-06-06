@@ -65,6 +65,15 @@
       Select a project to view and manage tasks.
     </div>
     
+    <!-- View All Tasks Button -->
+    <div 
+      v-if="!showingAllTasks && selectedProject"
+      @click="loadAllTasks"
+      class="mt-4 text-center text-gray-600 text-sm cursor-pointer hover:text-gray-800 hover:underline"
+    >
+      View All Tasks
+    </div>
+    
     <!-- Loading Indicator -->
     <div v-if="isLoading" class="mt-4 text-center">
       <span class="text-gray-500">Loading tasks...</span>
@@ -107,6 +116,7 @@ export default {
     const store = useStore();
     const showAddTaskForm = ref(false);
     const editingTask = ref(null);
+    const showingAllTasks = ref(false);
     const filters = ref({
       status: 'all',
       priority: 'all',
@@ -193,6 +203,17 @@ export default {
         await store.dispatch('tasks/fetchTasks');
       }
     };
+    
+    // Function to load all tasks including those completed a long time ago
+    const loadAllTasks = async () => {
+      showingAllTasks.value = true;
+      
+      if (props.selectedProject) {
+        await store.dispatch('tasks/fetchAllTasksByProject', props.selectedProject.id);
+      } else if (props.smartProjectType) {
+        await store.dispatch('tasks/fetchAllTasks');
+      }
+    };
 
     onMounted(() => {
       // Listen for task refresh events from main process
@@ -259,6 +280,7 @@ export default {
     watch(
       [() => props.selectedProject, () => props.smartProjectType], 
       async ([newProject, newSmartProjectType]) => {
+        showingAllTasks.value = false;
         if (newProject) {
           await store.dispatch('tasks/fetchTasksByProject', newProject.id);
         } else if (newSmartProjectType) {
@@ -367,6 +389,7 @@ export default {
       error,
       showAddTaskForm,
       editingTask,
+      showingAllTasks,
       filters,
       isTaskBeingEdited,
       addTask,
@@ -375,7 +398,8 @@ export default {
       editTask,
       deleteTask,
       moveTask,
-      updateFilters
+      updateFilters,
+      loadAllTasks
     };
   }
 };
