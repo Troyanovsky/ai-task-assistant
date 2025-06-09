@@ -86,6 +86,9 @@ contextBridge.exposeInMainWorld(
     updateNotification: (notification) => ipcRenderer.invoke('notifications:update', notification),
     deleteNotification: (notificationId) => ipcRenderer.invoke('notifications:delete', notificationId),
     
+    getPreferences: () => ipcRenderer.invoke('preferences:get'),
+    updateWorkingHours: (workingHours) => ipcRenderer.invoke('preferences:updateWorkingHours', workingHours),
+    
     configureAI: (config) => ipcRenderer.invoke('ai:configure', config),
     sendMessage: (message) => ipcRenderer.invoke('ai:sendMessage', message),
     getChatHistory: () => ipcRenderer.invoke('ai:getChatHistory'),
@@ -99,7 +102,8 @@ contextBridge.exposeInMainWorld(
         'ai:chatHistoryUpdate',
         'notification:received',
         'notifications:changed',
-        'notifications:refresh'
+        'notifications:refresh',
+        'preferences:refresh'
       ];
       if (validChannels.includes(channel)) {
         ipcRenderer.on(channel, (event, ...args) => func(...args));
@@ -112,7 +116,8 @@ contextBridge.exposeInMainWorld(
         'ai:chatHistoryUpdate',
         'notification:received',
         'notifications:changed',
-        'notifications:refresh'
+        'notifications:refresh',
+        'preferences:refresh'
       ];
       if (validChannels.includes(channel)) {
         ipcRenderer.removeAllListeners(channel);

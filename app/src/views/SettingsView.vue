@@ -55,8 +55,50 @@
             Save Settings
           </button>
           
-          <div v-if="saveStatus" class="text-sm" :class="{'text-green-500': saveStatus === 'success', 'text-red-500': saveStatus === 'error'}">
-            {{ statusMessage }}
+          <div v-if="aiSaveStatus" class="text-sm" :class="{'text-green-500': aiSaveStatus === 'success', 'text-red-500': aiSaveStatus === 'error'}">
+            {{ aiStatusMessage }}
+          </div>
+        </div>
+      </form>
+    </div>
+    
+    <!-- Working Hours Settings -->
+    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+      <h2 class="text-xl font-semibold mb-4">Working Hours</h2>
+      
+      <form @submit.prevent="saveWorkingHours" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="form-group">
+            <label for="startTime" class="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+            <input 
+              type="time" 
+              id="startTime" 
+              v-model="startTime"
+              class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          
+          <div class="form-group">
+            <label for="endTime" class="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+            <input 
+              type="time" 
+              id="endTime" 
+              v-model="endTime"
+              class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        </div>
+        
+        <div class="flex items-center justify-between">
+          <button 
+            type="submit"
+            class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-700"
+          >
+            Save Working Hours
+          </button>
+          
+          <div v-if="workingHoursSaveStatus" class="text-sm" :class="{'text-green-500': workingHoursSaveStatus === 'success', 'text-red-500': workingHoursSaveStatus === 'error'}">
+            {{ workingHoursStatusMessage }}
           </div>
         </div>
       </form>
@@ -83,15 +125,28 @@ export default {
     const apiKey = ref('');
     const apiUrl = ref('');
     const model = ref('');
-    const saveStatus = ref('');
-    const statusMessage = ref('');
+    const aiSaveStatus = ref('');
+    const aiStatusMessage = ref('');
+    
+    // Working hours settings
+    const startTime = ref('10:00');
+    const endTime = ref('19:00');
+    const workingHoursSaveStatus = ref('');
+    const workingHoursStatusMessage = ref('');
     
     // Load current settings
     onMounted(() => {
+      // Load AI settings
       store.dispatch('ai/loadSettings').then(() => {
         apiKey.value = store.getters['ai/apiKey'] || '';
         apiUrl.value = store.getters['ai/apiUrl'] || 'https://api.openai.com/v1/chat/completions';
         model.value = store.getters['ai/model'] || 'gpt-4o-mini';
+      });
+      
+      // Load working hours settings
+      store.dispatch('preferences/loadPreferences').then(() => {
+        startTime.value = store.getters['preferences/startTime'] || '10:00';
+        endTime.value = store.getters['preferences/endTime'] || '19:00';
       });
     });
     
@@ -105,21 +160,48 @@ export default {
         });
         
         if (success) {
-          saveStatus.value = 'success';
-          statusMessage.value = 'Settings saved successfully!';
+          aiSaveStatus.value = 'success';
+          aiStatusMessage.value = 'Settings saved successfully!';
         } else {
-          saveStatus.value = 'error';
-          statusMessage.value = 'Failed to save settings.';
+          aiSaveStatus.value = 'error';
+          aiStatusMessage.value = 'Failed to save settings.';
         }
       } catch (error) {
-        saveStatus.value = 'error';
-        statusMessage.value = `Error: ${error.message}`;
+        aiSaveStatus.value = 'error';
+        aiStatusMessage.value = `Error: ${error.message}`;
       }
       
       // Clear status after 3 seconds
       setTimeout(() => {
-        saveStatus.value = '';
-        statusMessage.value = '';
+        aiSaveStatus.value = '';
+        aiStatusMessage.value = '';
+      }, 3000);
+    };
+    
+    // Save working hours settings
+    const saveWorkingHours = async () => {
+      try {
+        const success = await store.dispatch('preferences/updateWorkingHours', {
+          startTime: startTime.value,
+          endTime: endTime.value
+        });
+        
+        if (success) {
+          workingHoursSaveStatus.value = 'success';
+          workingHoursStatusMessage.value = 'Working hours saved successfully!';
+        } else {
+          workingHoursSaveStatus.value = 'error';
+          workingHoursStatusMessage.value = 'Failed to save working hours.';
+        }
+      } catch (error) {
+        workingHoursSaveStatus.value = 'error';
+        workingHoursStatusMessage.value = `Error: ${error.message}`;
+      }
+      
+      // Clear status after 3 seconds
+      setTimeout(() => {
+        workingHoursSaveStatus.value = '';
+        workingHoursStatusMessage.value = '';
       }, 3000);
     };
     
@@ -128,8 +210,14 @@ export default {
       apiUrl,
       model,
       saveAISettings,
-      saveStatus,
-      statusMessage
+      aiSaveStatus,
+      aiStatusMessage,
+      
+      startTime,
+      endTime,
+      saveWorkingHours,
+      workingHoursSaveStatus,
+      workingHoursStatusMessage
     };
   }
 };

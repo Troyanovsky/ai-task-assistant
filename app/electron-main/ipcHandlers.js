@@ -3,6 +3,7 @@ import Project from '../src/models/Project.js';
 import projectManager from '../src/services/project.js';
 import taskManager from '../src/services/task.js';
 import notificationService from '../src/services/notification.js';
+import preferencesService from '../src/services/preferences.js';
 import logger from './logger.js';
 
 /**
@@ -193,6 +194,30 @@ export function setupIpcHandlers(mainWindow, aiService) {
     // Forward notification to renderer process
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('notification:received', notification);
+    }
+  });
+
+  // Preferences operations
+  ipcMain.handle('preferences:get', async () => {
+    try {
+      return preferencesService.getPreferences();
+    } catch (error) {
+      logger.logError(error, 'IPC Error - getPreferences');
+      return {
+        workingHours: {
+          startTime: '10:00',
+          endTime: '19:00'
+        }
+      };
+    }
+  });
+
+  ipcMain.handle('preferences:updateWorkingHours', async (_, workingHours) => {
+    try {
+      return preferencesService.updateWorkingHours(workingHours);
+    } catch (error) {
+      logger.logError(error, 'IPC Error - updateWorkingHours');
+      return false;
     }
   });
 
