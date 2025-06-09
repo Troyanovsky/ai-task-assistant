@@ -80,6 +80,7 @@ contextBridge.exposeInMainWorld(
     updateTask: (task) => ipcRenderer.invoke('tasks:update', task),
     deleteTask: (taskId) => ipcRenderer.invoke('tasks:delete', taskId),
     updateTaskStatus: (taskId, status) => ipcRenderer.invoke('tasks:updateStatus', taskId, status),
+    planMyDay: () => ipcRenderer.invoke('tasks:planMyDay'),
     
     getNotificationsByTask: (taskId) => ipcRenderer.invoke('notifications:getByTask', taskId),
     addNotification: (notification) => ipcRenderer.invoke('notifications:add', notification),

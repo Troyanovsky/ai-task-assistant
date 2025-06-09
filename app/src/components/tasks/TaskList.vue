@@ -8,6 +8,15 @@
       class="mb-4"
     />
 
+    <!-- Plan My Day Button (for Today smart project) -->
+    <div 
+      v-if="smartProjectType === 'today'"
+      @click="planMyDay"
+      class="p-3 rounded cursor-pointer bg-white border-gray-200 border hover:bg-gray-50 text-center text-blue-500 mb-4"
+    >
+      🗓️ Plan My Day
+    </div>
+
     <!-- Add Task Button -->
     <div 
       v-if="selectedProject && !smartProjectType"
@@ -83,6 +92,17 @@
     <div v-if="error" class="mt-4 text-center">
       <span class="text-red-500">{{ error }}</span>
     </div>
+    
+    <!-- Plan Day Result Dialog -->
+    <div v-if="planningResult" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-6">
+        <plan-day-result 
+          :result="planningResult" 
+          :working-hours="workingHours"
+          @close="planningResult = null" 
+        />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -93,6 +113,7 @@ import { Task } from '../../models/Task.js';
 import TaskItem from './TaskItem.vue';
 import TaskForm from './TaskForm.vue';
 import TaskFilter from './TaskFilter.vue';
+import PlanDayResult from './PlanDayResult.vue';
 import logger from '../../services/logger';
 
 export default {
@@ -100,7 +121,8 @@ export default {
   components: {
     TaskItem,
     TaskForm,
-    TaskFilter
+    TaskFilter,
+    PlanDayResult
   },
   props: {
     selectedProject: {
@@ -117,6 +139,8 @@ export default {
     const showAddTaskForm = ref(false);
     const editingTask = ref(null);
     const showingAllTasks = ref(false);
+    const planningResult = ref(null);
+    const planningInProgress = ref(false);
     const filters = ref({
       status: 'all',
       priority: 'all',
@@ -134,6 +158,12 @@ export default {
     
     const isLoading = computed(() => store.getters['tasks/isLoading']);
     const error = computed(() => store.getters['tasks/error']);
+    
+    // Get working hours from preferences
+    const workingHours = computed(() => store.getters['preferences/workingHours'] || {
+      startTime: '10:00',
+      endTime: '19:00'
+    });
 
     // Smart project tasks
     const todayTasks = computed(() => {
@@ -216,6 +246,9 @@ export default {
     };
 
     onMounted(() => {
+      // Load preferences
+      store.dispatch('preferences/loadPreferences');
+      
       // Listen for task refresh events from main process
       try {
         if (window.electron && window.electron.receive) {
@@ -380,6 +413,37 @@ export default {
       store.dispatch('tasks/filterTasks', newFilters);
     };
 
+    const planMyDay = async () => {
+      try {
+        // Set loading state
+        planningInProgress.value = true;
+        
+        // Make sure preferences are loaded
+        await store.dispatch('preferences/loadPreferences');
+        
+        // Call the planMyDay method
+        const result = await window.electron.planMyDay();
+        
+        // Store the result
+        planningResult.value = result;
+        
+        // Log the result
+        logger.info('Day planning result:', result);
+        
+        // Refresh tasks to show updated planned times
+        await fetchTasks();
+      } catch (error) {
+        logger.error('Error planning day:', error);
+        planningResult.value = {
+          scheduled: [],
+          unscheduled: [],
+          message: `Error planning day: ${error.message}`
+        };
+      } finally {
+        planningInProgress.value = false;
+      }
+    };
+
     return {
       tasks,
       allTasks,
@@ -399,7 +463,11 @@ export default {
       deleteTask,
       moveTask,
       updateFilters,
-      loadAllTasks
+      loadAllTasks,
+      planMyDay,
+      planningResult,
+      planningInProgress,
+      workingHours
     };
   }
 };

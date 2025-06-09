@@ -129,6 +129,30 @@ export function setupIpcHandlers(mainWindow, aiService) {
     }
   });
 
+  ipcMain.handle('tasks:planMyDay', async () => {
+    try {
+      // Get user preferences for working hours
+      const preferences = await preferencesService.getPreferences();
+      
+      // Plan the day using the task manager
+      const result = await taskManager.planMyDay(preferences.workingHours);
+      
+      // Notify the renderer to refresh tasks
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('tasks:refresh');
+      }
+      
+      return result;
+    } catch (error) {
+      logger.logError(error, 'IPC Error - planMyDay');
+      return {
+        scheduled: [],
+        unscheduled: [],
+        message: `Error planning day: ${error.message}`
+      };
+    }
+  });
+
   // Notification operations
   ipcMain.handle('notifications:getByTask', async (_, taskId) => {
     try {
