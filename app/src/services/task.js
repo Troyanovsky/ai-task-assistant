@@ -217,11 +217,6 @@ class TaskManager {
     try {
       logger.info('Updating task with original data:', taskData);
       
-      // Make sure project_id is correctly set
-      if (!taskData.project_id && taskData.projectId) {
-        taskData.project_id = taskData.projectId;
-      }
-      
       // Get existing task to preserve any fields not included in the update
       const existingTask = await this.getTaskById(taskData.id);
       if (!existingTask) {
@@ -229,11 +224,21 @@ class TaskManager {
         return false;
       }
       
+      // Preserve project ID from existing task if not provided in update
+      if (!taskData.projectId && !taskData.project_id) {
+        taskData.projectId = existingTask.projectId;
+      }
+      
       // Create a Task instance from the data, merging with existing task
       const task = new Task({
         ...existingTask.toDatabase(),
         ...taskData
       });
+      
+      // Make sure project_id is correctly set for database
+      if (!task.project_id && task.projectId) {
+        task.project_id = task.projectId;
+      }
       
       // Validate the task
       const isValid = task.validate();
