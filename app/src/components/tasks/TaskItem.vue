@@ -172,6 +172,10 @@ export default {
     task: {
       type: Object,
       required: true
+    },
+    isMissedPlannedTime: {
+      type: Boolean,
+      default: false
     }
   },
   emits: ['status-change', 'edit', 'delete', 'move'],
@@ -219,18 +223,6 @@ export default {
       const now = new Date();
       
       return now > dueDate;
-    });
-    
-    // Check if planned time is in the past but task is not started or completed
-    const isMissedPlannedTime = computed(() => {
-      if (!props.task.plannedTime || props.task.status === 'doing' || props.task.status === 'done') {
-        return false;
-      }
-      
-      const plannedDateTime = new Date(props.task.plannedTime);
-      const now = new Date();
-      
-      return now > plannedDateTime;
     });
     
     // Close dropdowns when clicking outside
@@ -394,7 +386,6 @@ export default {
       isLoadingProjects,
       isPlannedTimeAfterDueDate,
       isOverdue,
-      isMissedPlannedTime,
       toggleStatus,
       moveTaskToProject,
       formatDate,

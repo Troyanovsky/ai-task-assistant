@@ -160,6 +160,13 @@ app.on('activate', function() {
   if (mainWindow === null) createWindow();
 });
 
+// Listen for focus event to refresh tasks
+app.on('browser-window-focus', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('tasks:refresh');
+  }
+});
+
 // Close database connection when app is about to quit
 app.on('before-quit', () => {
   databaseService.close();

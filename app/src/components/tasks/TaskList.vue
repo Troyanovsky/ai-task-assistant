@@ -51,6 +51,7 @@
         <task-item
           v-if="!isTaskBeingEdited(task)"
           :task="task"
+          :is-missed-planned-time="isMissedPlannedTime(task)"
           @status-change="updateTaskStatus"
           @edit="editTask"
           @delete="deleteTask"
@@ -107,16 +108,22 @@
 </template>
 
 <script>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
 import { Task } from '../../models/Task.js';
 import TaskItem from './TaskItem.vue';
 import TaskForm from './TaskForm.vue';
+import logger from '../../services/logger';
 import TaskFilter from './TaskFilter.vue';
 import PlanDayResult from './PlanDayResult.vue';
-import logger from '../../services/logger';
 
 export default {
+  components: {
+    TaskItem,
+    TaskForm,
+    TaskFilter,
+    PlanDayResult
+  },
   name: 'TaskList',
   components: {
     TaskItem,
@@ -139,6 +146,7 @@ export default {
     const showAddTaskForm = ref(false);
     const editingTask = ref(null);
     const showingAllTasks = ref(false);
+    const missedPlannedTimeCheckInterval = ref(null);
     const planningResult = ref(null);
     const planningInProgress = ref(false);
     const filters = ref({
@@ -219,6 +227,18 @@ export default {
       }
     });
 
+    // Function to check if planned time is in the past but task is not started or completed
+    const isMissedPlannedTime = (task) => {
+      if (!task.plannedTime || task.status === 'doing' || task.status === 'done') {
+        return false;
+      }
+
+      const plannedDateTime = new Date(task.plannedTime);
+      const now = new Date();
+
+      return now > plannedDateTime;
+    };
+
     // Function to check if a task is currently being edited
     const isTaskBeingEdited = (task) => {
       return editingTask.value && task && editingTask.value.id === task.id;
@@ -245,10 +265,32 @@ export default {
       }
     };
 
+    const startMissedPlannedTimeCheck = () => {
+      missedPlannedTimeCheckInterval.value = setInterval(() => {
+        if (!displayedTasks.value) return;
+
+        for (const task of displayedTasks.value) {
+          if (isMissedPlannedTime(task)) {
+            logger.info(`Missed planned time detected for task ${task.id}. Refreshing tasks.`);
+            fetchTasks();
+            break; // Refresh only once per interval
+          }
+        }
+      }, 300000); // 5 minutes
+    };
+
+    const stopMissedPlannedTimeCheck = () => {
+      clearInterval(missedPlannedTimeCheckInterval.value);
+      missedPlannedTimeCheckInterval.value = null;
+    };
+
     onMounted(() => {
       // Load preferences
       store.dispatch('preferences/loadPreferences');
       
+      // Start checking for missed planned times
+      startMissedPlannedTimeCheck();
+
       // Listen for task refresh events from main process
       try {
         if (window.electron && window.electron.receive) {
@@ -271,6 +313,9 @@ export default {
     });
 
     onBeforeUnmount(() => {
+      // Stop checking for missed planned times
+      stopMissedPlannedTimeCheck();
+
       // Remove event listeners when component is unmounted
       try {
         if (window.electron && window.electron.removeAllListeners) {
@@ -342,13 +387,16 @@ export default {
     };
 
     const updateTask = async (taskData) => {
+      logger.info('updateTask called with data:', taskData);
       // Create a Task instance from the plain object
       const taskInstance = new Task(taskData);
+      logger.info('Task instance:', taskInstance);
       await store.dispatch('tasks/updateTask', taskInstance);
       editingTask.value = null;
       
       // If we're in a smart project, refresh all tasks
       if (props.smartProjectType) {
+        logger.info('Refreshing tasks for smart project');
         await store.dispatch('tasks/fetchTasks');
       }
     };
@@ -467,7 +515,8 @@ export default {
       planMyDay,
       planningResult,
       planningInProgress,
-      workingHours
+      workingHours,
+      isMissedPlannedTime
     };
   }
 };
