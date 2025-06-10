@@ -2,9 +2,9 @@
 
 ![fokuszeit_screenshot](Docs/assets/fokuszeit_screenshot.png)
 
-FokusZeit is an intelligent application to manage to-do items and calendars by offloading task creation, editing, and planning to an LLM. Supports OpenAI compatible APIs.
+FokusZeit is an intelligent productivity to-do app that uses AI to manage your tasks and projects. It offloads task creation, editing, and planning to an LLM, making your workflow smoother and more efficient. Compatible with OpenAI and local LLM APIs.
 
-## Project Setup
+## Getting Started
 
 ```bash
 # Install dependencies
@@ -18,60 +18,74 @@ npm run electron:dev
 npm run electron:build
 ```
 
-## How to use AI features
-- In settings, set up base URL, API key, and model. Both hosted LLM API and local LLM API like LMStudio are supported.
-- Chat with AI to view/edit/update/delete projects/tasks/notifications in natural language.
+## AI Integration Guide
 
-### Example LMStudio AI config
+Setting up the AI assistant is simple:
+
+- Navigate to settings and configure your base URL, API key, and preferred model
+- Supports both cloud-based LLM APIs like OpenAI and local OpenAI-compatible endpoints like LMStudio or Ollama
+- Interact naturally with the AI to manage projects, tasks, and notifications
+
+### LMStudio Configuration Example
+
 - API key: lm-studio  
-- API URL: http://localhost:1234/v1/chat/completions  
+- API URL: [http://localhost:1234/v1/chat/completions](http://localhost:1234/v1/chat/completions)  
 - Model name: qwen/qwen3-4b 
 
-### Example OpenAI API config
+### OpenAI Configuration Example
+
 - API key: your-api-key  
-- API URL: 
-https://api.openai.com/v1/chat/completions  
+- API URL: [https://api.openai.com/v1/chat/completions](https://api.openai.com/v1/chat/completions)
 - Model name: gpt-4o-mini  
 
-## Features
+## Current Features
 
-### MVP
-- Task Management with basic CRUD operations for tasks/projects/notifications
-- Project-based task grouping with Today and Overdue smart projects
-- Notifications
-- AI-accessible task, project, and notification  management API
-- Chat with AI to manage tasks/projects/notifications
-- Automatically plan daily schedule
-- Basic settings:
-  - AI settings
-  - Daily working hours
+- **Task Management**: Create, read, update, and delete tasks with ease
+- **Project Organization**: Group tasks by project with smart "Today" and "Overdue" collections
+- **Notifications**: Stay on top of your priorities with notifications for your tasks
+- **AI Assistant**: Chat naturally to manage your tasks/projects/notifications
+- **Smart Scheduling**: Automatically plan your daily schedule
+- **Customizable Settings**: Configure AI settings and define your working hours
 
-### V1 Features (Planned)
-- UI
-  - Calendar-based UI for tasks/days
-- UX
-  - Voice input for AI interaction
-- Functionality
-  - Enhanced AI features like task breakdown
-- Keyboard shortcut 
-- Daily progress bar
-- Dragging tasks between projects
+## Roadmap
 
-### Future Features
-- Advanced Settings
-  - Time zone
-  - Time format
-  - Start of week
-  - Daily workload
-  - Light/Dark mode switches
-  - Scheduling gap configuration
-  - i18n support
-  - Alert settings
-- Productivity Rituals
-  - Daily planning time
-  - Daily review time
-  - Weekly planning time
-  - Weekly review time
-- Focus mode with time tracking
-- Third-party integrations
-- Email notifications
+### Coming in V1
+
+- **Enhanced UI**: Calendar-based task visualization
+- **Voice Input**: Speak directly to your AI assistant
+- **Advanced AI Features**: Task breakdown and more intelligent assistance
+- **Keyboard Shortcuts**: Boost your productivity
+- **Progress Tracking**: Daily progress bar
+- **Drag & Drop**: Easily move tasks between projects
+
+### Future Enhancements
+
+- **Advanced Settings**: Time zone, time format, week setting, daily workload, light/dark themes, scheduling gaps, alert settings, and internationalization
+- **Productivity Rituals**: Daily & weekly structured & AI-guided planning and review sessions
+- **Focus Mode**: Distraction-free work with time tracking
+- **Third-party Integrations**: Connect with your favorite calendars
+- **Email Notifications**: Stay informed even when away
+
+## Contributing
+
+We welcome contributions from developers of all skill levels! Here's how you can help:
+
+### Project Setup
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Run tests (`npm run test`)
+5. Commit your changes (`git commit -m 'Add some amazing feature'`)
+6. Push to your branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+### Development Guidelines
+
+- Write tests for new functionality
+- Update documentation as needed
+- Respect the existing architecture and patterns
+
+### Suggestions Welcome
+
+- Suggestions for UI, UX and functionalities are welcome. Pleas leave a message in discussions section.
