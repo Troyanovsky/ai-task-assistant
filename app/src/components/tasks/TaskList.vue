@@ -94,7 +94,7 @@
     </div>
     
     <!-- Plan Day Result Dialog -->
-    <div v-if="planningResult" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div v-if="planningResult" class="fixed inset-0 bg-gray-600/50 flex items-center justify-center z-50 p-4">
       <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-6">
         <plan-day-result 
           :result="planningResult" 

@@ -7,15 +7,6 @@ Time issue:
 Need to:
 - Check if there is default notification for due date.
 
-**app/electron-main/aiService.js:**
-
-5.  **Error Handling**: Implement more robust error handling, especially around API calls and function executions.
-6.  **Context Management**: The way project info and date/time are added to the message could be improved. Consider a more structured approach using JSON or a dedicated context object.
-7.  **Function Call Handling**: The nested function call handling logic is quite complex and repetitive. Refactor this into a more modular and reusable function.
-8.  **Date Parsing**: The date parsing logic in `executeFunctionCall` is complex. Consider using a dedicated date parsing library like `date-fns` or `Moment.js` to simplify and standardize date handling.
-9.  **LLM API Request Logging**:  While logging the API request is good, consider adding a feature flag or environment variable to control the logging level, especially for sensitive data.
-10. **Function Schemas**: Load function schemas dynamically only when needed, instead of on every LLM call.
-
 **app/src/services/notification.js:**
 
 11. **Singleton**: While using a singleton is a common pattern, consider whether it's truly necessary. Dependency injection might offer more flexibility for testing and future extensions.

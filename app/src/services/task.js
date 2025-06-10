@@ -547,18 +547,20 @@ class TaskManager {
       // Get all tasks
       const allTasks = await this.getTasks();
       
-      // Filter tasks due today that are not done and don't have planned time
-      const unplannedTasks = allTasks.filter(task => {
-        // Due today
-        const isDueToday = task.dueDate === todayStr;
-        
-        // Not in progress or done
-        const isNotInProgressOrDone = task.status !== STATUS.DONE && task.status !== STATUS.DOING;
-        
-        // No planned time
+      // Filter tasks due today
+      console.log('task.dueDate:', allTasks.map(task => task.dueDate));
+      console.log('todayStr:', todayStr);
+      const tasksDueToday = allTasks.filter(task => task.dueDate === todayStr);
+
+      // Filter tasks that need planning
+      const unplannedTasks = tasksDueToday.filter(task => {
+        // Task doesn't have a planned time
         const hasNoPlannedTime = !task.plannedTime;
-        
-        return isDueToday && isNotInProgressOrDone && hasNoPlannedTime;
+
+        // Task already has a planned time, but it has passed and the task doesn't have status doing/done
+        const plannedTimePassed = task.plannedTime && new Date(task.plannedTime) < today && task.status !== STATUS.DOING && task.status !== STATUS.DONE;
+
+        return (hasNoPlannedTime || plannedTimePassed) && task.status !== STATUS.DOING && task.status !== STATUS.DONE;
       });
       
       logger.info(`Found ${unplannedTasks.length} unplanned tasks for today`);
@@ -580,10 +582,11 @@ class TaskManager {
         return (
           plannedDate.getFullYear() === today.getFullYear() &&
           plannedDate.getMonth() === today.getMonth() &&
-          plannedDate.getDate() === today.getDate()
+          plannedDate.getDate() === today.getDate() &&
+          !(new Date(task.plannedTime) < today && task.status !== STATUS.DOING && task.status !== STATUS.DONE)
         );
       });
-      
+
       logger.info(`Found ${plannedTasks.length} already planned tasks for today`);
       
       // Parse working hours
