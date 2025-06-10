@@ -3,6 +3,7 @@ This documentation is the folder structure for the project. It may be used to fi
 ```
 └── 📁ai-task-assistant
     └── 📁app
+        └── .DS_Store
         └── .eslintrc.cjs
         └── .eslintrc.js
         └── .prettierrc
@@ -14,8 +15,11 @@ This documentation is the folder structure for the project. It may be used to fi
             └── README.md
             └── schema.js
         └── 📁electron-main
+            └── 📁__tests__
+                └── aiService.test.js
             └── aiService.js
             └── ipcHandlers.js
+            └── logger.js
         └── electron.js
         └── index.html
         └── package-lock.json
@@ -26,21 +30,19 @@ This documentation is the folder structure for the project. It may be used to fi
             └── vite.svg
         └── 📁src
             └── App.vue
-            └── 📁assets
-                └── vue.svg
             └── 📁components
                 └── 📁ai
                     └── ChatBox.vue
                     └── ChatInput.vue
                     └── ChatMessage.vue
-                └── 📁layout
-                    └── AppSidebar.vue
-                    └── NotificationListener.vue
                 └── 📁projects
                     └── ProjectForm.vue
                     └── ProjectItem.vue
                     └── ProjectList.vue
+                └── 📁system
+                    └── NotificationListener.vue
                 └── 📁tasks
+                    └── PlanDayResult.vue
                     └── TaskFilter.vue
                     └── TaskForm.vue
                     └── TaskItem.vue
@@ -57,11 +59,14 @@ This documentation is the folder structure for the project. It may be used to fi
                 └── 📁__tests__
                     └── database.test.js
                     └── notification.test.js
+                    └── preferences.test.js
                     └── project.test.js
                     └── task.test.js
                 └── database.js
                 └── functionSchemas.js
+                └── logger.js
                 └── notification.js
+                └── preferences.js
                 └── project.js
                 └── task.js
             └── 📁store
@@ -69,12 +74,16 @@ This documentation is the folder structure for the project. It may be used to fi
                 └── 📁modules
                     └── 📁__tests__
                         └── ai.test.js
+                        └── preferences.test.js
                         └── projects.test.js
                         └── tasks.test.js
                     └── ai.js
+                    └── preferences.js
                     └── projects.js
                     └── tasks.js
             └── style.css
+            └── 📁utils
+                └── logExample.js
             └── 📁views
                 └── HomeView.vue
                 └── SettingsView.vue
@@ -82,8 +91,8 @@ This documentation is the folder structure for the project. It may be used to fi
         └── vite.config.js
     └── 📁Docs
         └── Folder_Structure.md
-        └── Implementation_Plan.md
         └── Issue_Tracker.md
+        └── logging.md
         └── PRD.md
         └── Tech_System.md
     └── .gitignore

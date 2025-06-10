@@ -3,10 +3,6 @@ Issues:
 - P1: When creating or editing a task, user should be able to pick dependency (dropdown of other tasks with checkbox), which means this task should be organized after the dependencies are done (dependencies are pre-reqs)
 - P1: Recurrence is not implemented. (Need to design recurrence logic & UI)
 
-Time issue:
-Need to:
-- Check if there is default notification for due date.
-
 **app/src/services/notification.js:**
 
 11. **Singleton**: While using a singleton is a common pattern, consider whether it's truly necessary. Dependency injection might offer more flexibility for testing and future extensions.

@@ -1,5 +1,7 @@
 # FokusZeit - AI Task Assistant
 
+![fokuszeit_screenshot](Docs/assets/fokuszeit_screenshot.png)
+
 FokusZeit is an intelligent application to manage to-do items and calendars by offloading task creation, editing, and planning to an LLM. Supports OpenAI compatible APIs.
 
 ## Project Setup
@@ -21,27 +23,39 @@ npm run electron:build
 - Chat with AI to view/edit/update/delete projects/tasks/notifications in natural language.
 
 ### Example LMStudio AI config
-API key: lm-studio
-API URL: http://localhost:1234/v1/chat/completions
-Model name: qwen/qwen3-4b
+- API key: lm-studio  
+- API URL: http://localhost:1234/v1/chat/completions  
+- Model name: qwen/qwen3-4b 
+
+### Example OpenAI API config
+- API key: your-api-key  
+- API URL: 
+https://api.openai.com/v1/chat/completions  
+- Model name: gpt-4o-mini  
 
 ## Features
 
 ### MVP
-- Task Management with basic CRUD operations for tasks/projects
-- Project-based task grouping
-- AI-accessible task & project management API
+- Task Management with basic CRUD operations for tasks/projects/notifications
+- Project-based task grouping with Today and Overdue smart projects
 - Notifications
+- AI-accessible task, project, and notification  management API
+- Chat with AI to manage tasks/projects/notifications
+- Automatically plan daily schedule
+- Basic settings:
+  - AI settings
+  - Daily working hours
 
 ### V1 Features (Planned)
-- Calendar-based UI for tasks/days
-- Voice input for AI interaction
-- Enhanced AI features like task breakdown
-- Other notifications: email
+- UI
+  - Calendar-based UI for tasks/days
+- UX
+  - Voice input for AI interaction
+- Functionality
+  - Enhanced AI features like task breakdown
 - Keyboard shortcut 
-- Default list: Input/Backlog
 - Daily progress bar
-- Dragging tasks
+- Dragging tasks between projects
 
 ### Future Features
 - Advanced Settings
@@ -49,8 +63,6 @@ Model name: qwen/qwen3-4b
   - Time format
   - Start of week
   - Daily workload
-  - Daily working time
-  - Hide/show completed tasks
   - Light/Dark mode switches
   - Scheduling gap configuration
   - i18n support
@@ -62,3 +74,4 @@ Model name: qwen/qwen3-4b
   - Weekly review time
 - Focus mode with time tracking
 - Third-party integrations
+- Email notifications
