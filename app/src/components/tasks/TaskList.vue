@@ -8,6 +8,14 @@
       class="mb-4"
     />
 
+    <!-- Progress Bar for Today's Tasks -->
+    <today-progress
+      v-if="smartProjectType === 'today' && totalTodayTasks > 0"
+      :total-tasks="totalTodayTasks"
+      :completed-tasks="completedTodayTasks"
+      class="mb-4"
+    />
+
     <!-- Plan My Day Button (for Today smart project) -->
     <div 
       v-if="smartProjectType === 'today'"
@@ -116,21 +124,17 @@ import TaskForm from './TaskForm.vue';
 import logger from '../../services/logger';
 import TaskFilter from './TaskFilter.vue';
 import PlanDayResult from './PlanDayResult.vue';
+import TodayProgress from './TodayProgress.vue';
 
 export default {
   components: {
     TaskItem,
     TaskForm,
     TaskFilter,
-    PlanDayResult
+    PlanDayResult,
+    TodayProgress,
   },
   name: 'TaskList',
-  components: {
-    TaskItem,
-    TaskForm,
-    TaskFilter,
-    PlanDayResult
-  },
   props: {
     selectedProject: {
       type: Object,
@@ -199,6 +203,11 @@ export default {
         return false;
       });
     });
+    
+    const totalTodayTasks = computed(() => todayTasks.value.length);
+    const completedTodayTasks = computed(() => 
+      todayTasks.value.filter(task => task.status === 'done').length
+    );
     
     const overdueTasks = computed(() => {
       if (!allTasks.value.length) return [];
@@ -516,7 +525,9 @@ export default {
       planningResult,
       planningInProgress,
       workingHours,
-      isMissedPlannedTime
+      isMissedPlannedTime,
+      totalTodayTasks,
+      completedTodayTasks
     };
   }
 };
