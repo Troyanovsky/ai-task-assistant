@@ -9,7 +9,7 @@ export const TYPE = {
   REMINDER: 'reminder',
   DUE_DATE: 'due_date',
   STATUS_CHANGE: 'status_change',
-  PLANNED_TIME: 'PLANNED_TIME'
+  PLANNED_TIME: 'PLANNED_TIME',
 };
 
 class Notification {
@@ -58,7 +58,7 @@ class Notification {
       time: this.time.toISOString(),
       type: this.type,
       message: this.message,
-      created_at: this.createdAt.toISOString()
+      created_at: this.createdAt.toISOString(),
     };
   }
 

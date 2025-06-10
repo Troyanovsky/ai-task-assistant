@@ -23,26 +23,29 @@ class DatabaseService {
   async init() {
     try {
       // Determine the database file path
-      this.dbPath = path.join(app ? app.getPath('userData') : process.cwd(), 'ai-task-assistant.db');
-      
+      this.dbPath = path.join(
+        app ? app.getPath('userData') : process.cwd(),
+        'ai-task-assistant.db'
+      );
+
       // Create directory if it doesn't exist
       const dir = path.dirname(this.dbPath);
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
-      
+
       // Connect to the database
-      this.db = new Database(this.dbPath, { 
+      this.db = new Database(this.dbPath, {
         verbose: (message) => logger.debug(`SQLite: ${message}`),
-        fileMustExist: false
+        fileMustExist: false,
       });
-      
+
       // Enable foreign keys
       this.db.pragma('foreign_keys = ON');
-      
+
       // Run migrations
       await this.runMigrations();
-      
+
       logger.info('Database initialized successfully');
       return true;
     } catch (error) {

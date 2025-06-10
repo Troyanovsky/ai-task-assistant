@@ -62,7 +62,7 @@ const logger = {
     }
     return console.debug(message, ...args);
   },
-  
+
   // Helper for logging errors with stack traces
   logError: (error, context = '') => {
     try {
@@ -72,13 +72,13 @@ const logger = {
     } catch (err) {
       // Fallback to console during initialization or when logger is not available
     }
-    
+
     if (error instanceof Error) {
       console.error(`${context}: ${error.message}`, error.stack);
     } else {
       console.error(`${context}: ${error}`);
     }
-  }
+  },
 };
 
 export default logger;

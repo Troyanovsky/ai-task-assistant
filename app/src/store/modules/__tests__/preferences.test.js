@@ -5,8 +5,8 @@ import preferencesModule from '../preferences.js';
 vi.stubGlobal('window', {
   electron: {
     getPreferences: vi.fn(),
-    updateWorkingHours: vi.fn()
-  }
+    updateWorkingHours: vi.fn(),
+  },
 });
 
 // Mock logger
@@ -15,8 +15,8 @@ vi.mock('../../../services/logger', () => ({
     logError: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
-    debug: vi.fn()
-  }
+    debug: vi.fn(),
+  },
 }));
 
 describe('Preferences Store Module', () => {
@@ -24,21 +24,21 @@ describe('Preferences Store Module', () => {
   const mockPreferences = {
     workingHours: {
       startTime: '09:00',
-      endTime: '17:00'
-    }
+      endTime: '17:00',
+    },
   };
-  
+
   // Helper to create a mock commit function
   const createCommit = () => vi.fn();
-  
+
   // Helper to create mock state
   const createState = () => ({
     workingHours: {
       startTime: '10:00',
-      endTime: '19:00'
+      endTime: '19:00',
     },
     loading: false,
-    error: null
+    error: null,
   });
 
   beforeEach(() => {
@@ -51,25 +51,25 @@ describe('Preferences Store Module', () => {
       const result = preferencesModule.getters.workingHours(state);
       expect(result).toEqual(state.workingHours);
     });
-    
+
     it('startTime should return start time', () => {
       const state = createState();
       const result = preferencesModule.getters.startTime(state);
       expect(result).toBe('10:00');
     });
-    
+
     it('endTime should return end time', () => {
       const state = createState();
       const result = preferencesModule.getters.endTime(state);
       expect(result).toBe('19:00');
     });
-    
+
     it('isLoading should return the loading state', () => {
       const state = { ...createState(), loading: true };
       const result = preferencesModule.getters.isLoading(state);
       expect(result).toBe(true);
     });
-    
+
     it('error should return the error state', () => {
       const state = { ...createState(), error: 'Test error' };
       const result = preferencesModule.getters.error(state);
@@ -81,9 +81,9 @@ describe('Preferences Store Module', () => {
     it('loadPreferences should load preferences and update state', async () => {
       const commit = createCommit();
       window.electron.getPreferences.mockResolvedValue(mockPreferences);
-      
+
       const result = await preferencesModule.actions.loadPreferences({ commit });
-      
+
       expect(window.electron.getPreferences).toHaveBeenCalled();
       expect(commit).toHaveBeenCalledWith('setLoading', true);
       expect(commit).toHaveBeenCalledWith('setError', null);
@@ -91,13 +91,13 @@ describe('Preferences Store Module', () => {
       expect(commit).toHaveBeenCalledWith('setLoading', false);
       expect(result).toBe(true);
     });
-    
+
     it('loadPreferences should handle errors', async () => {
       const commit = createCommit();
       window.electron.getPreferences.mockRejectedValue(new Error('Test error'));
-      
+
       const result = await preferencesModule.actions.loadPreferences({ commit });
-      
+
       expect(window.electron.getPreferences).toHaveBeenCalled();
       expect(commit).toHaveBeenCalledWith('setLoading', true);
       expect(commit).toHaveBeenCalledWith('setError', null);
@@ -105,14 +105,14 @@ describe('Preferences Store Module', () => {
       expect(commit).toHaveBeenCalledWith('setLoading', false);
       expect(result).toBe(false);
     });
-    
+
     it('updateWorkingHours should update working hours and state', async () => {
       const commit = createCommit();
       const workingHours = { startTime: '08:00', endTime: '16:00' };
       window.electron.updateWorkingHours.mockResolvedValue(true);
-      
+
       const result = await preferencesModule.actions.updateWorkingHours({ commit }, workingHours);
-      
+
       expect(window.electron.updateWorkingHours).toHaveBeenCalledWith(workingHours);
       expect(commit).toHaveBeenCalledWith('setLoading', true);
       expect(commit).toHaveBeenCalledWith('setError', null);
@@ -120,14 +120,14 @@ describe('Preferences Store Module', () => {
       expect(commit).toHaveBeenCalledWith('setLoading', false);
       expect(result).toBe(true);
     });
-    
+
     it('updateWorkingHours should handle errors', async () => {
       const commit = createCommit();
       const workingHours = { startTime: '08:00', endTime: '16:00' };
       window.electron.updateWorkingHours.mockResolvedValue(false);
-      
+
       const result = await preferencesModule.actions.updateWorkingHours({ commit }, workingHours);
-      
+
       expect(window.electron.updateWorkingHours).toHaveBeenCalledWith(workingHours);
       expect(commit).toHaveBeenCalledWith('setLoading', true);
       expect(commit).toHaveBeenCalledWith('setError', null);
@@ -141,26 +141,26 @@ describe('Preferences Store Module', () => {
     it('setWorkingHours should update working hours', () => {
       const state = createState();
       const workingHours = { startTime: '08:00', endTime: '16:00' };
-      
+
       preferencesModule.mutations.setWorkingHours(state, workingHours);
-      
+
       expect(state.workingHours).toEqual(workingHours);
     });
-    
+
     it('setLoading should update loading state', () => {
       const state = createState();
-      
+
       preferencesModule.mutations.setLoading(state, true);
-      
+
       expect(state.loading).toBe(true);
     });
-    
+
     it('setError should update error state', () => {
       const state = createState();
-      
+
       preferencesModule.mutations.setError(state, 'Test error');
-      
+
       expect(state.error).toBe('Test error');
     });
   });
-}); 
+});

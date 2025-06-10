@@ -2,16 +2,16 @@
   <div class="chat-box flex flex-col h-full">
     <div class="p-4 border-b border-gray-300 flex justify-between items-center h-[60px]">
       <h2 class="font-bold text-lg">AI Assistant</h2>
-      <button 
-        @click="clearChat" 
+      <button
         class="text-gray-600 hover:text-red-500"
         title="Clear chat history"
+        @click="clearChat"
       >
         Clear
       </button>
     </div>
-    
-    <div class="chat-messages flex-grow overflow-y-auto p-4" ref="messagesContainer">
+
+    <div ref="messagesContainer" class="chat-messages flex-grow overflow-y-auto p-4">
       <div v-if="chatHistory.length === 0" class="text-center text-gray-500 my-8">
         <p>Ask me to help with your tasks!</p>
         <p class="text-sm mt-2">For example:</p>
@@ -21,23 +21,19 @@
           <li>"Add a new project called Personal"</li>
         </ul>
       </div>
-      
-      <chat-message 
-        v-for="(message, index) in chatHistory" 
-        :key="index" 
-        :message="message" 
-      />
+
+      <chat-message v-for="(message, index) in chatHistory" :key="index" :message="message" />
     </div>
-    
-    <div v-if="!isConfigured" class="api-key-warning p-3 bg-yellow-50 text-yellow-800 border-t border-yellow-200 text-sm">
+
+    <div
+      v-if="!isConfigured"
+      class="api-key-warning p-3 bg-yellow-50 text-yellow-800 border-t border-yellow-200 text-sm"
+    >
       <p>AI service not configured. Please add your API key in Settings.</p>
     </div>
-    
+
     <div class="chat-input border-t border-gray-300 p-3">
-      <chat-input 
-        :is-processing="isProcessing" 
-        @send-message="sendMessage" 
-      />
+      <chat-input :is-processing="isProcessing" @send-message="sendMessage" />
     </div>
   </div>
 </template>
@@ -52,57 +48,60 @@ export default {
   name: 'ChatBox',
   components: {
     ChatMessage,
-    ChatInput
+    ChatInput,
   },
   setup() {
     const store = useStore();
     const messagesContainer = ref(null);
-    
+
     // Get chat data from store
     const chatHistory = computed(() => store.getters['ai/chatHistory']);
     const isProcessing = computed(() => store.getters['ai/isProcessing']);
     const error = computed(() => store.getters['ai/error']);
     const isConfigured = computed(() => store.getters['ai/isConfigured']);
-    
+
     // Send message to AI
     const sendMessage = (message) => {
       store.dispatch('ai/sendMessage', message);
     };
-    
+
     // Clear chat history
     const clearChat = () => {
       store.dispatch('ai/clearHistory');
     };
-    
+
     // Auto-scroll to bottom when new messages arrive
-    watch(() => chatHistory.value.length, async () => {
-      await nextTick();
-      if (messagesContainer.value) {
-        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+    watch(
+      () => chatHistory.value.length,
+      async () => {
+        await nextTick();
+        if (messagesContainer.value) {
+          messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+        }
       }
-    });
-    
+    );
+
     // Handle real-time chat history updates
     const handleChatHistoryUpdate = (updatedHistory) => {
       if (updatedHistory && Array.isArray(updatedHistory)) {
         store.commit('ai/setChatHistory', updatedHistory);
       }
     };
-    
+
     // Load chat history when component is mounted
     onMounted(() => {
       store.dispatch('ai/loadChatHistory');
       store.dispatch('ai/loadSettings');
-      
+
       // Listen for real-time chat history updates
       window.electron.receive('ai:chatHistoryUpdate', handleChatHistoryUpdate);
     });
-    
+
     onBeforeUnmount(() => {
       // Remove event listener when component is unmounted
       window.electron.removeAllListeners('ai:chatHistoryUpdate');
     });
-    
+
     return {
       chatHistory,
       isProcessing,
@@ -110,9 +109,9 @@ export default {
       isConfigured,
       sendMessage,
       clearChat,
-      messagesContainer
+      messagesContainer,
     };
-  }
+  },
 };
 </script>
 
@@ -138,4 +137,4 @@ export default {
   background-color: rgba(156, 163, 175, 0.5);
   border-radius: 3px;
 }
-</style> 
+</style>

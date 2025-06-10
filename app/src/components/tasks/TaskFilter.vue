@@ -3,12 +3,14 @@
     <div class="grid grid-cols-3 gap-3">
       <!-- Status Filter -->
       <div>
-        <label for="status-filter" class="block text-xs font-medium text-gray-500 mb-1">Status</label>
+        <label for="status-filter" class="block text-xs font-medium text-gray-500 mb-1"
+          >Status</label
+        >
         <select
           id="status-filter"
           v-model="localFilters.status"
-          @change="updateFilters"
           class="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          @change="updateFilters"
         >
           <option value="all">All Statuses</option>
           <option value="planning">Planning</option>
@@ -16,15 +18,17 @@
           <option value="done">Done</option>
         </select>
       </div>
-      
+
       <!-- Priority Filter -->
       <div>
-        <label for="priority-filter" class="block text-xs font-medium text-gray-500 mb-1">Priority</label>
+        <label for="priority-filter" class="block text-xs font-medium text-gray-500 mb-1"
+          >Priority</label
+        >
         <select
           id="priority-filter"
           v-model="localFilters.priority"
-          @change="updateFilters"
           class="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          @change="updateFilters"
         >
           <option value="all">All Priorities</option>
           <option value="high">High</option>
@@ -32,27 +36,26 @@
           <option value="low">Low</option>
         </select>
       </div>
-      
+
       <!-- Search Filter -->
       <div>
-        <label for="search-filter" class="block text-xs font-medium text-gray-500 mb-1">Search</label>
+        <label for="search-filter" class="block text-xs font-medium text-gray-500 mb-1"
+          >Search</label
+        >
         <input
           id="search-filter"
           v-model="localFilters.search"
-          @input="updateFilters"
           type="text"
           placeholder="Search tasks..."
           class="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          @input="updateFilters"
         />
       </div>
     </div>
-    
+
     <!-- Clear Filters -->
-    <div class="mt-2 flex justify-end" v-if="hasActiveFilters">
-      <button
-        @click="clearFilters"
-        class="text-xs text-blue-600 hover:text-blue-800"
-      >
+    <div v-if="hasActiveFilters" class="mt-2 flex justify-end">
+      <button class="text-xs text-blue-600 hover:text-blue-800" @click="clearFilters">
         Clear filters
       </button>
     </div>
@@ -70,16 +73,16 @@ export default {
       default: () => ({
         status: 'all',
         priority: 'all',
-        search: ''
-      })
-    }
+        search: '',
+      }),
+    },
   },
   emits: ['update:filters'],
   setup(props, { emit }) {
     const localFilters = reactive({
       status: 'all',
       priority: 'all',
-      search: ''
+      search: '',
     });
 
     // Initialize local filters from props
@@ -116,8 +119,8 @@ export default {
       localFilters,
       hasActiveFilters,
       updateFilters,
-      clearFilters
+      clearFilters,
     };
-  }
+  },
 };
-</script> 
+</script>

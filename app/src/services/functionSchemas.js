@@ -3,399 +3,407 @@
  */
 export const functionSchemas = [
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "addTask",
-      description: "Add a new task to the system",
+      name: 'addTask',
+      description: 'Add a new task to the system',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
-          name: { 
-            type: "string",
-            description: "The name/title of the task"
+          name: {
+            type: 'string',
+            description: 'The name/title of the task',
           },
-          description: { 
-            type: "string",
-            description: "A detailed description of the task"
+          description: {
+            type: 'string',
+            description: 'A detailed description of the task',
           },
-          duration: { 
-            type: "number",
-            description: "Estimated duration in minutes"
+          duration: {
+            type: 'number',
+            description: 'Estimated duration in minutes',
           },
-          dueDate: { 
-            type: "string", 
-            format: "date-time",
-            description: "Due date for the task. Provide in the following date-only format `YYYY-MM-DD`."
+          dueDate: {
+            type: 'string',
+            format: 'date-time',
+            description:
+              'Due date for the task. Provide in the following date-only format `YYYY-MM-DD`.',
           },
           plannedTime: {
-            type: "string",
-            format: "date-time",
-            description: "Planned time to work on the task. Provide in user's local time zone in a readable format like 'YYYY-MM-DD HH:MM'."
+            type: 'string',
+            format: 'date-time',
+            description:
+              "Planned time to work on the task. Provide in user's local time zone in a readable format like 'YYYY-MM-DD HH:MM'.",
           },
-          projectId: { 
-            type: "string",
-            description: "ID of the project this task belongs to"
+          projectId: {
+            type: 'string',
+            description: 'ID of the project this task belongs to',
           },
-          priority: { 
-            type: "string", 
-            enum: ["low", "medium", "high"],
-            description: "Priority level of the task"
+          priority: {
+            type: 'string',
+            enum: ['low', 'medium', 'high'],
+            description: 'Priority level of the task',
           },
-          status: { 
-            type: "string", 
-            enum: ["planning", "doing", "done"],
-            description: "Current status of the task"
+          status: {
+            type: 'string',
+            enum: ['planning', 'doing', 'done'],
+            description: 'Current status of the task',
           },
-          labels: { 
-            type: "array",
-            items: { type: "string" },
-            description: "Labels/tags for the task"
-          }
+          labels: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Labels/tags for the task',
+          },
         },
-        required: ["name", "projectId"]
-      }
-    }
+        required: ['name', 'projectId'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "updateTask",
-      description: "Update an existing task",
+      name: 'updateTask',
+      description: 'Update an existing task',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
-          id: { 
-            type: "string",
-            description: "ID of the task to update"
+          id: {
+            type: 'string',
+            description: 'ID of the task to update',
           },
-          name: { 
-            type: "string",
-            description: "The name/title of the task"
+          name: {
+            type: 'string',
+            description: 'The name/title of the task',
           },
-          description: { 
-            type: "string",
-            description: "A detailed description of the task"
+          description: {
+            type: 'string',
+            description: 'A detailed description of the task',
           },
-          duration: { 
-            type: "number",
-            description: "Estimated duration in minutes"
+          duration: {
+            type: 'number',
+            description: 'Estimated duration in minutes',
           },
-          dueDate: { 
-            type: "string", 
-            format: "date-time",
-            description: "Due date for the task. Provide in the following date-only format `YYYY-MM-DD`."
+          dueDate: {
+            type: 'string',
+            format: 'date-time',
+            description:
+              'Due date for the task. Provide in the following date-only format `YYYY-MM-DD`.',
           },
           plannedTime: {
-            type: "string",
-            format: "date-time",
-            description: "Planned time to work on the task. Provide in the following format: 'YYYY-MM-DD HH:MM'."
+            type: 'string',
+            format: 'date-time',
+            description:
+              "Planned time to work on the task. Provide in the following format: 'YYYY-MM-DD HH:MM'.",
           },
-          projectId: { 
-            type: "string",
-            description: "ID of the project this task belongs to"
+          projectId: {
+            type: 'string',
+            description: 'ID of the project this task belongs to',
           },
-          priority: { 
-            type: "string", 
-            enum: ["low", "medium", "high"],
-            description: "Priority level of the task"
+          priority: {
+            type: 'string',
+            enum: ['low', 'medium', 'high'],
+            description: 'Priority level of the task',
           },
-          status: { 
-            type: "string", 
-            enum: ["planning", "doing", "done"],
-            description: "Current status of the task"
+          status: {
+            type: 'string',
+            enum: ['planning', 'doing', 'done'],
+            description: 'Current status of the task',
           },
-          labels: { 
-            type: "array",
-            items: { type: "string" },
-            description: "Labels/tags for the task"
-          }
+          labels: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Labels/tags for the task',
+          },
         },
-        required: ["id"]
-      }
-    }
+        required: ['id'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "deleteTask",
-      description: "Delete a task",
+      name: 'deleteTask',
+      description: 'Delete a task',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
-          id: { 
-            type: "string",
-            description: "ID of the task to delete"
-          }
+          id: {
+            type: 'string',
+            description: 'ID of the task to delete',
+          },
         },
-        required: ["id"]
-      }
-    }
+        required: ['id'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "queryTasks",
-      description: "Retrieve a list of tasks based on various filter criteria and limit",
+      name: 'queryTasks',
+      description: 'Retrieve a list of tasks based on various filter criteria and limit',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           ids: {
-            type: "array",
-            items: { type: "string" },
-            description: "A list of specific task IDs to retrieve"
+            type: 'array',
+            items: { type: 'string' },
+            description: 'A list of specific task IDs to retrieve',
           },
           nameContains: {
-            type: "string",
-            description: "Filter tasks where the name contains this substring (case-insensitive)"
+            type: 'string',
+            description: 'Filter tasks where the name contains this substring (case-insensitive)',
           },
           descriptionContains: {
-            type: "string",
-            description: "Filter tasks where the description contains this substring (case-insensitive)"
+            type: 'string',
+            description:
+              'Filter tasks where the description contains this substring (case-insensitive)',
           },
           projectIds: {
-            type: "array",
-            items: { type: "string" },
-            description: "Filter tasks belonging to one or more specified project IDs"
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Filter tasks belonging to one or more specified project IDs',
           },
           statuses: {
-            type: "array",
-            items: { 
-              type: "string",
-              enum: ["planning", "doing", "done"]
+            type: 'array',
+            items: {
+              type: 'string',
+              enum: ['planning', 'doing', 'done'],
             },
-            description: "Filter tasks by one or more statuses"
+            description: 'Filter tasks by one or more statuses',
           },
           priorities: {
-            type: "array",
-            items: { 
-              type: "string",
-              enum: ["low", "medium", "high"]
+            type: 'array',
+            items: {
+              type: 'string',
+              enum: ['low', 'medium', 'high'],
             },
-            description: "Filter tasks by one or more priority levels"
+            description: 'Filter tasks by one or more priority levels',
           },
           dueDateStart: {
-            type: "string",
-            format: "date",
-            description: "Filter tasks with a due date on or after this date"
+            type: 'string',
+            format: 'date',
+            description: 'Filter tasks with a due date on or after this date',
           },
           dueDateEnd: {
-            type: "string",
-            format: "date",
-            description: "Filter tasks with a due date on or before this date"
+            type: 'string',
+            format: 'date',
+            description: 'Filter tasks with a due date on or before this date',
           },
           plannedTimeStart: {
-            type: "string",
-            format: "date-time",
-            description: "Filter tasks with a planned time on or after this date/time"
+            type: 'string',
+            format: 'date-time',
+            description: 'Filter tasks with a planned time on or after this date/time',
           },
           plannedTimeEnd: {
-            type: "string",
-            format: "date-time",
-            description: "Filter tasks with a planned time on or before this date/time."
+            type: 'string',
+            format: 'date-time',
+            description: 'Filter tasks with a planned time on or before this date/time.',
           },
           limit: {
-            type: "number",
+            type: 'number',
             default: 20,
-            description: "Maximum number of tasks to return"
-          }
-        }
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "getProjects",
-      description: "Get all projects",
-      parameters: {
-        type: "object",
-        properties: {}
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "addProject",
-      description: "Add a new project",
-      parameters: {
-        type: "object",
-        properties: {
-          name: { 
-            type: "string",
-            description: "The name of the project"
+            description: 'Maximum number of tasks to return',
           },
-          description: { 
-            type: "string",
-            description: "A description of the project"
-          }
         },
-        required: ["name"]
-      }
-    }
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "updateProject",
-      description: "Update an existing project",
+      name: 'getProjects',
+      description: 'Get all projects',
       parameters: {
-        type: "object",
+        type: 'object',
+        properties: {},
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'addProject',
+      description: 'Add a new project',
+      parameters: {
+        type: 'object',
         properties: {
-          id: { 
-            type: "string",
-            description: "ID of the project to update"
+          name: {
+            type: 'string',
+            description: 'The name of the project',
           },
-          name: { 
-            type: "string",
-            description: "The name of the project"
+          description: {
+            type: 'string',
+            description: 'A description of the project',
           },
-          description: { 
-            type: "string",
-            description: "A description of the project"
-          }
         },
-        required: ["id", "name"]
-      }
-    }
+        required: ['name'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "deleteProject",
-      description: "Delete a project",
+      name: 'updateProject',
+      description: 'Update an existing project',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
-          id: { 
-            type: "string",
-            description: "ID of the project to delete"
-          }
+          id: {
+            type: 'string',
+            description: 'ID of the project to update',
+          },
+          name: {
+            type: 'string',
+            description: 'The name of the project',
+          },
+          description: {
+            type: 'string',
+            description: 'A description of the project',
+          },
         },
-        required: ["id"]
-      }
-    }
+        required: ['id', 'name'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "addNotification",
-      description: "Add a new notification for a task",
+      name: 'deleteProject',
+      description: 'Delete a project',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
-          taskId: { 
-            type: "string",
-            description: "ID of the task this notification is for"
+          id: {
+            type: 'string',
+            description: 'ID of the project to delete',
           },
-          time: { 
-            type: "string", 
-            format: "date-time",
-            description: "Time when the notification should trigger. Provide in a standard format like 'YYYY-MM-DD', '5/31/2023 15:30', or 'May 31, 2023 15:30'. The system will convert to proper format."
-          },
-          type: { 
-            type: "string", 
-            enum: ["reminder", "due_date", "status_change", "PLANNED_TIME"],
-            description: "Type of notification"
-          },
-          message: { 
-            type: "string",
-            description: "Custom message for the notification (optional, a default will be used if not provided)"
-          }
         },
-        required: ["taskId", "time", "type"]
-      }
-    }
+        required: ['id'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "updateNotification",
-      description: "Update an existing notification",
+      name: 'addNotification',
+      description: 'Add a new notification for a task',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
-          id: { 
-            type: "string",
-            description: "ID of the notification to update"
+          taskId: {
+            type: 'string',
+            description: 'ID of the task this notification is for',
           },
-          taskId: { 
-            type: "string",
-            description: "ID of the task this notification is for"
+          time: {
+            type: 'string',
+            format: 'date-time',
+            description:
+              "Time when the notification should trigger. Provide in a standard format like 'YYYY-MM-DD', '5/31/2023 15:30', or 'May 31, 2023 15:30'. The system will convert to proper format.",
           },
-          time: { 
-            type: "string", 
-            format: "date-time",
-            description: "Time when the notification should trigger. Provide in a standard format like '5/31/2023 15:30', or 'May 31, 2023 15:30'. The system will convert to proper format."
+          type: {
+            type: 'string',
+            enum: ['reminder', 'due_date', 'status_change', 'PLANNED_TIME'],
+            description: 'Type of notification',
           },
-          type: { 
-            type: "string", 
-            enum: ["reminder", "due_date", "status_change", "PLANNED_TIME"],
-            description: "Type of notification"
+          message: {
+            type: 'string',
+            description:
+              'Custom message for the notification (optional, a default will be used if not provided)',
           },
-          message: { 
-            type: "string",
-            description: "Custom message for the notification"
-          }
         },
-        required: ["id"]
-      }
-    }
+        required: ['taskId', 'time', 'type'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "deleteNotification",
-      description: "Delete a notification",
+      name: 'updateNotification',
+      description: 'Update an existing notification',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
-          id: { 
-            type: "string",
-            description: "ID of the notification to delete"
-          }
+          id: {
+            type: 'string',
+            description: 'ID of the notification to update',
+          },
+          taskId: {
+            type: 'string',
+            description: 'ID of the task this notification is for',
+          },
+          time: {
+            type: 'string',
+            format: 'date-time',
+            description:
+              "Time when the notification should trigger. Provide in a standard format like '5/31/2023 15:30', or 'May 31, 2023 15:30'. The system will convert to proper format.",
+          },
+          type: {
+            type: 'string',
+            enum: ['reminder', 'due_date', 'status_change', 'PLANNED_TIME'],
+            description: 'Type of notification',
+          },
+          message: {
+            type: 'string',
+            description: 'Custom message for the notification',
+          },
         },
-        required: ["id"]
-      }
-    }
+        required: ['id'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "queryNotifications",
-      description: "Retrieve a list of notifications based on various filter criteria and limit",
+      name: 'deleteNotification',
+      description: 'Delete a notification',
       parameters: {
-        type: "object",
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            description: 'ID of the notification to delete',
+          },
+        },
+        required: ['id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'queryNotifications',
+      description: 'Retrieve a list of notifications based on various filter criteria and limit',
+      parameters: {
+        type: 'object',
         properties: {
           ids: {
-            type: "array",
-            items: { type: "string" },
-            description: "A list of specific notification IDs to retrieve"
+            type: 'array',
+            items: { type: 'string' },
+            description: 'A list of specific notification IDs to retrieve',
           },
           taskIds: {
-            type: "array",
-            items: { type: "string" },
-            description: "Filter notifications associated with one or more specified task IDs"
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Filter notifications associated with one or more specified task IDs',
           },
           timeStart: {
-            type: "string",
-            format: "date-time",
-            description: "Filter notifications scheduled to trigger on or after this time"
+            type: 'string',
+            format: 'date-time',
+            description: 'Filter notifications scheduled to trigger on or after this time',
           },
           timeEnd: {
-            type: "string",
-            format: "date-time",
-            description: "Filter notifications scheduled to trigger on or before this time"
+            type: 'string',
+            format: 'date-time',
+            description: 'Filter notifications scheduled to trigger on or before this time',
           },
           limit: {
-            type: "number",
+            type: 'number',
             default: 20,
-            description: "Maximum number of notifications to return"
-          }
-        }
-      }
-    }
-  }
+            description: 'Maximum number of notifications to return',
+          },
+        },
+      },
+    },
+  },
 ];
 
-export default functionSchemas; 
+export default functionSchemas;

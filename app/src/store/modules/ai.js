@@ -6,7 +6,7 @@ const state = {
   isConfigured: false,
   apiKey: '',
   apiUrl: 'https://api.openai.com/v1/chat/completions',
-  model: 'gpt-4o-mini'
+  model: 'gpt-4o-mini',
 };
 
 // Getters
@@ -17,7 +17,7 @@ const getters = {
   isConfigured: (state) => state.isConfigured,
   apiKey: (state) => state.apiKey,
   apiUrl: (state) => state.apiUrl,
-  model: (state) => state.model
+  model: (state) => state.model,
 };
 
 // Actions
@@ -26,7 +26,7 @@ const actions = {
     try {
       // Use IPC bridge instead of direct service call
       const result = await window.electron.configureAI(config);
-      
+
       if (result.success) {
         commit('setApiKey', result.apiKey);
         commit('setApiUrl', result.apiUrl);
@@ -43,15 +43,15 @@ const actions = {
       return false;
     }
   },
-  
+
   async sendMessage({ commit, dispatch, state }, message) {
     commit('setProcessing', true);
     commit('setError', null);
-    
+
     try {
       // Use IPC bridge instead of direct service call
       const result = await window.electron.sendMessage(message);
-      
+
       if (result.success) {
         // Update chat history from the main process
         commit('setChatHistory', result.chatHistory);
@@ -65,7 +65,7 @@ const actions = {
       commit('setProcessing', false);
     }
   },
-  
+
   async loadChatHistory({ commit }) {
     try {
       const chatHistory = await window.electron.getChatHistory();
@@ -74,7 +74,7 @@ const actions = {
       console.error('Error loading chat history:', error);
     }
   },
-  
+
   async loadSettings({ commit }) {
     try {
       const result = await window.electron.configureAI({});
@@ -88,7 +88,7 @@ const actions = {
       console.error('Error loading AI settings:', error);
     }
   },
-  
+
   async clearHistory({ commit }) {
     try {
       await window.electron.clearChatHistory();
@@ -127,7 +127,7 @@ const mutations = {
   },
   setModel(state, model) {
     state.model = model;
-  }
+  },
 };
 
 export default {
@@ -136,4 +136,4 @@ export default {
   getters,
   actions,
   mutations,
-}; 
+};

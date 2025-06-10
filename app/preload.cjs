@@ -19,7 +19,7 @@ try {
     silly: (...args) => console.debug(...args),
     transports: { file: {}, console: {} }
   };
-  electronLog.warn('electron-log not available, using console fallback');
+  electronLog.warn('electron-log not available, using console fallback', error);
 }
 
 // Expose protected methods that allow the renderer process to use

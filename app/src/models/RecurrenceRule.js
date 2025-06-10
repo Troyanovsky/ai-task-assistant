@@ -9,7 +9,7 @@ export const FREQUENCY = {
   DAILY: 'daily',
   WEEKLY: 'weekly',
   MONTHLY: 'monthly',
-  YEARLY: 'yearly'
+  YEARLY: 'yearly',
 };
 
 class RecurrenceRule {
@@ -59,7 +59,7 @@ class RecurrenceRule {
       interval: this.interval,
       end_date: this.endDate ? this.endDate.toISOString() : null,
       count: this.count,
-      created_at: this.createdAt.toISOString()
+      created_at: this.createdAt.toISOString(),
     };
   }
 
@@ -93,15 +93,15 @@ class RecurrenceRule {
     if (this.endDate && fromDate > this.endDate) {
       return null;
     }
-    
+
     const nextDate = new Date(fromDate);
-    
+
     switch (this.frequency) {
       case FREQUENCY.DAILY:
         nextDate.setDate(nextDate.getDate() + this.interval);
         break;
       case FREQUENCY.WEEKLY:
-        nextDate.setDate(nextDate.getDate() + (this.interval * 7));
+        nextDate.setDate(nextDate.getDate() + this.interval * 7);
         break;
       case FREQUENCY.MONTHLY:
         nextDate.setMonth(nextDate.getMonth() + this.interval);
@@ -112,11 +112,11 @@ class RecurrenceRule {
       default:
         return null;
     }
-    
+
     if (this.endDate && nextDate > this.endDate) {
       return null;
     }
-    
+
     return nextDate;
   }
 }

@@ -9,14 +9,14 @@ import logger from '../services/logger.js';
 export const STATUS = {
   PLANNING: 'planning',
   DOING: 'doing',
-  DONE: 'done'
+  DONE: 'done',
 };
 
 // Task priority constants
 export const PRIORITY = {
   LOW: 'low',
   MEDIUM: 'medium',
-  HIGH: 'high'
+  HIGH: 'high',
 };
 
 class Task {
@@ -28,10 +28,10 @@ class Task {
     this.id = data.id || uuidv4();
     this.name = data.name || '';
     this.description = data.description || '';
-    
+
     // Fix: Handle duration properly (0 is a valid value)
     this.duration = data.duration !== undefined ? data.duration : null;
-    
+
     // Handle dueDate properly, stored as YYYY-MM-DD string
     if (data.dueDate) {
       if (typeof data.dueDate === 'string') {
@@ -66,23 +66,21 @@ class Task {
     } else {
       this.dueDate = null;
     }
-    
+
     // Handle planned time
     if (data.plannedTime) {
       // Ensure plannedTime is stored as a Date object
       // If it's a string, parse it to a Date
-      this.plannedTime = typeof data.plannedTime === 'string' 
-        ? new Date(data.plannedTime) 
-        : data.plannedTime;
+      this.plannedTime =
+        typeof data.plannedTime === 'string' ? new Date(data.plannedTime) : data.plannedTime;
     } else if (data.planned_time) {
       // Handle snake_case variant from database
-      this.plannedTime = typeof data.planned_time === 'string'
-        ? new Date(data.planned_time)
-        : data.planned_time;
+      this.plannedTime =
+        typeof data.planned_time === 'string' ? new Date(data.planned_time) : data.planned_time;
     } else {
       this.plannedTime = null;
     }
-    
+
     this.projectId = data.project_id || data.projectId || '';
     this.dependencies = data.dependencies ? this.parseDependencies(data.dependencies) : [];
     this.status = data.status || STATUS.PLANNING;
@@ -161,7 +159,7 @@ class Task {
         dueDateStr = date.toISOString().split('T')[0];
       }
     }
-    
+
     return {
       id: this.id,
       name: this.name,
@@ -175,7 +173,7 @@ class Task {
       labels: JSON.stringify(this.labels),
       priority: this.priority,
       created_at: this.createdAt.toISOString(),
-      updated_at: this.updatedAt.toISOString()
+      updated_at: this.updatedAt.toISOString(),
     };
   }
 
@@ -199,7 +197,7 @@ class Task {
     if (data.name !== undefined) this.name = data.name;
     if (data.description !== undefined) this.description = data.description;
     if (data.duration !== undefined) this.duration = data.duration;
-    
+
     // Handle dueDate updates consistently
     if (data.dueDate !== undefined) {
       if (data.dueDate === null) {
@@ -219,7 +217,7 @@ class Task {
         this.dueDate = date.toISOString().split('T')[0];
       }
     }
-    
+
     if (data.plannedTime !== undefined) this.plannedTime = data.plannedTime;
     if (data.projectId !== undefined) this.projectId = data.projectId;
     if (data.dependencies !== undefined) this.dependencies = data.dependencies;

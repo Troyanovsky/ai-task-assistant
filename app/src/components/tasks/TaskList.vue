@@ -4,8 +4,8 @@
     <task-filter
       v-if="selectedProject && !smartProjectType"
       :filters="filters"
-      @update:filters="updateFilters"
       class="mb-4"
+      @update:filters="updateFilters"
     />
 
     <!-- Progress Bar for Today's Tasks -->
@@ -17,19 +17,19 @@
     />
 
     <!-- Plan My Day Button (for Today smart project) -->
-    <div 
+    <div
       v-if="smartProjectType === 'today'"
-      @click="planMyDay"
       class="p-3 rounded cursor-pointer bg-white border-gray-200 border hover:bg-gray-50 text-center text-blue-500 mb-4"
+      @click="planMyDay"
     >
       🗓️ Plan My Day
     </div>
 
     <!-- Add Task Button -->
-    <div 
+    <div
       v-if="selectedProject && !smartProjectType"
-      @click="showAddTaskForm = true"
       class="p-3 rounded cursor-pointer bg-white border-gray-200 border hover:bg-gray-50 text-center text-blue-500 mb-4"
+      @click="showAddTaskForm = true"
     >
       + Add Task
     </div>
@@ -67,48 +67,63 @@
         />
       </template>
     </div>
-    <div v-else-if="tasks.length > 0 && !smartProjectType" class="text-gray-500 text-sm mt-2 text-center">
+    <div
+      v-else-if="tasks.length > 0 && !smartProjectType"
+      class="text-gray-500 text-sm mt-2 text-center"
+    >
       No tasks match your filters.
     </div>
-    <div v-else-if="selectedProject && !smartProjectType" class="text-gray-500 text-sm mt-2 text-center">
+    <div
+      v-else-if="selectedProject && !smartProjectType"
+      class="text-gray-500 text-sm mt-2 text-center"
+    >
       No tasks in this project. Create your first task.
     </div>
-    <div v-else-if="smartProjectType === 'today' && allTasks.length > 0" class="text-gray-500 text-sm mt-2 text-center">
+    <div
+      v-else-if="smartProjectType === 'today' && allTasks.length > 0"
+      class="text-gray-500 text-sm mt-2 text-center"
+    >
       No tasks due or planned for today.
     </div>
-    <div v-else-if="smartProjectType === 'overdue' && allTasks.length > 0" class="text-gray-500 text-sm mt-2 text-center">
+    <div
+      v-else-if="smartProjectType === 'overdue' && allTasks.length > 0"
+      class="text-gray-500 text-sm mt-2 text-center"
+    >
       No overdue tasks.
     </div>
     <div v-else class="text-gray-500 text-sm mt-2 text-center">
       Select a project to view and manage tasks.
     </div>
-    
+
     <!-- View All Tasks Button -->
-    <div 
+    <div
       v-if="!showingAllTasks && selectedProject"
-      @click="loadAllTasks"
       class="mt-4 text-center text-gray-600 text-sm cursor-pointer hover:text-gray-800 hover:underline"
+      @click="loadAllTasks"
     >
       View All Tasks
     </div>
-    
+
     <!-- Loading Indicator -->
     <div v-if="isLoading" class="mt-4 text-center">
       <span class="text-gray-500">Loading tasks...</span>
     </div>
-    
+
     <!-- Error Message -->
     <div v-if="error" class="mt-4 text-center">
       <span class="text-red-500">{{ error }}</span>
     </div>
-    
+
     <!-- Plan Day Result Dialog -->
-    <div v-if="planningResult" class="fixed inset-0 bg-gray-600/50 flex items-center justify-center z-50 p-4">
+    <div
+      v-if="planningResult"
+      class="fixed inset-0 bg-gray-600/50 flex items-center justify-center z-50 p-4"
+    >
       <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-6">
-        <plan-day-result 
-          :result="planningResult" 
+        <plan-day-result
+          :result="planningResult"
           :working-hours="workingHours"
-          @close="planningResult = null" 
+          @close="planningResult = null"
         />
       </div>
     </div>
@@ -127,6 +142,7 @@ import PlanDayResult from './PlanDayResult.vue';
 import TodayProgress from './TodayProgress.vue';
 
 export default {
+  name: 'TaskList',
   components: {
     TaskItem,
     TaskForm,
@@ -134,16 +150,15 @@ export default {
     PlanDayResult,
     TodayProgress,
   },
-  name: 'TaskList',
   props: {
     selectedProject: {
       type: Object,
-      default: null
+      default: null,
     },
     smartProjectType: {
       type: String,
-      default: null
-    }
+      default: null,
+    },
   },
   setup(props) {
     const store = useStore();
@@ -156,7 +171,7 @@ export default {
     const filters = ref({
       status: 'all',
       priority: 'all',
-      search: ''
+      search: '',
     });
 
     // Get all tasks for smart projects
@@ -167,29 +182,32 @@ export default {
       if (!props.selectedProject) return [];
       return store.getters['tasks/tasksByProject'](props.selectedProject.id);
     });
-    
+
     const isLoading = computed(() => store.getters['tasks/isLoading']);
     const error = computed(() => store.getters['tasks/error']);
-    
+
     // Get working hours from preferences
-    const workingHours = computed(() => store.getters['preferences/workingHours'] || {
-      startTime: '10:00',
-      endTime: '19:00'
-    });
+    const workingHours = computed(
+      () =>
+        store.getters['preferences/workingHours'] || {
+          startTime: '10:00',
+          endTime: '19:00',
+        }
+    );
 
     // Smart project tasks
     const todayTasks = computed(() => {
       if (!allTasks.value.length) return [];
-      
+
       const today = new Date();
       const todayDateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
-      
-      return allTasks.value.filter(task => {
+
+      return allTasks.value.filter((task) => {
         // Check if due date is today
         if (task.dueDate === todayDateStr) {
           return true;
         }
-        
+
         // Check if planned time is today
         if (task.plannedTime) {
           const plannedDate = new Date(task.plannedTime);
@@ -199,32 +217,32 @@ export default {
             plannedDate.getDate() === today.getDate()
           );
         }
-        
+
         return false;
       });
     });
-    
+
     const totalTodayTasks = computed(() => todayTasks.value.length);
-    const completedTodayTasks = computed(() => 
-      todayTasks.value.filter(task => task.status === 'done').length
+    const completedTodayTasks = computed(
+      () => todayTasks.value.filter((task) => task.status === 'done').length
     );
-    
+
     const overdueTasks = computed(() => {
       if (!allTasks.value.length) return [];
-      
+
       const today = new Date();
       const todayDateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
-      
-      return allTasks.value.filter(task => {
+
+      return allTasks.value.filter((task) => {
         // Check if due date is before today and task is not done
         if (task.dueDate && task.dueDate < todayDateStr && task.status !== 'done') {
           return true;
         }
-        
+
         return false;
       });
     });
-    
+
     // Tasks to display based on selection
     const displayedTasks = computed(() => {
       if (props.smartProjectType === 'today') {
@@ -262,11 +280,11 @@ export default {
         await store.dispatch('tasks/fetchTasks');
       }
     };
-    
+
     // Function to load all tasks including those completed a long time ago
     const loadAllTasks = async () => {
       showingAllTasks.value = true;
-      
+
       if (props.selectedProject) {
         await store.dispatch('tasks/fetchAllTasksByProject', props.selectedProject.id);
       } else if (props.smartProjectType) {
@@ -296,7 +314,7 @@ export default {
     onMounted(() => {
       // Load preferences
       store.dispatch('preferences/loadPreferences');
-      
+
       // Start checking for missed planned times
       startMissedPlannedTimeCheck();
 
@@ -307,7 +325,7 @@ export default {
             logger.info('Received tasks:refresh event');
             await fetchTasks();
           });
-          
+
           // Listen for notification changes to refresh tasks
           window.electron.receive('notifications:refresh', async () => {
             logger.info('Received notifications:refresh event');
@@ -339,33 +357,33 @@ export default {
     // Apply filters to tasks
     const filteredTasks = computed(() => {
       let result = [...tasks.value];
-      
+
       // Filter by status
       if (filters.value.status !== 'all') {
-        result = result.filter(task => task.status === filters.value.status);
+        result = result.filter((task) => task.status === filters.value.status);
       }
-      
+
       // Filter by priority
       if (filters.value.priority !== 'all') {
-        result = result.filter(task => task.priority === filters.value.priority);
+        result = result.filter((task) => task.priority === filters.value.priority);
       }
-      
+
       // Filter by search term
       if (filters.value.search) {
         const searchTerm = filters.value.search.toLowerCase();
         result = result.filter(
-          task => 
-            task.name.toLowerCase().includes(searchTerm) || 
+          (task) =>
+            task.name.toLowerCase().includes(searchTerm) ||
             (task.description && task.description.toLowerCase().includes(searchTerm))
         );
       }
-      
+
       return result;
     });
 
     // Fetch tasks when selected project or smart project type changes
     watch(
-      [() => props.selectedProject, () => props.smartProjectType], 
+      [() => props.selectedProject, () => props.smartProjectType],
       async ([newProject, newSmartProjectType]) => {
         showingAllTasks.value = false;
         if (newProject) {
@@ -381,13 +399,13 @@ export default {
       try {
         // Dispatch the action to add the task
         const result = await store.dispatch('tasks/addTask', taskData);
-        
+
         // If we have a callback and the task was successfully added
         if (callback && result && result.id) {
           // Call the callback with the new task ID
           callback(result.id);
         }
-        
+
         // Hide the form
         showAddTaskForm.value = false;
       } catch (error) {
@@ -402,7 +420,7 @@ export default {
       logger.info('Task instance:', taskInstance);
       await store.dispatch('tasks/updateTask', taskInstance);
       editingTask.value = null;
-      
+
       // If we're in a smart project, refresh all tasks
       if (props.smartProjectType) {
         logger.info('Refreshing tasks for smart project');
@@ -414,9 +432,9 @@ export default {
       await store.dispatch('tasks/updateTaskStatus', {
         taskId,
         status: newStatus,
-        projectId: props.selectedProject ? props.selectedProject.id : null
+        projectId: props.selectedProject ? props.selectedProject.id : null,
       });
-      
+
       // If we're in a smart project, refresh all tasks
       if (props.smartProjectType) {
         await store.dispatch('tasks/fetchTasks');
@@ -431,35 +449,37 @@ export default {
       if (confirm('Are you sure you want to delete this task?')) {
         await store.dispatch('tasks/deleteTask', {
           taskId,
-          projectId: props.selectedProject ? props.selectedProject.id : null
+          projectId: props.selectedProject ? props.selectedProject.id : null,
         });
-        
+
         // If we're in a smart project, refresh all tasks
         if (props.smartProjectType) {
           await store.dispatch('tasks/fetchTasks');
         }
       }
     };
-    
+
     const moveTask = async (task) => {
       try {
         // Store the original projectId to reference where the task is moving FROM
         const originalProjectId = props.selectedProject ? props.selectedProject.id : null;
-        
+
         // The task object already has the new projectId set by the TaskItem component
         await store.dispatch('tasks/updateTask', task);
-        
+
         // Refresh tasks for the current project to remove the moved task from view
         if (originalProjectId) {
           await store.dispatch('tasks/fetchTasksByProject', originalProjectId);
         }
-        
+
         // If we're in a smart project, refresh all tasks
         if (props.smartProjectType) {
           await store.dispatch('tasks/fetchTasks');
         }
-        
-        logger.info(`Task ${task.id} moved from project ${originalProjectId} to project ${task.projectId}`);
+
+        logger.info(
+          `Task ${task.id} moved from project ${originalProjectId} to project ${task.projectId}`
+        );
       } catch (error) {
         logger.error('Error moving task:', error);
       }
@@ -474,19 +494,19 @@ export default {
       try {
         // Set loading state
         planningInProgress.value = true;
-        
+
         // Make sure preferences are loaded
         await store.dispatch('preferences/loadPreferences');
-        
+
         // Call the planMyDay method
         const result = await window.electron.planMyDay();
-        
+
         // Store the result
         planningResult.value = result;
-        
+
         // Log the result
         logger.info('Day planning result:', result);
-        
+
         // Refresh tasks to show updated planned times
         await fetchTasks();
       } catch (error) {
@@ -494,7 +514,7 @@ export default {
         planningResult.value = {
           scheduled: [],
           unscheduled: [],
-          message: `Error planning day: ${error.message}`
+          message: `Error planning day: ${error.message}`,
         };
       } finally {
         planningInProgress.value = false;
@@ -527,8 +547,8 @@ export default {
       workingHours,
       isMissedPlannedTime,
       totalTodayTasks,
-      completedTodayTasks
+      completedTodayTasks,
     };
-  }
+  },
 };
 </script>

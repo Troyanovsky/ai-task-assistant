@@ -12,10 +12,10 @@ class PreferencesService {
       name: 'user-preferences',
       defaults: {
         workingHours: {
-          startTime: '10:00',  // Default: 10 AM
-          endTime: '19:00'     // Default: 7 PM
-        }
-      }
+          startTime: '10:00', // Default: 10 AM
+          endTime: '19:00', // Default: 7 PM
+        },
+      },
     });
   }
 
@@ -28,16 +28,16 @@ class PreferencesService {
       return {
         workingHours: {
           startTime: this.store.get('workingHours.startTime'),
-          endTime: this.store.get('workingHours.endTime')
-        }
+          endTime: this.store.get('workingHours.endTime'),
+        },
       };
     } catch (error) {
       logger.logError(error, 'Error getting preferences');
       return {
         workingHours: {
           startTime: '10:00',
-          endTime: '19:00'
-        }
+          endTime: '19:00',
+        },
       };
     }
   }
@@ -66,7 +66,7 @@ class PreferencesService {
       // Store working hours
       this.store.set('workingHours.startTime', startTime);
       this.store.set('workingHours.endTime', endTime);
-      
+
       logger.info(`Updated working hours: ${startTime} - ${endTime}`);
       return true;
     } catch (error) {
@@ -78,4 +78,4 @@ class PreferencesService {
 
 // Create and export a singleton instance
 const preferencesService = new PreferencesService();
-export default preferencesService; 
+export default preferencesService;

@@ -38,7 +38,7 @@ class Project {
       name: this.name,
       description: this.description,
       created_at: this.createdAt.toISOString(),
-      updated_at: this.updatedAt.toISOString()
+      updated_at: this.updatedAt.toISOString(),
     };
   }
 

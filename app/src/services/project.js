@@ -32,7 +32,7 @@ try {
       } else {
         console.error(`${context}: ${error}`);
       }
-    }
+    },
   };
 }
 
@@ -44,7 +44,7 @@ class ProjectManager {
   async getProjects() {
     try {
       const projects = databaseService.query('SELECT * FROM projects ORDER BY created_at DESC');
-      return projects.map(project => Project.fromDatabase(project));
+      return projects.map((project) => Project.fromDatabase(project));
     } catch (error) {
       logger.error('Error getting projects:', error);
       return [];
@@ -156,7 +156,7 @@ class ProjectManager {
         'SELECT * FROM projects WHERE name LIKE ? ORDER BY created_at DESC',
         [`%${query}%`]
       );
-      return projects.map(project => Project.fromDatabase(project));
+      return projects.map((project) => Project.fromDatabase(project));
     } catch (error) {
       logger.error('Error searching projects:', error);
       return [];

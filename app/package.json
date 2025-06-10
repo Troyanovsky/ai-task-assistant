@@ -13,7 +13,7 @@
     "electron:build": "vite build && electron-builder",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint --ext .js,.vue --ignore-path .gitignore --fix src",
+    "lint": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{js,vue}\""
   },
   "dependencies": {
@@ -31,6 +31,7 @@
     "vuex": "^4.1.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.0.0",
     "@vitejs/plugin-vue": "^5.2.3",
     "@vue/test-utils": "^2.4.6",
     "concurrently": "^8.2.2",
@@ -39,6 +40,7 @@
     "eslint": "^9.27.0",
     "eslint-config-prettier": "^10.1.5",
     "eslint-plugin-vue": "^10.1.0",
+    "globals": "^15.0.0",
     "postcss": "^8.5.3",
     "prettier": "^3.5.3",
     "tailwindcss": "^4.1.7",

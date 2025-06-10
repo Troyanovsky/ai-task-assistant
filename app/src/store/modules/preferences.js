@@ -4,10 +4,10 @@ import logger from '../../services/logger';
 const state = {
   workingHours: {
     startTime: '10:00',
-    endTime: '19:00'
+    endTime: '19:00',
   },
   loading: false,
-  error: null
+  error: null,
 };
 
 // Getters
@@ -16,7 +16,7 @@ const getters = {
   startTime: (state) => state.workingHours.startTime,
   endTime: (state) => state.workingHours.endTime,
   isLoading: (state) => state.loading,
-  error: (state) => state.error
+  error: (state) => state.error,
 };
 
 // Actions
@@ -24,7 +24,7 @@ const actions = {
   async loadPreferences({ commit }) {
     commit('setLoading', true);
     commit('setError', null);
-    
+
     try {
       const preferences = await window.electron.getPreferences();
       commit('setWorkingHours', preferences.workingHours);
@@ -37,14 +37,14 @@ const actions = {
       commit('setLoading', false);
     }
   },
-  
+
   async updateWorkingHours({ commit }, workingHours) {
     commit('setLoading', true);
     commit('setError', null);
-    
+
     try {
       const success = await window.electron.updateWorkingHours(workingHours);
-      
+
       if (success) {
         commit('setWorkingHours', workingHours);
         return true;
@@ -58,7 +58,7 @@ const actions = {
     } finally {
       commit('setLoading', false);
     }
-  }
+  },
 };
 
 // Mutations
@@ -71,7 +71,7 @@ const mutations = {
   },
   setError(state, error) {
     state.error = error;
-  }
+  },
 };
 
 export default {
@@ -79,5 +79,5 @@ export default {
   state,
   getters,
   actions,
-  mutations
-}; 
+  mutations,
+};

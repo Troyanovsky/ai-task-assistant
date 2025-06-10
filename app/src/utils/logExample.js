@@ -32,8 +32,4 @@ function demonstrateErrorLogging() {
   }
 }
 
-export {
-  demonstrateLoggingLevels,
-  demonstrateLoggingWithData,
-  demonstrateErrorLogging
-}; 
+export { demonstrateLoggingLevels, demonstrateLoggingWithData, demonstrateErrorLogging };

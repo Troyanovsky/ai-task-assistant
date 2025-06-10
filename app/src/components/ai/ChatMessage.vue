@@ -1,49 +1,57 @@
 <template>
-  <div 
-    class="chat-message mb-4" 
-    :class="{ 
-      'user-message': message.sender === 'user', 
+  <div
+    class="chat-message mb-4"
+    :class="{
+      'user-message': message.sender === 'user',
       'ai-message': message.sender === 'ai',
       'system-message': message.sender === 'system',
-      'tool-message': message.sender === 'tool'
+      'tool-message': message.sender === 'tool',
     }"
   >
     <div class="flex items-start">
-      <div 
+      <div
         v-if="message.sender !== 'system' && message.sender !== 'tool'"
         class="message-avatar flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mr-2"
         :class="{
           'bg-blue-500 text-white': message.sender === 'user',
-          'bg-green-500 text-white': message.sender === 'ai'
+          'bg-green-500 text-white': message.sender === 'ai',
         }"
       >
         <span v-if="message.sender === 'user'">U</span>
         <span v-else>AI</span>
       </div>
-      
-      <div class="message-content" :class="{ 
-        'ml-10': message.sender === 'system',
-        'ml-10': message.sender === 'tool' 
-      }">
-        <div class="message-bubble p-3 rounded-lg" 
+
+      <div
+        class="message-content"
+        :class="{
+          'ml-10': message.sender === 'system',
+          'ml-10': message.sender === 'tool',
+        }"
+      >
+        <div
+          class="message-bubble p-3 rounded-lg"
           :class="{
             'bg-blue-100': message.sender === 'user',
             'bg-white border border-gray-200': message.sender === 'ai',
             'bg-gray-100 border border-gray-200 italic text-sm': message.sender === 'system',
-            'bg-purple-50 border border-purple-200 text-sm': message.sender === 'tool'
+            'bg-purple-50 border border-purple-200 text-sm': message.sender === 'tool',
           }"
         >
           <div v-if="message.sender !== 'tool'" class="whitespace-pre-wrap">{{ message.text }}</div>
-          
+
           <div v-if="message.sender === 'tool'" class="text-purple-700">
-            <span class="font-semibold">Executing tool:</span> {{ message.functionName || 'Unknown tool' }}
+            <span class="font-semibold">Executing tool:</span>
+            {{ message.functionName || 'Unknown tool' }}
           </div>
-          
-          <div v-if="message.functionCall" class="mt-2 pt-2 border-t border-gray-200 text-xs text-gray-500">
+
+          <div
+            v-if="message.functionCall"
+            class="mt-2 pt-2 border-t border-gray-200 text-xs text-gray-500"
+          >
             <div>Function: {{ message.functionCall.name }}</div>
           </div>
         </div>
-        
+
         <div class="message-time text-xs text-gray-500 mt-1">
           {{ formatTime(message.timestamp) }}
         </div>
@@ -58,22 +66,22 @@ export default {
   props: {
     message: {
       type: Object,
-      required: true
-    }
+      required: true,
+    },
   },
   setup() {
     // Format timestamp to readable time
     const formatTime = (timestamp) => {
       if (!timestamp) return '';
-      
+
       const date = new Date(timestamp);
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
-    
+
     return {
-      formatTime
+      formatTime,
     };
-  }
+  },
 };
 </script>
 
@@ -96,4 +104,4 @@ export default {
 .tool-message .message-bubble {
   max-width: 90%;
 }
-</style> 
+</style>

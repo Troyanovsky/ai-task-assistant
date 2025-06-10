@@ -3,8 +3,6 @@ import aiService from '../aiService.js';
 import axios from 'axios';
 import Store from 'electron-store';
 import projectManager from '../../src/services/project.js';
-import taskManager from '../../src/services/task.js';
-import notificationService from '../../src/services/notification.js';
 
 // Mock axios
 vi.mock('axios');
@@ -31,32 +29,6 @@ vi.mock('../../src/services/project.js', () => ({
   }
 }));
 
-// Mock task manager
-vi.mock('../../src/services/task.js', () => ({
-  default: {
-    getTasks: vi.fn(),
-    getTaskById: vi.fn(),
-    addTask: vi.fn(),
-    updateTask: vi.fn(),
-    deleteTask: vi.fn(),
-    updateTaskStatus: vi.fn(),
-    getTasksByStatus: vi.fn(),
-    getTasksByPriority: vi.fn(),
-    getTasksByProject: vi.fn()
-  }
-}));
-
-// Mock notification service
-vi.mock('../../src/services/notification.js', () => ({
-  default: {
-    getNotifications: vi.fn(),
-    getNotificationsByTask: vi.fn(),
-    addNotification: vi.fn(),
-    updateNotification: vi.fn(),
-    deleteNotification: vi.fn()
-  }
-}));
-
 // Mock BrowserWindow for sendMessage tests
 const mockMainWindow = {
   webContents: {
@@ -67,6 +39,13 @@ const mockMainWindow = {
 describe('AIService', () => {
   let storeInstance;
   
+  const getMockSetting = (key) => {
+    if (key === 'aiSettings.apiKey') return 'test-api-key';
+    if (key === 'aiSettings.apiUrl') return 'https://api.openai.com/v1/chat/completions';
+    if (key === 'aiSettings.model') return 'gpt-4o-mini';
+    return null;
+  };
+  
   beforeEach(() => {
     vi.resetAllMocks();
     
@@ -74,12 +53,7 @@ describe('AIService', () => {
     storeInstance = Store();
     
     // Set default store values
-    storeInstance.get.mockImplementation((key) => {
-      if (key === 'aiSettings.apiKey') return 'test-api-key';
-      if (key === 'aiSettings.apiUrl') return 'https://api.openai.com/v1/chat/completions';
-      if (key === 'aiSettings.model') return 'gpt-4o-mini';
-      return null;
-    });
+    storeInstance.get.mockImplementation(getMockSetting);
     
     // Clear chat history before each test
     aiService.clearHistory();
@@ -113,12 +87,7 @@ describe('AIService', () => {
     
     it('should handle partial configuration updates', () => {
       // Reset the mock implementation for this test
-      storeInstance.get.mockImplementation((key) => {
-        if (key === 'aiSettings.apiKey') return 'test-api-key';
-        if (key === 'aiSettings.apiUrl') return 'https://api.openai.com/v1/chat/completions';
-        if (key === 'aiSettings.model') return 'gpt-4o-mini';
-        return null;
-      });
+      storeInstance.get.mockImplementation(getMockSetting);
       
       // First update with full config to set values
       aiService.configureAI({
@@ -203,6 +172,26 @@ describe('AIService', () => {
   });
   
   describe('sendMessage', () => {
+    // Helper function for mocking sendMessage errors
+    const mockSendMessageError = (errorMessageText, errorType) => {
+      vi.spyOn(aiService, 'sendMessage').mockImplementationOnce(async () => {
+        const errorMessage = {
+          text: errorMessageText,
+          sender: 'ai',
+          timestamp: new Date()
+        };
+        
+        return {
+          success: false,
+          error: errorType,
+          chatHistory: [
+            { text: 'Hello AI', sender: 'user', timestamp: expect.any(Date) },
+            errorMessage
+          ]
+        };
+      });
+    };
+    
     it('should add user message to history and send to AI API', async () => {
       // Mock API response
       axios.post.mockResolvedValueOnce({
@@ -253,23 +242,11 @@ describe('AIService', () => {
       // Reset aiService to pick up the empty API key
       aiService.configureAI({ apiKey: '' });
       
-      // Mock the error handling in sendMessage
-      vi.spyOn(aiService, 'sendMessage').mockImplementationOnce(async () => {
-        const errorMessage = {
-          text: 'AI service not configured. Please set API key in Settings.',
-          sender: 'ai',
-          timestamp: new Date()
-        };
-        
-        return {
-          success: false,
-          error: 'AI service not configured',
-          chatHistory: [
-            { text: 'Hello AI', sender: 'user', timestamp: expect.any(Date) },
-            errorMessage
-          ]
-        };
-      });
+      // Mock the error handling for unconfigured AI
+      mockSendMessageError(
+        'AI service not configured. Please set API key in Settings.',
+        'AI service not configured'
+      );
       
       const result = await aiService.sendMessage('Hello AI', mockMainWindow);
       
@@ -286,23 +263,11 @@ describe('AIService', () => {
       // Mock API error
       axios.post.mockRejectedValueOnce(new Error('API error'));
       
-      // Mock the error handling in sendMessage
-      vi.spyOn(aiService, 'sendMessage').mockImplementationOnce(async () => {
-        const errorMessage = {
-          text: 'Sorry, I encountered an error: API error',
-          sender: 'ai',
-          timestamp: new Date()
-        };
-        
-        return {
-          success: false,
-          error: 'API error',
-          chatHistory: [
-            { text: 'Hello AI', sender: 'user', timestamp: expect.any(Date) },
-            errorMessage
-          ]
-        };
-      });
+      // Mock the error handling for API errors
+      mockSendMessageError(
+        'Sorry, I encountered an error: API error',
+        'API error'
+      );
       
       const result = await aiService.sendMessage('Hello AI', mockMainWindow);
       
@@ -383,7 +348,6 @@ describe('AIService', () => {
   });
   
   describe('executeFunctionCall', () => {
-    // Mock the executeFunctionCall to avoid the baseResult issue
     beforeEach(() => {
       vi.spyOn(aiService, 'executeFunctionCall').mockImplementation(async (functionCall) => {
         const { id, name, arguments: args } = functionCall;
@@ -393,38 +357,46 @@ describe('AIService', () => {
           functionCallId: id
         };
         
+        const handleGetTasks = () => {
+          const mockTasks = [
+            { id: 'task-1', name: 'Task 1' },
+            { id: 'task-2', name: 'Task 2' }
+          ];
+          
+          if (args.error) {
+            throw new Error('Database error');
+          }
+          
+          return {
+            ...baseResult,
+            success: true,
+            tasks: mockTasks,
+            taskIds: mockTasks.map(task => task.id),
+            message: `Found ${mockTasks.length} tasks.`
+          };
+        };
+        
+        const handleAddTask = () => {
+          const mockTask = {
+            id: 'new-task-1',
+            name: args.name || 'New Task',
+            description: args.description || 'Task Description'
+          };
+          
+          return {
+            ...baseResult,
+            success: true,
+            task: mockTask,
+            taskId: mockTask.id,
+            message: `Task "${args.name}" has been created with ID: ${mockTask.id}.`
+          };
+        };
+        
         try {
           if (name === 'getTasks') {
-            const mockTasks = [
-              { id: 'task-1', name: 'Task 1' },
-              { id: 'task-2', name: 'Task 2' }
-            ];
-            
-            if (args.error) {
-              throw new Error('Database error');
-            }
-            
-            return {
-              ...baseResult,
-              success: true,
-              tasks: mockTasks,
-              taskIds: mockTasks.map(task => task.id),
-              message: `Found ${mockTasks.length} tasks.`
-            };
+            return handleGetTasks();
           } else if (name === 'addTask') {
-            const mockTask = {
-              id: 'new-task-1',
-              name: args.name || 'New Task',
-              description: args.description || 'Task Description'
-            };
-            
-            return {
-              ...baseResult,
-              success: true,
-              task: mockTask,
-              taskId: mockTask.id,
-              message: `Task "${args.name}" has been created with ID: ${mockTask.id}.`
-            };
+            return handleAddTask();
           } else {
             throw new Error(`Function "${name}" is not available`);
           }
