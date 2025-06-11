@@ -177,56 +177,63 @@ function updateChatHistory(message, mainWindow) {
  * @returns {Array} - Array of function results
  */
 async function processFunctionCalls(functionCalls, mainWindow) {
-  // Create an array to store all function results
   const functionResults = [];
   
-  // Execute each function call and collect results
   for (const functionCall of functionCalls) {
-    // Execute the function
     const result = await executeFunctionCall(functionCall);
     
-    // Store the result for later processing
     functionResults.push({
       functionName: functionCall.name,
-      functionCallId: functionCall.id, // Store the original function call ID
+      functionCallId: functionCall.id,
       data: result
     });
     
-    // Add tool message to chat history
-    const toolMessage = {
-      role: 'tool',
-      tool_call_id: functionCall.id,
-      content: JSON.stringify(result),
-      sender: 'tool', // Add a sender property for consistency with other messages
-      timestamp: new Date(),
-      functionName: functionCall.name // Add function name for frontend display
-    };
-    updateChatHistory(toolMessage, mainWindow);
+    // Handle tool message creation and update
+    updateChatHistory(createToolMessage(functionCall, result), mainWindow);
     
-    // Trigger UI updates if needed based on function type
+    // Trigger UI updates if applicable
     if (result) {
-      if (functionCall.name === 'addProject' || functionCall.name === 'updateProject' || functionCall.name === 'deleteProject') {
-        mainWindow.webContents.send('projects:refresh');
-      }
-      
-      if (functionCall.name === 'addTask' || functionCall.name === 'updateTask' || functionCall.name === 'deleteTask') {
-        mainWindow.webContents.send('tasks:refresh');
-      }
-      
-      if (functionCall.name === 'addNotification' || functionCall.name === 'updateNotification' || functionCall.name === 'deleteNotification') {
-        mainWindow.webContents.send('notifications:refresh');
-        
-        // If we have a taskId, also send the notifications:changed event
-        if (result.notification && result.notification.taskId) {
-          mainWindow.webContents.send('notifications:changed', result.notification.taskId);
-        } else if (result.taskId) {
-          mainWindow.webContents.send('notifications:changed', result.taskId);
-        }
-      }
+      triggerUIUpdates(functionCall, result, mainWindow);
     }
   }
   
   return functionResults;
+}
+
+function createToolMessage(functionCall, result) {
+  return {
+    role: 'tool',
+    tool_call_id: functionCall.id,
+    content: JSON.stringify(result),
+    sender: 'tool',
+    timestamp: new Date(),
+    functionName: functionCall.name
+  };
+}
+
+function triggerUIUpdates(functionCall, result, mainWindow) {
+  const functionGroups = {
+    project: ['addProject', 'updateProject', 'deleteProject'],
+    task: ['addTask', 'updateTask', 'deleteTask'],
+    notification: ['addNotification', 'updateNotification', 'deleteNotification']
+  };
+
+  if (functionGroups.project.includes(functionCall.name)) {
+    mainWindow.webContents.send('projects:refresh');
+  }
+
+  if (functionGroups.task.includes(functionCall.name)) {
+    mainWindow.webContents.send('tasks:refresh');
+  }
+
+  if (functionGroups.notification.includes(functionCall.name)) {
+    mainWindow.webContents.send('notifications:refresh');
+    
+    const taskId = result.notification?.taskId || result.taskId;
+    if (taskId) {
+      mainWindow.webContents.send('notifications:changed', taskId);
+    }
+  }
 }
 
 /**
@@ -307,10 +314,19 @@ async function sendMessage(message, mainWindow) {
 
     // Process with LLM API using the user message directly
     const response = await processWithLLM(message);
-    
+
+    // Pick one random AI response for tool calls from the list of responses
+    const randomAIResponses = [
+      "I'll help you with that.",
+      "I'm on it.",
+      "I'm working on it.",
+      "I'm on it.",
+    ];
+    const randomAIResponse = randomAIResponses[Math.floor(Math.random() * randomAIResponses.length)];
+
     // Add AI response to history
     const aiMessage = {
-      text: response.text || "I'll help you with that.",
+      text: response.text || randomAIResponse,
       sender: 'ai',
       timestamp: new Date(),
       functionCalls: response.functionCalls
@@ -327,7 +343,7 @@ async function sendMessage(message, mainWindow) {
       
       // Add the follow-up response to chat history
       const followUpMessage = {
-        text: followUpResponse.text || "I'll help you with that.",
+        text: followUpResponse.text || randomAIResponse,
         sender: 'ai',
         timestamp: new Date(),
         functionCalls: followUpResponse.functionCalls
@@ -374,18 +390,11 @@ async function sendMessage(message, mainWindow) {
 }
 
 /**
- * Process user input with LLM API
- * @param {string} userInput - User's message
- * @param {Array|Object} functionResults - Results from previous function calls, if any
- * @returns {Object} - AI response
+ * Prepare the system message for the LLM API
+ * @returns {string} - System message
  */
-async function processWithLLM(userInput, functionResults = null) {
-  try {
-    // Import function schemas
-    const functionSchemasModule = await import('../src/services/functionSchemas.js');
-    const functionSchemas = functionSchemasModule.default;
-    
-    const systemMessage = `<role>
+async function prepareSystemMessage() {
+  const systemMessageTemplate = `<role>
 You're FokusZeit, an AI task assistant.
 </role>
 
@@ -404,178 +413,222 @@ Use the tools provided to you to help the user with their task & project managem
 - Most of the time, the user won't refer to tasks/projects/notifications with id but names or vague descriptions. In this case, use queryTasks or queryNotifications to find out the id.
 </tips>`;
 
-    // Fetch projects to provide context
-    let formattedSystemMessage = systemMessage;
-    try {
-      const projects = await projectManager.getProjects();
-      if (projects && projects.length > 0) {
-        let projectsList = "";
-        projects.forEach(project => {
-          projectsList += `- ${project.name} (ID: ${project.id})\n`;
-        });
-        formattedSystemMessage = formattedSystemMessage.replace('{{__PROJECTS_INFO__}}', projectsList);
-      } else {
-        formattedSystemMessage = formattedSystemMessage.replace('{{__PROJECTS_INFO__}}', 'No projects available.');
-      }
-    } catch (error) {
-      logger.logError(error, 'Error fetching projects for AI context');
-      formattedSystemMessage = formattedSystemMessage.replace('{{__PROJECTS_INFO__}}', 'Error fetching projects.');
+  try {
+    const projects = await projectManager.getProjects();
+    let projectsInfo = 'No projects available.';
+    if (projects && projects.length > 0) {
+      projectsInfo = projects.map(project => `- ${project.name} (ID: ${project.id})`).join('\n');
     }
-    
-    // Add current date and time
     const now = new Date();
     const localTimeString = now.toLocaleString();
-    formattedSystemMessage = formattedSystemMessage.replace('{{__CURRENT_DATETIME__}}', localTimeString);
+    return systemMessageTemplate
+      .replace('{{__PROJECTS_INFO__}}', projectsInfo)
+      .replace('{{__CURRENT_DATETIME__}}', localTimeString);
+  } catch (error) {
+    logger.logError(error, 'Error fetching projects for AI context');
+    return systemMessageTemplate
+      .replace('{{__PROJECTS_INFO__}}', 'Error fetching projects.')
+      .replace('{{__CURRENT_DATETIME__}}', new Date().toLocaleString());
+  }
+}
 
-    // Format chat history for the API
-    const messages = [
-      // Add system message
-      { role: 'system', content: formattedSystemMessage },
-    ];
+/**
+ * Builds the messages array for the LLM API
+ * @param {*} chatHistory 
+ * @param {*} userInput 
+ * @param {*} functionResults 
+ * @param {*} systemMessage 
+ * @returns 
+ */
+function buildMessagesArray(chatHistory, userInput, functionResults, systemMessage) {
+  const messages = [{ role: 'system', content: systemMessage }];
+  const functionCallIdsToSkip = new Set();
+
+  if (functionResults) {
+    const results = Array.isArray(functionResults) ? functionResults : [functionResults];
+    results.forEach(result => {
+      if (result.functionCallId) functionCallIdsToSkip.add(result.functionCallId);
+    });
+  }
+
+  chatHistory.forEach((msg, i) => {
+    if (shouldSkipMessage(msg, i, chatHistory.length, functionResults, functionCallIdsToSkip)) return;
     
-    // Track function call IDs that will be added via functionResults
-    // to avoid duplicating them from chat history
-    const functionCallIdsToSkip = new Set();
-    
-    // If we have direct function results, get their IDs to avoid duplication
-    if (functionResults) {
-      // Handle single function result (backward compatibility)
-      if (!Array.isArray(functionResults)) {
-        functionResults = [functionResults];
-      }
-      
-      // Collect IDs to skip
-      functionResults.forEach(result => {
-        if (result.functionCallId) {
-          functionCallIdsToSkip.add(result.functionCallId);
+    switch (msg.sender) {
+      case 'user':
+        messages.push({ role: 'user', content: msg.text });
+        break;
+      case 'ai':
+        messages.push(createAssistantMessage(msg));
+        break;
+      case 'tool':
+      default:
+        if (msg.role === 'tool') {
+          messages.push({
+            role: 'tool',
+            tool_call_id: msg.tool_call_id,
+            content: msg.content
+          });
         }
+        break;
+    }
+  });
+
+  if (functionResults) {
+    const results = Array.isArray(functionResults) ? functionResults : [functionResults];
+    results.forEach((result, idx) => {
+      const toolCallId = result.functionCallId || `call_${Date.now()}_${idx}`;
+      messages.push({
+        role: 'tool',
+        tool_call_id: toolCallId,
+        content: JSON.stringify(result.data)
       });
+    });
+  } else if (userInput) {
+    messages.push({ role: 'user', content: userInput });
+  }
+
+  return messages;
+}
+
+/**
+ * Checks if a message should be skipped based on the function results
+ * @param {Object} msg - The message to check
+ * @param {number} index - The index of the message in the chat history
+ * @param {number} historyLength - The length of the chat history
+ * @param {Object} functionResults - The function results
+ * @param {Set} skipIds - The set of tool call IDs to skip
+ * @returns {boolean} - True if the message should be skipped, false otherwise
+ */
+function shouldSkipMessage(msg, index, historyLength, functionResults, skipIds) {
+  return (
+    (functionResults === null &&
+     index === historyLength - 1 &&
+     msg.sender === 'user') ||
+    (msg.sender === 'tool' &&
+     msg.tool_call_id &&
+     skipIds.has(msg.tool_call_id))
+  );
+}
+
+/**
+ * Creates an assistant message for the LLM API
+ * @param {Object} msg - The message to create an assistant message for
+ * @returns {Object} - The assistant message
+ */
+function createAssistantMessage(msg) {
+  const message = {
+    role: 'assistant',
+    content: msg.text
+  };
+  
+  if (msg.functionCalls?.length > 0) {
+    message.tool_calls = msg.functionCalls.map((fc, idx) => ({
+      type: 'function',
+      id: fc.id || `call_${Date.now()}_${idx}`,
+      function: {
+        name: fc.name,
+        arguments: JSON.stringify(fc.arguments)
+      }
+    }));
+  }
+  
+  return message;
+}
+
+/**
+ * Calls the LLM API
+ * @param {Array} messages - The messages to send to the LLM API
+ * @param {Array} functionSchemas - The function schemas to use for the LLM API
+ * @returns {Object} - The response from the LLM API
+ */
+async function callLLMAPI(messages, functionSchemas) {
+  const requestPayload = {
+    model: aiState.model,
+    messages,
+    tools: functionSchemas,
+    tool_choice: 'auto'
+  };
+
+  const loggablePayload = {
+    model: requestPayload.model,
+    messages: requestPayload.messages
+  };
+  logger.info('🔄 Electron Main Process - AI API Request:', JSON.stringify(loggablePayload, null, 2));
+
+  const response = await axios.post(
+    aiState.apiUrl,
+    requestPayload,
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${aiState.apiKey}`
+      }
     }
+  );
+
+  logger.info('✅ Electron Main Process - AI API Response:', JSON.stringify(response.data, null, 2));
+  return response.data.choices[0].message;
+}
+
+/**
+ * Processes the AI response
+ * @param {Object} aiResponse - The response from the LLM API
+ * @returns {Object} - The processed response
+ */
+function processAIResponse(aiResponse) {
+  // Pick one random AI response for tool calls from the list of responses
+  const randomAIResponses = [
+    "I'll help you with that.",
+    "I'm on it.",
+    "I'm working on it.",
+    "I'm on it.",
+  ];
+  const randomAIResponse = randomAIResponses[Math.floor(Math.random() * randomAIResponses.length)];
+
+  if (aiResponse.tool_calls?.length > 0) {
+    const functionCalls = aiResponse.tool_calls
+      .filter(toolCall => toolCall.type === 'function')
+      .map(toolCall => ({
+        id: toolCall.id,
+        name: toolCall.function.name,
+        arguments: JSON.parse(toolCall.function.arguments)
+      }));
+
+    if (functionCalls.length > 0) {
+      return {
+        text: aiResponse.content || randomAIResponse,
+        functionCalls
+      };
+    }
+  }
+
+  return {
+    text: aiResponse.content || randomAIResponse
+  };
+}
+
+/**
+ * Processes the user input with the LLM API
+ * @param {string} userInput - The user input
+ * @param {Object} functionResults - The function results
+ * @returns {Object} - The processed response
+ */
+async function processWithLLM(userInput, functionResults = null) {
+  try {
+    const functionSchemasModule = await import('../src/services/functionSchemas.js');
+    const functionSchemas = functionSchemasModule.default;
     
-    // Process chat history and add to messages
-    for (let i = 0; i < aiState.chatHistory.length; i++) {
-      const msg = aiState.chatHistory[i];
-      
-      // Skip the last user message if we're processing a new user input
-      // (since we'll add it separately below)
-      if (functionResults === null && i === aiState.chatHistory.length - 1 && msg.sender === 'user') {
-        continue;
-      }
-      
-      // Skip tool messages that will be added via functionResults
-      if (msg.sender === 'tool' && msg.tool_call_id && functionCallIdsToSkip.has(msg.tool_call_id)) {
-        continue;
-      }
-      
-      // Handle different message types
-      if (msg.sender === 'user') {
-        messages.push({
-          role: 'user',
-          content: msg.text
-        });
-      } else if (msg.sender === 'ai') {
-        const assistantMessage = {
-          role: 'assistant',
-          content: msg.text
-        };
-        
-        // Include function call information if present
-        if (msg.functionCalls && msg.functionCalls.length > 0) {
-          assistantMessage.tool_calls = msg.functionCalls.map((fc, idx) => ({
-            type: 'function',
-            id: fc.id || `call_${Date.now()}_${idx}`,
-            function: {
-              name: fc.name,
-              arguments: JSON.stringify(fc.arguments)
-            }
-          }));
-        }
-        
-        messages.push(assistantMessage);
-      } else if (msg.sender === 'tool' || msg.role === 'tool') {
-        // Handle tool messages that were added to chat history
-        messages.push({
-          role: 'tool',
-          tool_call_id: msg.tool_call_id,
-          content: msg.content
-        });
-      }
-    }
-    
-    // Add the function results if provided
-    if (functionResults) {
-      // Add each function result as a tool message
-      functionResults.forEach((result, idx) => {
-        // Get the corresponding function call ID if available
-        const toolCallId = result.functionCallId || `call_${Date.now()}_${idx}`;
-        
-        messages.push({
-          role: 'tool',
-          tool_call_id: toolCallId,
-          content: JSON.stringify(result.data)
-        });
-      });
-    } else if (userInput) {
-      // If no function result, add the user message
-      messages.push({ role: 'user', content: userInput });
-    }
-
-    // Create request payload
-    const requestPayload = {
-      model: aiState.model,
-      messages,
-      tools: functionSchemas,
-      tool_choice: 'auto'
-    };
-
-    // Log raw API request with tools omitted for brevity
-    const loggablePayload = {
-      model: requestPayload.model,
-      messages: requestPayload.messages
-    };
-    logger.info('🔄 Electron Main Process - AI API Request:', JSON.stringify(loggablePayload, null, 2));
-
-    // Make API request
-    const response = await axios.post(
-      aiState.apiUrl,
-      requestPayload,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${aiState.apiKey}`
-        }
-      }
+    const formattedSystemMessage = await prepareSystemMessage();
+    const messages = buildMessagesArray(
+      aiState.chatHistory,
+      userInput,
+      functionResults,
+      formattedSystemMessage
     );
-
-    // Log raw API response
-    logger.info('✅ Electron Main Process - AI API Response:', JSON.stringify(response.data, null, 2));
-
-    // Process the response
-    const aiResponse = response.data.choices[0].message;
     
-    // Check if the response contains tool calls
-    if (aiResponse.tool_calls && aiResponse.tool_calls.length > 0) {
-      // Convert all tool calls to function calls
-      const functionCalls = aiResponse.tool_calls
-        .filter(toolCall => toolCall.type === 'function')
-        .map(toolCall => ({
-          id: toolCall.id, // Preserve the original tool call ID
-          name: toolCall.function.name,
-          arguments: JSON.parse(toolCall.function.arguments)
-        }));
-      
-      if (functionCalls.length > 0) {
-        return {
-          text: aiResponse.content || "I'll help you with that.",
-          functionCalls: functionCalls
-        };
-      }
-    }
-
-    // Regular text response
-    return {
-      text: aiResponse.content || "I'll help you with that."
-    };
+    const aiResponse = await callLLMAPI(messages, functionSchemas);
+    return processAIResponse(aiResponse);
   } catch (error) {
     logger.logError(error, 'Error calling LLM API');
     throw new Error(`Failed to process input: ${error.message}`);
@@ -583,7 +636,7 @@ Use the tools provided to you to help the user with their task & project managem
 }
 
 /**
- * Execute a function call based on AI response
+ * Executes a function call based on AI response
  * @param {Object} functionCall - Function call object from AI
  * @returns {Promise<Object>} - Result of the function execution
  */

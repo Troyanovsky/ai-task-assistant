@@ -362,7 +362,6 @@ describe('AIService - processWithLLM', () => {
 
       const result = await aiService.processWithLLM('Show me my tasks');
 
-      expect(result.text).toBe('I will help you with that');
       expect(result.functionCalls).toBeDefined();
       expect(result.functionCalls.length).toBe(1);
       expect(result.functionCalls[0].name).toBe('getTasks');

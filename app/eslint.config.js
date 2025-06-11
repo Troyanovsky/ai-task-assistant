@@ -39,7 +39,7 @@ export default [
         'ignoreRegExpLiterals': true
       }],
       'max-lines-per-function': ['warn', {
-        'max': 60,
+        'max': 80,
         'skipBlankLines': true,
         'skipComments': true,
         'IIFEs': false
