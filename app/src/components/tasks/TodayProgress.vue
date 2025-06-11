@@ -47,12 +47,10 @@ export default {
   props: {
     totalTasks: {
       type: Number,
-      required: true,
       default: 0,
     },
     completedTasks: {
       type: Number,
-      required: true,
       default: 0,
     },
   },

@@ -12,7 +12,7 @@ export default [
 
   {
     files: ['**/*.{js,vue,cjs}'],
-    ignores: ['node_modules/', 'dist/', 'build/'], // Add other directories you want to ignore
+    ignores: ['node_modules/', 'dist/', 'build/'],
     languageOptions: {
       ecmaVersion: 2021,
       sourceType: 'module',
@@ -78,6 +78,17 @@ export default [
       'vue/no-unused-components': 'warn',
       'vue/no-unused-vars': ['warn', { 'ignorePattern': '^_e' }],
     },
+  },
+  {
+    files: ['**/*.vue'],
+    rules: {
+      'max-lines-per-function': ['warn', {
+        'max': 400,
+        'skipBlankLines': true,
+        'skipComments': true,
+        'IIFEs': false
+      }],
+    }
   },
   // Prettier config should be last to override other formatting rules
   prettierConfig,

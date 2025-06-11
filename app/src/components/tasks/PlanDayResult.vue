@@ -116,7 +116,6 @@ export default {
   props: {
     result: {
       type: Object,
-      required: true,
       default: () => ({
         scheduled: [],
         unscheduled: [],
@@ -125,7 +124,6 @@ export default {
     },
     workingHours: {
       type: Object,
-      required: true,
       default: () => ({
         startTime: '10:00',
         endTime: '19:00',

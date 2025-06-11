@@ -28,59 +28,7 @@ class Task {
     this.id = data.id || uuidv4();
     this.name = data.name || '';
     this.description = data.description || '';
-
-    // Fix: Handle duration properly (0 is a valid value)
     this.duration = data.duration !== undefined ? data.duration : null;
-
-    // Handle dueDate properly, stored as YYYY-MM-DD string
-    if (data.dueDate) {
-      if (typeof data.dueDate === 'string') {
-        // If it's already a string, check if it has time component
-        if (data.dueDate.includes('T')) {
-          // Extract just the date part YYYY-MM-DD
-          this.dueDate = data.dueDate.split('T')[0];
-        } else {
-          // Already in YYYY-MM-DD format
-          this.dueDate = data.dueDate;
-        }
-      } else {
-        // Convert Date object to YYYY-MM-DD string
-        const date = new Date(data.dueDate);
-        this.dueDate = date.toISOString().split('T')[0];
-      }
-    } else if (data.due_date) {
-      if (typeof data.due_date === 'string') {
-        // If it's already a string, check if it has time component
-        if (data.due_date.includes('T')) {
-          // Extract just the date part YYYY-MM-DD
-          this.dueDate = data.due_date.split('T')[0];
-        } else {
-          // Already in YYYY-MM-DD format
-          this.dueDate = data.due_date;
-        }
-      } else {
-        // Convert Date object to YYYY-MM-DD string
-        const date = new Date(data.due_date);
-        this.dueDate = date.toISOString().split('T')[0];
-      }
-    } else {
-      this.dueDate = null;
-    }
-
-    // Handle planned time
-    if (data.plannedTime) {
-      // Ensure plannedTime is stored as a Date object
-      // If it's a string, parse it to a Date
-      this.plannedTime =
-        typeof data.plannedTime === 'string' ? new Date(data.plannedTime) : data.plannedTime;
-    } else if (data.planned_time) {
-      // Handle snake_case variant from database
-      this.plannedTime =
-        typeof data.planned_time === 'string' ? new Date(data.planned_time) : data.planned_time;
-    } else {
-      this.plannedTime = null;
-    }
-
     this.projectId = data.project_id || data.projectId || '';
     this.dependencies = data.dependencies ? this.parseDependencies(data.dependencies) : [];
     this.status = data.status || STATUS.PLANNING;
@@ -88,6 +36,40 @@ class Task {
     this.priority = data.priority || PRIORITY.MEDIUM;
     this.createdAt = data.created_at ? new Date(data.created_at) : new Date();
     this.updatedAt = data.updated_at ? new Date(data.updated_at) : new Date();
+
+    this._setDueDate(data.dueDate || data.due_date);
+    this._setPlannedTime(data.plannedTime || data.planned_time);
+  }
+
+  /**
+   * Parses and sets the dueDate property.
+   * @param {string|Date|null|undefined} dateValue - The value to parse for dueDate.
+   * @private
+   */
+  _setDueDate(dateValue) {
+    if (dateValue) {
+      if (typeof dateValue === 'string') {
+        this.dueDate = dateValue.includes('T') ? dateValue.split('T')[0] : dateValue;
+      } else {
+        const date = new Date(dateValue);
+        this.dueDate = date.toISOString().split('T')[0];
+      }
+    } else {
+      this.dueDate = null;
+    }
+  }
+
+  /**
+   * Parses and sets the plannedTime property.
+   * @param {string|Date|null|undefined} timeValue - The value to parse for plannedTime.
+   * @private
+   */
+  _setPlannedTime(timeValue) {
+    if (timeValue) {
+      this.plannedTime = typeof timeValue === 'string' ? new Date(timeValue) : timeValue;
+    } else {
+      this.plannedTime = null;
+    }
   }
 
   /**
@@ -101,7 +83,7 @@ class Task {
     }
     try {
       return JSON.parse(dependencies);
-    } catch (error) {
+    } catch {
       return [];
     }
   }
@@ -117,7 +99,7 @@ class Task {
     }
     try {
       return JSON.parse(labels);
-    } catch (error) {
+    } catch {
       return [];
     }
   }
@@ -199,24 +181,7 @@ class Task {
     if (data.duration !== undefined) this.duration = data.duration;
 
     // Handle dueDate updates consistently
-    if (data.dueDate !== undefined) {
-      if (data.dueDate === null) {
-        this.dueDate = null;
-      } else if (typeof data.dueDate === 'string') {
-        // If it's already a string, check if it has time component
-        if (data.dueDate.includes('T')) {
-          // Extract just the date part YYYY-MM-DD
-          this.dueDate = data.dueDate.split('T')[0];
-        } else {
-          // Already in YYYY-MM-DD format
-          this.dueDate = data.dueDate;
-        }
-      } else {
-        // Convert Date object to YYYY-MM-DD string
-        const date = new Date(data.dueDate);
-        this.dueDate = date.toISOString().split('T')[0];
-      }
-    }
+    this._setDueDateForUpdate(data.dueDate);
 
     if (data.plannedTime !== undefined) this.plannedTime = data.plannedTime;
     if (data.projectId !== undefined) this.projectId = data.projectId;
@@ -225,6 +190,22 @@ class Task {
     if (data.labels !== undefined) this.labels = data.labels;
     if (data.priority !== undefined) this.priority = data.priority;
     this.updatedAt = new Date();
+  }
+
+  /**
+   * Parses and sets the dueDate property for update.
+   * @param {string|Date|null|undefined} dateValue - The value to parse for dueDate.
+   * @private
+   */
+  _setDueDateForUpdate(dateValue) {
+    if (dateValue === null) {
+      this.dueDate = null;
+    } else if (typeof dateValue === 'string') {
+      this.dueDate = dateValue.includes('T') ? dateValue.split('T')[0] : dateValue;
+    } else if (dateValue !== undefined) {
+      const date = new Date(dateValue);
+      this.dueDate = date.toISOString().split('T')[0];
+    }
   }
 }
 

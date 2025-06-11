@@ -362,6 +362,77 @@ export default {
       return dueDate < today;
     });
 
+    // Function to confirm with user about past dates
+    const confirmDateIssues = async () => {
+      if (isDueDateInPast.value || isPlannedTimeInPast.value) {
+        const confirmMessage = [];
+
+        if (isDueDateInPast.value) {
+          confirmMessage.push('• The due date is in the past');
+        }
+
+        if (isPlannedTimeInPast.value) {
+          confirmMessage.push('• The planned time is in the past');
+        }
+
+        const shouldContinue = await window.electron.showConfirmDialog(
+          'Warning: Date issues detected',
+          `The following issues were detected:\n${confirmMessage.join('\n')}\n\nDo you want to continue anyway?`
+        );
+
+        if (!shouldContinue) {
+          return false; // User canceled
+        }
+      }
+      return true; // No issues or user confirmed
+    };
+
+    // Function to prepare task data for saving
+    const prepareTaskData = () => {
+      const taskData = {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        status: formData.status,
+        priority: formData.priority,
+        projectId: props.projectId,
+        duration: formData.duration !== '' ? Number(formData.duration) : 0,
+      };
+
+      // Set due date if provided - store as YYYY-MM-DD string
+      if (formData.dueDate) {
+        taskData.dueDate = formData.dueDate;
+      } else {
+        taskData.dueDate = null;
+      }
+
+      // Set planned time if both date and time are provided
+      if (formData.plannedDate && formData.plannedTime) {
+        const [year, month, day] = formData.plannedDate.split('-');
+        const [hours, minutes] = formData.plannedTime.split(':');
+
+        const plannedDateTime = new Date(
+          parseInt(year, 10),
+          parseInt(month, 10) - 1,
+          parseInt(day, 10),
+          parseInt(hours, 10),
+          parseInt(minutes, 10)
+        );
+
+        taskData.plannedTime = plannedDateTime.toISOString();
+        logger.info(
+          `Saving plannedTime: Local ${plannedDateTime.toString()} as UTC ${taskData.plannedTime}`
+        );
+      } else {
+        taskData.plannedTime = null;
+      }
+
+      if (props.task) {
+        taskData.id = props.task.id;
+        taskData.createdAt = props.task.createdAt;
+      }
+      return taskData;
+    };
+
     onMounted(async () => {
       if (props.task) {
         formData.name = props.task.name;
@@ -476,72 +547,11 @@ export default {
 
     const saveTask = async () => {
       // Check for past dates and confirm with user
-      if (isDueDateInPast.value || isPlannedTimeInPast.value) {
-        const confirmMessage = [];
-
-        if (isDueDateInPast.value) {
-          confirmMessage.push('• The due date is in the past');
-        }
-
-        if (isPlannedTimeInPast.value) {
-          confirmMessage.push('• The planned time is in the past');
-        }
-
-        const shouldContinue = await window.electron.showConfirmDialog(
-          'Warning: Date issues detected',
-          `The following issues were detected:\n${confirmMessage.join('\n')}\n\nDo you want to continue anyway?`
-        );
-
-        if (!shouldContinue) {
-          return; // User canceled the save operation
-        }
+      if (!(await confirmDateIssues())) {
+        return; // User canceled the save operation
       }
 
-      const taskData = {
-        name: formData.name.trim(),
-        description: formData.description.trim(),
-        status: formData.status,
-        priority: formData.priority,
-        projectId: props.projectId,
-        duration: formData.duration !== '' ? Number(formData.duration) : 0,
-      };
-
-      // Set due date if provided - store as YYYY-MM-DD string
-      if (formData.dueDate) {
-        // Use dueDate directly since it's already in YYYY-MM-DD format from the date input
-        taskData.dueDate = formData.dueDate;
-      } else {
-        taskData.dueDate = null;
-      }
-
-      // Set planned time if both date and time are provided
-      if (formData.plannedDate && formData.plannedTime) {
-        // Create a Date object in local time zone
-        const [year, month, day] = formData.plannedDate.split('-');
-        const [hours, minutes] = formData.plannedTime.split(':');
-
-        // Create the date in local time
-        const plannedDateTime = new Date(
-          parseInt(year, 10),
-          parseInt(month, 10) - 1, // Month is 0-indexed
-          parseInt(day, 10),
-          parseInt(hours, 10),
-          parseInt(minutes, 10)
-        );
-
-        // Convert to ISO string for storage (automatically converts to UTC)
-        taskData.plannedTime = plannedDateTime.toISOString();
-        logger.info(
-          `Saving plannedTime: Local ${plannedDateTime.toString()} as UTC ${taskData.plannedTime}`
-        );
-      } else {
-        taskData.plannedTime = null;
-      }
-
-      if (props.task) {
-        taskData.id = props.task.id;
-        taskData.createdAt = props.task.createdAt;
-      }
+      const taskData = prepareTaskData();
 
       logger.info('Saving task with data:', taskData);
 
@@ -638,14 +648,8 @@ export default {
       }
     };
 
-    // Helper function to process notifications for existing tasks
-    const processNotifications = async (taskId, taskName, plannedTime) => {
-      logger.info(`Processing notifications for task ID: ${taskId}`);
-      logger.info(`Notifications to delete: ${notificationsToDelete.value.length}`);
-      logger.info(`Notifications to save: ${notifications.value.length}`);
-      logger.info(`Planned time: ${plannedTime}`);
-
-      // Handle planned time notification
+    // Helper function to handle planned time notification
+    const handlePlannedTimeNotification = async (taskId, taskName, plannedTime) => {
       if (plannedTime) {
         try {
           // Check if we already have a planned time notification
@@ -687,8 +691,10 @@ export default {
           logger.error('Error deleting planned time notification:', error);
         }
       }
+    };
 
-      // Delete notifications that were removed
+    // Helper function to handle deletion of existing notifications
+    const deleteRemovedNotifications = async () => {
       for (const notificationId of notificationsToDelete.value) {
         try {
           logger.info(`Deleting notification: ${notificationId}`);
@@ -702,8 +708,10 @@ export default {
           logger.error(`Error deleting notification ${notificationId}:`, error);
         }
       }
+    };
 
-      // Save all notifications
+    // Helper function to save/update additional reminder notifications
+    const saveReminderNotifications = async (taskId, taskName) => {
       for (const notification of notifications.value) {
         try {
           // Create notification datetime by combining date and time
@@ -759,6 +767,18 @@ export default {
           logger.error('Error saving notification:', error);
         }
       }
+    };
+
+    // Helper function to process notifications for existing tasks
+    const processNotifications = async (taskId, taskName, plannedTime) => {
+      logger.info(`Processing notifications for task ID: ${taskId}`);
+      logger.info(`Notifications to delete: ${notificationsToDelete.value.length}`);
+      logger.info(`Notifications to save: ${notifications.value.length}`);
+      logger.info(`Planned time: ${plannedTime}`);
+
+      await handlePlannedTimeNotification(taskId, taskName, plannedTime);
+      await deleteRemovedNotifications();
+      await saveReminderNotifications(taskId, taskName);
     };
 
     return {

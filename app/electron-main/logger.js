@@ -21,12 +21,12 @@ if (!process.env.VITEST) {
     log.transports.file.resolvePathFn = () => {
       const appName = app?.getName() || 'FokusZeit';
       const userDataPath = app.getPath('userData');
-      return path.join(userDataPath, 'logs', 'main.log');
+      return path.join(userDataPath, 'logs', appName, 'main.log');
     };
   } catch (error) {
     // If we're in a testing environment where app might not be available
     // This is a fallback that should not normally be used
-    log.warn('Could not set up electron-log file path with app name');
+    log.warn('Could not set up electron-log file path with app name', error);
   }
 }
 
