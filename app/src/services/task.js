@@ -573,45 +573,11 @@ class TaskManager {
 
       logger.info('Planning day with preferences:', { workingHours, bufferTime });
 
-      // Get current date
-      const today = new Date();
-      const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
-
-      // Get all tasks
-      const allTasks = await this.getTasks();
-
-      // Filter tasks due today
-      const tasksDueToday = allTasks.filter((task) => {
-        if (!task.dueDate) return false;
-        const taskDateStr = task.dueDate.toISOString
-          ? task.dueDate.toISOString().split('T')[0]
-          : task.dueDate;
-        return taskDateStr === todayStr;
-      });
-
-      // Filter tasks that need planning
-      const unplannedTasks = tasksDueToday.filter((task) => {
-        // Task doesn't have a planned time
-        const hasNoPlannedTime = !task.plannedTime;
-
-        // Task already has a planned time, but it has passed and the task doesn't have status doing/done
-        const plannedTimePassed =
-          task.plannedTime &&
-          new Date(task.plannedTime) < today &&
-          task.status !== STATUS.DOING &&
-          task.status !== STATUS.DONE;
-
-        return (
-          (hasNoPlannedTime || plannedTimePassed) &&
-          task.status !== STATUS.DOING &&
-          task.status !== STATUS.DONE
-        );
-      });
-
-      logger.info(`Found ${unplannedTasks.length} unplanned tasks for today`);
+      // Get tasks that need scheduling
+      const { tasksToSchedule, today, planningStart, workEnd } = await this._getTasksToSchedule(workingHours);
 
       // If no tasks to plan, return early
-      if (unplannedTasks.length === 0) {
+      if (tasksToSchedule.length === 0) {
         return {
           scheduled: [],
           unscheduled: [],
@@ -619,222 +585,17 @@ class TaskManager {
         };
       }
 
-      // Get tasks that already have planned time for today
-      const plannedTasks = allTasks.filter((task) => {
-        if (!task.plannedTime) return false;
-
-        const plannedDate = new Date(task.plannedTime);
-        return (
-          plannedDate.getFullYear() === today.getFullYear() &&
-          plannedDate.getMonth() === today.getMonth() &&
-          plannedDate.getDate() === today.getDate() &&
-          !(
-            new Date(task.plannedTime) < today &&
-            task.status !== STATUS.DOING &&
-            task.status !== STATUS.DONE
-          )
-        );
-      });
-
-      logger.info(`Found ${plannedTasks.length} already planned tasks for today`);
-
-      // Parse working hours
-      const [startHour, startMinute] = workingHours.startTime.split(':').map(Number);
-      const [endHour, endMinute] = workingHours.endTime.split(':').map(Number);
-
-      // Create Date objects for start and end of working hours today
-      // Use local time methods to ensure consistency with user's timezone
-      const workStart = new Date(today);
-      workStart.setHours(startHour, startMinute, 0, 0);
-
-      const workEnd = new Date(today);
-      workEnd.setHours(endHour, endMinute, 0, 0);
-
-
-
-      // If current time is after work start, use current time as start
-      const planningStart = today > workStart ? new Date(today) : new Date(workStart);
-
-      logger.info(`Planning start time: ${planningStart.toLocaleTimeString()}`);
-      logger.info(`Work end time: ${workEnd.toLocaleTimeString()}`);
-
       // Create timeline of busy slots from existing planned tasks
-      const busySlots = plannedTasks.map((task) => {
-        const start = new Date(task.plannedTime);
-        const end = new Date(start);
-        // Use task duration if available, otherwise default to 30 min
-        const durationMinutes = task.duration !== null ? task.duration : 30;
-        end.setMinutes(end.getMinutes() + durationMinutes);
+      const busySlots = await this._createBusySlots(today);
 
-        return { start, end };
-      });
-
-      // Sort busy slots by start time
-      busySlots.sort((a, b) => a.start - b.start);
-
-      // Sort unplanned tasks by priority first, then by duration (shorter first)
-      const tasksToSchedule = [...unplannedTasks].sort((a, b) => {
-        // Sort by priority first
-        const priorityOrder = { high: 0, medium: 1, low: 2 };
-        const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
-        if (priorityDiff !== 0) return priorityDiff;
-
-        // If same priority, sort by duration (shorter first)
-        const aDuration = a.duration !== null ? a.duration : 30;
-        const bDuration = b.duration !== null ? b.duration : 30;
-        return aDuration - bDuration;
-      });
-
-      // Schedule tasks
-      const scheduledTasks = [];
-      const unscheduledTasks = [];
-
-      // Start with planning start time
-      let currentTime = new Date(planningStart);
-
-      for (const task of tasksToSchedule) {
-        // Get task duration (default to 30 min if not specified)
-        const durationMinutes = task.duration !== null ? task.duration : 30;
-
-        // Try to find a slot for this task
-        let slotFound = false;
-
-        // Keep trying until we find a slot or reach the end of the day
-        while (!slotFound && currentTime < workEnd) {
-          // Calculate potential end time for this task (including buffer time)
-          const potentialEndTime = new Date(currentTime);
-          potentialEndTime.setMinutes(potentialEndTime.getMinutes() + durationMinutes);
-
-          // Calculate end time with buffer for scheduling purposes
-          const endTimeWithBuffer = new Date(potentialEndTime);
-          endTimeWithBuffer.setMinutes(endTimeWithBuffer.getMinutes() + bufferTime);
-
-          // Check if this slot overlaps with any busy slot
-          const overlaps = busySlots.some((slot) => {
-            return (
-              (currentTime >= slot.start && currentTime < slot.end) || // Start time is within a busy slot
-              (potentialEndTime > slot.start && potentialEndTime <= slot.end) || // End time is within a busy slot
-              (currentTime <= slot.start && potentialEndTime >= slot.end) // Slot is completely within our time
-            );
-          });
-
-          if (!overlaps && endTimeWithBuffer <= workEnd) {
-            // Slot found! Schedule the task
-            slotFound = true;
-
-            // Create a copy of the task with planned time
-            const scheduledTask = new Task(task);
-            scheduledTask.plannedTime = new Date(currentTime);
-
-            // Add to scheduled tasks
-            scheduledTasks.push(scheduledTask);
-
-            // Add this to busy slots for future tasks
-            busySlots.push({
-              start: new Date(currentTime),
-              end: new Date(potentialEndTime),
-            });
-
-            // Sort busy slots again
-            busySlots.sort((a, b) => a.start - b.start);
-
-            // Move current time to the end of this task plus buffer time
-            currentTime = new Date(potentialEndTime);
-            currentTime.setMinutes(currentTime.getMinutes() + bufferTime);
-          } else {
-            // Slot not available, try the next available time
-
-            // Find the next available time after the current busy slot
-            const nextSlot = busySlots.find(
-              (slot) => slot.start <= currentTime && slot.end > currentTime
-            );
-            if (nextSlot) {
-              // Move to the end of this busy slot
-              currentTime = new Date(nextSlot.end);
-            } else {
-              // Find the next busy slot that starts after current time
-              const futureSlots = busySlots.filter((slot) => slot.start > currentTime);
-              if (futureSlots.length > 0) {
-                // Sort by start time
-                futureSlots.sort((a, b) => a.start - b.start);
-
-                // Check if there's enough time before the next slot (including buffer)
-                const nextBusySlot = futureSlots[0];
-                const timeUntilNextSlot = nextBusySlot.start - currentTime;
-                const timeNeeded = (durationMinutes + bufferTime) * 60 * 1000; // convert to milliseconds
-
-                if (timeUntilNextSlot >= timeNeeded) {
-                  // There's enough time before the next busy slot
-                  slotFound = true;
-
-                  // Create a copy of the task with planned time
-                  const scheduledTask = new Task(task);
-                  scheduledTask.plannedTime = new Date(currentTime);
-
-                  // Add to scheduled tasks
-                  scheduledTasks.push(scheduledTask);
-
-                  // Add this to busy slots for future tasks
-                  const endTime = new Date(currentTime);
-                  endTime.setMinutes(endTime.getMinutes() + durationMinutes);
-
-                  busySlots.push({
-                    start: new Date(currentTime),
-                    end: new Date(endTime),
-                  });
-
-                  // Sort busy slots again
-                  busySlots.sort((a, b) => a.start - b.start);
-
-                  // Move current time to the end of this task plus buffer time
-                  currentTime = new Date(endTime);
-                  currentTime.setMinutes(currentTime.getMinutes() + bufferTime);
-                } else {
-                  // Not enough time, move to after the next busy slot
-                  currentTime = new Date(nextBusySlot.end);
-                }
-              } else {
-                // No more busy slots, we can schedule the task if it fits before end of day
-                const potentialEndTime = new Date(currentTime);
-                potentialEndTime.setMinutes(potentialEndTime.getMinutes() + durationMinutes);
-
-                // Check if task with buffer fits before end of day
-                const endTimeWithBuffer = new Date(potentialEndTime);
-                endTimeWithBuffer.setMinutes(endTimeWithBuffer.getMinutes() + bufferTime);
-
-                if (endTimeWithBuffer <= workEnd) {
-                  slotFound = true;
-
-                  // Create a copy of the task with planned time
-                  const scheduledTask = new Task(task);
-                  scheduledTask.plannedTime = new Date(currentTime);
-
-                  // Add to scheduled tasks
-                  scheduledTasks.push(scheduledTask);
-
-                  // Add this to busy slots for future tasks
-                  busySlots.push({
-                    start: new Date(currentTime),
-                    end: new Date(potentialEndTime),
-                  });
-
-                  // Move current time to the end of this task plus buffer time
-                  currentTime = new Date(potentialEndTime);
-                  currentTime.setMinutes(currentTime.getMinutes() + bufferTime);
-                } else {
-                  // Task doesn't fit before end of day
-                  break;
-                }
-              }
-            }
-          }
-        }
-
-        // If no slot found for this task, add to unscheduled
-        if (!slotFound) {
-          unscheduledTasks.push(task);
-        }
-      }
+      // Schedule tasks using optimized algorithm
+      const { scheduledTasks, unscheduledTasks } = this._optimizeScheduling(
+        tasksToSchedule,
+        busySlots,
+        planningStart,
+        workEnd,
+        bufferTime
+      );
 
       // Save the scheduled tasks
       for (const task of scheduledTasks) {
@@ -842,15 +603,7 @@ class TaskManager {
       }
 
       // Create summary message
-      let message = '';
-      if (scheduledTasks.length > 0) {
-        message = `${scheduledTasks.length} of ${tasksToSchedule.length} tasks scheduled.`;
-        if (unscheduledTasks.length > 0) {
-          message += ` ${unscheduledTasks.length} tasks could not fit in your schedule.`;
-        }
-      } else {
-        message = 'No tasks could be scheduled. Your day is already full.';
-      }
+      const message = this._createSummaryMessage(scheduledTasks, unscheduledTasks, tasksToSchedule);
 
       return {
         scheduled: scheduledTasks,
@@ -865,6 +618,412 @@ class TaskManager {
         message: `Error planning day: ${error.message}`,
       };
     }
+  }
+
+  /**
+   * Get and filter tasks that need scheduling
+   * @param {Object} workingHours - Working hours configuration
+   * @returns {Object} - Tasks to schedule and time boundaries
+   */
+  async _getTasksToSchedule(workingHours) {
+    // Get current date
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    // Get all tasks
+    const allTasks = await this.getTasks();
+
+    // Filter tasks due today
+    const tasksDueToday = allTasks.filter((task) => {
+      if (!task.dueDate) return false;
+      const taskDateStr = task.dueDate.toISOString
+        ? task.dueDate.toISOString().split('T')[0]
+        : task.dueDate;
+      return taskDateStr === todayStr;
+    });
+
+    // Filter tasks that need planning
+    const unplannedTasks = tasksDueToday.filter((task) => {
+      // Task doesn't have a planned time
+      const hasNoPlannedTime = !task.plannedTime;
+
+      // Task already has a planned time, but it has passed and the task doesn't have status doing/done
+      const plannedTimePassed =
+        task.plannedTime &&
+        new Date(task.plannedTime) < today &&
+        task.status !== STATUS.DOING &&
+        task.status !== STATUS.DONE;
+
+      return (
+        (hasNoPlannedTime || plannedTimePassed) &&
+        task.status !== STATUS.DOING &&
+        task.status !== STATUS.DONE
+      );
+    });
+
+    logger.info(`Found ${unplannedTasks.length} unplanned tasks for today`);
+
+    // Parse working hours
+    const [startHour, startMinute] = workingHours.startTime.split(':').map(Number);
+    const [endHour, endMinute] = workingHours.endTime.split(':').map(Number);
+
+    // Create Date objects for start and end of working hours today
+    const workStart = new Date(today);
+    workStart.setHours(startHour, startMinute, 0, 0);
+
+    const workEnd = new Date(today);
+    workEnd.setHours(endHour, endMinute, 0, 0);
+
+    // If current time is after work start, use current time as start
+    const planningStart = today > workStart ? new Date(today) : new Date(workStart);
+
+    logger.info(`Planning start time: ${planningStart.toLocaleTimeString()}`);
+    logger.info(`Work end time: ${workEnd.toLocaleTimeString()}`);
+
+    // Sort unplanned tasks by priority first, then by duration (shorter first)
+    const tasksToSchedule = [...unplannedTasks].sort((a, b) => {
+      // Sort by priority first
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+      if (priorityDiff !== 0) return priorityDiff;
+
+      // If same priority, sort by duration (shorter first)
+      const aDuration = a.duration !== null ? a.duration : 30;
+      const bDuration = b.duration !== null ? b.duration : 30;
+      return aDuration - bDuration;
+    });
+
+    return { tasksToSchedule, today, planningStart, workEnd };
+  }
+
+  /**
+   * Create timeline of busy slots from existing planned tasks
+   * @param {Date} today - Today's date
+   * @returns {Array} - Array of busy time slots
+   */
+  async _createBusySlots(today) {
+    // Get all tasks
+    const allTasks = await this.getTasks();
+
+    // Get tasks that already have planned time for today and are NOT being rescheduled
+    const plannedTasks = allTasks.filter((task) => {
+      if (!task.plannedTime) return false;
+
+      const plannedDate = new Date(task.plannedTime);
+      const isToday = (
+        plannedDate.getFullYear() === today.getFullYear() &&
+        plannedDate.getMonth() === today.getMonth() &&
+        plannedDate.getDate() === today.getDate()
+      );
+
+      if (!isToday) return false;
+
+      // Exclude tasks with past planned times that need rescheduling
+      // (i.e., tasks that are not in progress or done)
+      const plannedTimePassed = new Date(task.plannedTime) < today;
+      const needsRescheduling = plannedTimePassed &&
+        task.status !== STATUS.DOING &&
+        task.status !== STATUS.DONE;
+
+      // Only include tasks that don't need rescheduling
+      return !needsRescheduling;
+    });
+
+    logger.info(`Found ${plannedTasks.length} already planned tasks for today (excluding tasks needing rescheduling)`);
+
+    // Create timeline of busy slots from existing planned tasks
+    const busySlots = plannedTasks.map((task) => {
+      const start = new Date(task.plannedTime);
+      const end = new Date(start);
+      // Use task duration if available, otherwise default to 30 min
+      const durationMinutes = task.duration !== null ? task.duration : 30;
+      end.setMinutes(end.getMinutes() + durationMinutes);
+
+      return { start, end };
+    });
+
+    // Sort busy slots by start time
+    busySlots.sort((a, b) => a.start - b.start);
+
+    return busySlots;
+  }
+
+  /**
+   * Optimize task scheduling using a two-pass algorithm
+   * @param {Array} tasksToSchedule - Tasks to schedule
+   * @param {Array} busySlots - Existing busy time slots
+   * @param {Date} planningStart - Start time for planning
+   * @param {Date} workEnd - End of working hours
+   * @param {number} bufferTime - Buffer time in minutes
+   * @returns {Object} - Scheduled and unscheduled tasks
+   */
+  _optimizeScheduling(tasksToSchedule, busySlots, planningStart, workEnd, bufferTime) {
+    const scheduledTasks = [];
+    const unscheduledTasks = [];
+
+    // First pass: Try to schedule tasks in priority order
+    const remainingTasks = [];
+    let currentTime = new Date(planningStart);
+
+    for (const task of tasksToSchedule) {
+      const slot = this._findAvailableSlot(task, currentTime, workEnd, busySlots, bufferTime);
+
+      if (slot) {
+        const scheduledTask = this._scheduleTaskInSlot(task, slot, busySlots, bufferTime);
+        scheduledTasks.push(scheduledTask);
+        currentTime = new Date(slot.end);
+        currentTime.setMinutes(currentTime.getMinutes() + bufferTime);
+      } else {
+        remainingTasks.push(task);
+      }
+    }
+
+    // Second pass: Try to fit remaining tasks in any available gaps
+    for (const task of remainingTasks) {
+      const slot = this._findAnyAvailableSlot(task, planningStart, workEnd, busySlots, bufferTime);
+
+      if (slot) {
+        const scheduledTask = this._scheduleTaskInSlot(task, slot, busySlots, bufferTime);
+        scheduledTasks.push(scheduledTask);
+      } else {
+        unscheduledTasks.push(task);
+      }
+    }
+
+    return { scheduledTasks, unscheduledTasks };
+  }
+
+  /**
+   * Find an available time slot for a task starting from a specific time
+   * @param {Object} task - Task to schedule
+   * @param {Date} startTime - Start time to search from
+   * @param {Date} workEnd - End of working hours
+   * @param {Array} busySlots - Existing busy time slots
+   * @param {number} bufferTime - Buffer time in minutes
+   * @returns {Object|null} - Available slot or null if not found
+   */
+  _findAvailableSlot(task, startTime, workEnd, busySlots, bufferTime) {
+    const durationMinutes = task.duration !== null ? task.duration : 30;
+    let currentTime = new Date(startTime);
+    const now = new Date();
+
+    // Ensure we never schedule before the current time
+    if (currentTime < now) {
+      currentTime = new Date(now);
+    }
+
+    while (currentTime < workEnd) {
+      // Add buffer time before the task
+      const taskStartTime = new Date(currentTime);
+      taskStartTime.setMinutes(taskStartTime.getMinutes() + bufferTime);
+
+      // Calculate task end time
+      const taskEndTime = new Date(taskStartTime);
+      taskEndTime.setMinutes(taskEndTime.getMinutes() + durationMinutes);
+
+      // Check if this slot fits before end of work day
+      if (taskEndTime > workEnd) {
+        break;
+      }
+
+      // Check if this slot overlaps with any busy slot
+      const overlaps = busySlots.some((slot) => {
+        return (
+          (taskStartTime >= slot.start && taskStartTime < slot.end) || // Start time is within a busy slot
+          (taskEndTime > slot.start && taskEndTime <= slot.end) || // End time is within a busy slot
+          (taskStartTime <= slot.start && taskEndTime >= slot.end) // Slot is completely within our time
+        );
+      });
+
+      if (!overlaps) {
+        // Slot found!
+        return {
+          start: taskStartTime,
+          end: taskEndTime,
+        };
+      }
+
+      // Find the next available time after the current busy slot
+      const nextSlot = busySlots.find(
+        (slot) => slot.start <= taskStartTime && slot.end > taskStartTime
+      );
+      if (nextSlot) {
+        // Move to the end of this busy slot
+        currentTime = new Date(nextSlot.end);
+      } else {
+        // Find the next busy slot that starts after current time
+        const futureSlots = busySlots.filter((slot) => slot.start > taskStartTime);
+        if (futureSlots.length > 0) {
+          // Sort by start time and move to the next slot
+          futureSlots.sort((a, b) => a.start - b.start);
+          currentTime = new Date(futureSlots[0].end);
+        } else {
+          // No more busy slots, move forward by 15 minutes and try again
+          currentTime.setMinutes(currentTime.getMinutes() + 15);
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Find any available time slot for a task (gap-filling algorithm)
+   * @param {Object} task - Task to schedule
+   * @param {Date} planningStart - Start of planning window
+   * @param {Date} workEnd - End of working hours
+   * @param {Array} busySlots - Existing busy time slots
+   * @param {number} bufferTime - Buffer time in minutes
+   * @returns {Object|null} - Available slot or null if not found
+   */
+  _findAnyAvailableSlot(task, planningStart, workEnd, busySlots, bufferTime) {
+    const durationMinutes = task.duration !== null ? task.duration : 30;
+    const totalTimeNeeded = bufferTime + durationMinutes; // Buffer + task duration
+    const now = new Date();
+
+    // Ensure we never schedule before the current time
+    const effectivePlanningStart = planningStart < now ? now : planningStart;
+
+    // Sort busy slots by start time
+    const sortedSlots = [...busySlots].sort((a, b) => a.start - b.start);
+
+    // Check gap before first busy slot
+    if (sortedSlots.length > 0) {
+      const firstSlot = sortedSlots[0];
+      const gapDuration = (firstSlot.start - effectivePlanningStart) / (1000 * 60); // Convert to minutes
+
+      if (gapDuration >= totalTimeNeeded) {
+        const taskStartTime = new Date(effectivePlanningStart);
+        taskStartTime.setMinutes(taskStartTime.getMinutes() + bufferTime);
+
+        const taskEndTime = new Date(taskStartTime);
+        taskEndTime.setMinutes(taskEndTime.getMinutes() + durationMinutes);
+
+        return {
+          start: taskStartTime,
+          end: taskEndTime,
+        };
+      }
+    }
+
+    // Check gaps between busy slots
+    for (let i = 0; i < sortedSlots.length - 1; i++) {
+      const currentSlot = sortedSlots[i];
+      const nextSlot = sortedSlots[i + 1];
+
+      const gapStart = currentSlot.end;
+      const gapEnd = nextSlot.start;
+
+      // Ensure gap start is not before current time
+      const effectiveGapStart = gapStart < now ? now : gapStart;
+      const gapDuration = (gapEnd - effectiveGapStart) / (1000 * 60); // Convert to minutes
+
+      if (gapDuration >= totalTimeNeeded) {
+        const taskStartTime = new Date(effectiveGapStart);
+        taskStartTime.setMinutes(taskStartTime.getMinutes() + bufferTime);
+
+        const taskEndTime = new Date(taskStartTime);
+        taskEndTime.setMinutes(taskEndTime.getMinutes() + durationMinutes);
+
+        // Ensure the task doesn't extend beyond the gap
+        if (taskEndTime <= gapEnd) {
+          return {
+            start: taskStartTime,
+            end: taskEndTime,
+          };
+        }
+      }
+    }
+
+    // Check gap after last busy slot
+    if (sortedSlots.length > 0) {
+      const lastSlot = sortedSlots[sortedSlots.length - 1];
+      const gapStart = lastSlot.end;
+
+      // Ensure gap start is not before current time
+      const effectiveGapStart = gapStart < now ? now : gapStart;
+      const gapDuration = (workEnd - effectiveGapStart) / (1000 * 60); // Convert to minutes
+
+      if (gapDuration >= totalTimeNeeded) {
+        const taskStartTime = new Date(effectiveGapStart);
+        taskStartTime.setMinutes(taskStartTime.getMinutes() + bufferTime);
+
+        const taskEndTime = new Date(taskStartTime);
+        taskEndTime.setMinutes(taskEndTime.getMinutes() + durationMinutes);
+
+        if (taskEndTime <= workEnd) {
+          return {
+            start: taskStartTime,
+            end: taskEndTime,
+          };
+        }
+      }
+    }
+
+    // If no busy slots exist, check if task fits in the entire work period
+    if (sortedSlots.length === 0) {
+      const totalWorkTime = (workEnd - effectivePlanningStart) / (1000 * 60); // Convert to minutes
+
+      if (totalWorkTime >= totalTimeNeeded) {
+        const taskStartTime = new Date(effectivePlanningStart);
+        taskStartTime.setMinutes(taskStartTime.getMinutes() + bufferTime);
+
+        const taskEndTime = new Date(taskStartTime);
+        taskEndTime.setMinutes(taskEndTime.getMinutes() + durationMinutes);
+
+        return {
+          start: taskStartTime,
+          end: taskEndTime,
+        };
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Schedule a task in a specific time slot
+   * @param {Object} task - Task to schedule
+   * @param {Object} slot - Time slot with start and end times
+   * @param {Array} busySlots - Existing busy time slots (modified in place)
+   * @param {number} bufferTime - Buffer time in minutes
+   * @returns {Object} - Scheduled task
+   */
+  _scheduleTaskInSlot(task, slot, busySlots, bufferTime) {
+    // Create a copy of the task with planned time
+    const scheduledTask = new Task(task);
+    scheduledTask.plannedTime = new Date(slot.start);
+
+    // Add this to busy slots for future tasks (without buffer time)
+    busySlots.push({
+      start: new Date(slot.start),
+      end: new Date(slot.end),
+    });
+
+    // Sort busy slots again
+    busySlots.sort((a, b) => a.start - b.start);
+
+    return scheduledTask;
+  }
+
+  /**
+   * Create summary message for planning results
+   * @param {Array} scheduledTasks - Successfully scheduled tasks
+   * @param {Array} unscheduledTasks - Tasks that couldn't be scheduled
+   * @param {Array} tasksToSchedule - All tasks that were attempted to be scheduled
+   * @returns {string} - Summary message
+   */
+  _createSummaryMessage(scheduledTasks, unscheduledTasks, tasksToSchedule) {
+    let message = '';
+    if (scheduledTasks.length > 0) {
+      message = `${scheduledTasks.length} of ${tasksToSchedule.length} tasks scheduled.`;
+      if (unscheduledTasks.length > 0) {
+        message += ` ${unscheduledTasks.length} tasks could not fit in your schedule.`;
+      }
+    } else {
+      message = 'No tasks could be scheduled. Your day is already full.';
+    }
+    return message;
   }
 }
 
