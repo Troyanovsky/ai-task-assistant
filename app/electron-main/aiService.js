@@ -598,7 +598,7 @@ async function executeFunctionCall(functionCall) {
     };
 
     switch (name) {
-      case 'addTask':
+      case 'addTask': {
         // Resolve project ID if provided
         if (args.projectId && typeof args.projectId === 'string') {
           const resolvedProjectId = await resolveProjectId(args.projectId);
@@ -613,12 +613,12 @@ async function executeFunctionCall(functionCall) {
             };
           }
         }
-        
+
         // Handle dueDate as YYYY-MM-DD string format
         if (args.dueDate && typeof args.dueDate === 'string') {
           args.dueDate = formatToYYYYMMDD(args.dueDate);
         }
-        
+
         // Convert local time string to ISO format if provided for plannedTime
         if (args.plannedTime && typeof args.plannedTime === 'string') {
           const isoDateTime = parseToISODateTime(args.plannedTime, 'planned time');
@@ -628,22 +628,23 @@ async function executeFunctionCall(functionCall) {
             throw new Error(`Could not parse date/time from: ${args.plannedTime}`);
           }
         }
-        
+
         const task = await taskManager.addTask(args);
-        return { 
+        return {
           ...baseResult,
-          success: true, 
+          success: true,
           task,
           taskId: task.id,
           message: `Task "${args.name}" has been created with ID: ${task.id}.`
         };
+      }
         
-      case 'updateTask':
+      case 'updateTask': {
         // Handle dueDate as YYYY-MM-DD string format
         if (args.dueDate && typeof args.dueDate === 'string') {
           args.dueDate = formatToYYYYMMDD(args.dueDate);
         }
-        
+
         // Convert local time string to ISO format if provided for plannedTime
         if (args.plannedTime && typeof args.plannedTime === 'string') {
           const isoDateTime = parseToISODateTime(args.plannedTime, 'planned time');
@@ -653,35 +654,38 @@ async function executeFunctionCall(functionCall) {
             throw new Error(`Could not parse date/time from: ${args.plannedTime}`);
           }
         }
-        
+
         await taskManager.updateTask(args);
-        return { 
+        return {
           ...baseResult,
           success: true,
           taskId: args.id,
           message: `Task "${args.id}" has been updated.`
         };
+      }
         
-      case 'deleteTask':
+      case 'deleteTask': {
         const deleteResult = await taskManager.deleteTask(args.id);
         if (!deleteResult) {
           return {
+            ...baseResult,
             success: false,
             taskId: args.id,
             message: `Task with ID ${args.id} not found or couldn't be deleted.`
           };
         }
-        return { 
+        return {
           ...baseResult,
           success: true,
           taskId: args.id,
           message: `Task with ID ${args.id} has been deleted.`
         };
+      }
         
-      case 'getTasks':
+      case 'getTasks': {
         // Legacy function for backward compatibility
         let tasks = await taskManager.getRecentTasks();
-        
+
         if (args.projectId) {
           // Resolve project ID if provided
           const resolvedProjectId = await resolveProjectId(args.projectId);
@@ -695,29 +699,30 @@ async function executeFunctionCall(functionCall) {
               message: `I couldn't find a project named "${args.projectId}". Please specify a valid project name or ID.`
             };
           }
-          
+
           tasks = tasks.filter(task => task.projectId === args.projectId);
         }
-        
+
         if (args.status) {
           tasks = tasks.filter(task => task.status === args.status);
         }
-        
+
         if (args.priority) {
           tasks = tasks.filter(task => task.priority === args.priority);
         }
-        
-        return { 
+
+        return {
           ...baseResult,
-          success: true, 
+          success: true,
           tasks,
           taskIds: tasks.map(task => task.id),
-          message: tasks.length > 0 
-            ? `Found ${tasks.length} tasks.` 
+          message: tasks.length > 0
+            ? `Found ${tasks.length} tasks.`
             : 'No tasks found matching your criteria.'
         };
+      }
 
-      case 'queryTasks':
+      case 'queryTasks': {
         // Start with all tasks
         let allTasks = await taskManager.getRecentTasks();
         logger.info(`QueryTasks - Found ${allTasks.length} total tasks`);
@@ -726,7 +731,7 @@ async function executeFunctionCall(functionCall) {
             logger.info(`Task ${task.id} - ${task.name} - Due date: ${task.dueDate} (${new Date(task.dueDate).toLocaleString()})`);
           }
         });
-        
+
         let filteredTasks = [...allTasks];
         let filteringApplied = false;
         
@@ -909,43 +914,47 @@ async function executeFunctionCall(functionCall) {
             ? `Found ${formattedTasks.length} tasks${filteringApplied ? ' matching your criteria' : ''}.${formattedTasks.length === limit ? ' (Result limit reached)' : ''}`
             : 'No tasks found matching your criteria.'
         };
-        
-      case 'getProjects':
+      }
+
+      case 'getProjects': {
         const projects = await projectManager.getProjects();
-        return { 
+        return {
           ...baseResult,
-          success: true, 
+          success: true,
           projects,
           projectIds: projects.map(project => project.id),
-          message: projects.length > 0 
-            ? `Found ${projects.length} projects.` 
+          message: projects.length > 0
+            ? `Found ${projects.length} projects.`
             : 'No projects found.'
         };
+      }
         
-      case 'addProject':
+      case 'addProject': {
         const project = new Project(args);
-        const newProject = await projectManager.addProject(project);
-        return { 
+        await projectManager.addProject(project);
+        return {
           ...baseResult,
-          success: true, 
+          success: true,
           project: project,
           projectId: project.id,
           message: `Project "${args.name}" has been created with ID: ${project.id}.`
         };
+      }
         
-      case 'updateProject':
+      case 'updateProject': {
         const updatedProject = new Project(args);
         const updateProjectResult = await projectManager.updateProject(updatedProject);
         return {
           ...baseResult,
           success: updateProjectResult,
           projectId: updatedProject.id,
-          message: updateProjectResult 
+          message: updateProjectResult
             ? `Project "${args.name}" (ID: ${updatedProject.id}) has been updated.`
             : `Failed to update project "${args.name}" (ID: ${updatedProject.id}).`
         };
-        
-      case 'deleteProject':
+      }
+
+      case 'deleteProject': {
         const deleteProjectResult = await projectManager.deleteProject(args.id);
         return {
           ...baseResult,
@@ -955,8 +964,9 @@ async function executeFunctionCall(functionCall) {
             ? `Project with ID ${args.id} has been deleted.`
             : `Failed to delete project with ID ${args.id}.`
         };
+      }
         
-      case 'addNotification':
+      case 'addNotification': {
         // Convert local time string to ISO format if provided
         if (args.time && typeof args.time === 'string') {
           const isoDateTime = parseToISODateTime(args.time, 'notification time');
@@ -971,7 +981,7 @@ async function executeFunctionCall(functionCall) {
             };
           }
         }
-        
+
         // Validate notification type
         if (!Object.values(TYPE).includes(args.type)) {
           return {
@@ -981,7 +991,7 @@ async function executeFunctionCall(functionCall) {
             message: `I couldn't create the notification because "${args.type}" is not a valid notification type. Valid types are: ${Object.values(TYPE).join(', ')}`
           };
         }
-        
+
         // Create notification
         const notification = new Notification({
           taskId: args.taskId,
@@ -989,19 +999,20 @@ async function executeFunctionCall(functionCall) {
           type: args.type,
           message: args.message || ''
         });
-        
+
         const addResult = await notificationService.addNotification(notification);
-        return { 
+        return {
           ...baseResult,
           success: addResult,
           notification,
           notificationId: notification.id,
-          message: addResult 
+          message: addResult
             ? `Notification has been created for task ${args.taskId}.`
             : `Failed to create notification for task ${args.taskId}.`
         };
+      }
         
-      case 'updateNotification':
+      case 'updateNotification': {
         // Convert local time string to ISO format if provided
         if (args.time && typeof args.time === 'string') {
           const isoDateTime = parseToISODateTime(args.time, 'notification time');
@@ -1011,7 +1022,7 @@ async function executeFunctionCall(functionCall) {
             logger.info(`Invalid date format for notification: ${args.time}`);
           }
         }
-        
+
         // Validate notification type if provided
         if (args.type && !Object.values(TYPE).includes(args.type)) {
           return {
@@ -1021,7 +1032,7 @@ async function executeFunctionCall(functionCall) {
             message: `I couldn't update the notification because "${args.type}" is not a valid notification type. Valid types are: ${Object.values(TYPE).join(', ')}`
           };
         }
-        
+
         const updateNotificationResult = await notificationService.updateNotification(args);
         return {
           ...baseResult,
@@ -1031,8 +1042,9 @@ async function executeFunctionCall(functionCall) {
             ? `Notification ${args.id} has been updated.`
             : `Failed to update notification ${args.id}.`
         };
-        
-      case 'deleteNotification':
+      }
+
+      case 'deleteNotification': {
         const deleteNotificationResult = await notificationService.deleteNotification(args.id);
         return {
           ...baseResult,
@@ -1042,20 +1054,22 @@ async function executeFunctionCall(functionCall) {
             ? `Notification with ID ${args.id} has been deleted.`
             : `Failed to delete notification with ID ${args.id}.`
         };
-        
-      case 'getNotificationsByTask':
+      }
+
+      case 'getNotificationsByTask': {
         const notifications = await notificationService.getNotificationsByTask(args.taskId);
-        return { 
+        return {
           ...baseResult,
-          success: true, 
+          success: true,
           notifications,
           notificationIds: notifications.map(notification => notification.id),
-          message: notifications.length > 0 
-            ? `Found ${notifications.length} notifications for task ${args.taskId}.` 
+          message: notifications.length > 0
+            ? `Found ${notifications.length} notifications for task ${args.taskId}.`
             : `No notifications found for task ${args.taskId}.`
         };
+      }
         
-      case 'queryNotifications':
+      case 'queryNotifications': {
         // Start with all notifications
         let allNotifications = await notificationService.getNotifications();
         logger.info(`QueryNotifications - Found ${allNotifications.length} total notifications`);
@@ -1064,7 +1078,7 @@ async function executeFunctionCall(functionCall) {
             logger.info(`Notification ${notification.id} - Task ID: ${notification.taskId} - Time: ${notification.time} (${new Date(notification.time).toLocaleString()})`);
           }
         });
-        
+
         let filteredNotifications = [...allNotifications];
         let notifFilteringApplied = false;
         
@@ -1175,15 +1189,19 @@ async function executeFunctionCall(functionCall) {
             ? `Found ${formattedNotifications.length} notifications${notifFilteringApplied ? ' matching your criteria' : ''}.${formattedNotifications.length === notificationLimit ? ' (Result limit reached)' : ''}`
             : 'No notifications found matching your criteria.'
         };
-        
+      }
+
       default:
         throw new Error(`Function "${name}" is not available`);
     }
   } catch (error) {
     logger.logError(error, `Error executing function "${name}"`);
-    return { 
+    const baseResult = {
+      functionCallId: id // Store the original function call ID
+    };
+    return {
       ...baseResult,
-      success: false, 
+      success: false,
       error: error.message,
       message: `Sorry, I couldn't complete that action: ${error.message}`
     };
