@@ -89,6 +89,7 @@ contextBridge.exposeInMainWorld(
     
     getPreferences: () => ipcRenderer.invoke('preferences:get'),
     updateWorkingHours: (workingHours) => ipcRenderer.invoke('preferences:updateWorkingHours', workingHours),
+    updateBufferTime: (bufferTime) => ipcRenderer.invoke('preferences:updateBufferTime', bufferTime),
     
     configureAI: (config) => ipcRenderer.invoke('ai:configure', config),
     sendMessage: (message) => ipcRenderer.invoke('ai:sendMessage', message),

@@ -15,6 +15,7 @@ class PreferencesService {
           startTime: '10:00', // Default: 10 AM
           endTime: '19:00', // Default: 7 PM
         },
+        bufferTime: 10, // Default: 10 minutes buffer between tasks
       },
     });
   }
@@ -30,6 +31,7 @@ class PreferencesService {
           startTime: this.store.get('workingHours.startTime'),
           endTime: this.store.get('workingHours.endTime'),
         },
+        bufferTime: this.store.get('bufferTime'),
       };
     } catch (error) {
       logger.logError(error, 'Error getting preferences');
@@ -38,6 +40,7 @@ class PreferencesService {
           startTime: '10:00',
           endTime: '19:00',
         },
+        bufferTime: 10,
       };
     }
   }
@@ -71,6 +74,30 @@ class PreferencesService {
       return true;
     } catch (error) {
       logger.logError(error, 'Error updating working hours');
+      return false;
+    }
+  }
+
+  /**
+   * Update buffer time preference
+   * @param {number} bufferTime - Buffer time in minutes (0-120)
+   * @returns {boolean} Success status
+   */
+  updateBufferTime(bufferTime) {
+    try {
+      // Validate buffer time
+      if (typeof bufferTime !== 'number' || bufferTime < 0 || bufferTime > 120) {
+        logger.warn('Invalid buffer time: must be a number between 0 and 120 minutes');
+        return false;
+      }
+
+      // Store buffer time
+      this.store.set('bufferTime', bufferTime);
+
+      logger.info(`Updated buffer time: ${bufferTime} minutes`);
+      return true;
+    } catch (error) {
+      logger.logError(error, 'Error updating buffer time');
       return false;
     }
   }

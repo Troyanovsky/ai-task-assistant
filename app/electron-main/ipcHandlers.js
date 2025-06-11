@@ -131,17 +131,17 @@ export function setupIpcHandlers(mainWindow, aiService) {
 
   ipcMain.handle('tasks:planMyDay', async () => {
     try {
-      // Get user preferences for working hours
+      // Get user preferences for working hours and buffer time
       const preferences = await preferencesService.getPreferences();
-      
-      // Plan the day using the task manager
-      const result = await taskManager.planMyDay(preferences.workingHours);
-      
+
+      // Plan the day using the task manager with complete preferences
+      const result = await taskManager.planMyDay(preferences);
+
       // Notify the renderer to refresh tasks
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('tasks:refresh');
       }
-      
+
       return result;
     } catch (error) {
       logger.logError(error, 'IPC Error - planMyDay');
@@ -241,6 +241,15 @@ export function setupIpcHandlers(mainWindow, aiService) {
       return preferencesService.updateWorkingHours(workingHours);
     } catch (error) {
       logger.logError(error, 'IPC Error - updateWorkingHours');
+      return false;
+    }
+  });
+
+  ipcMain.handle('preferences:updateBufferTime', async (_, bufferTime) => {
+    try {
+      return preferencesService.updateBufferTime(bufferTime);
+    } catch (error) {
+      logger.logError(error, 'IPC Error - updateBufferTime');
       return false;
     }
   });

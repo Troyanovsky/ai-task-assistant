@@ -561,13 +561,17 @@ class TaskManager {
   }
 
   /**
-   * Plan tasks for today based on working hours and existing scheduled tasks
-   * @param {Object} workingHours - User's working hours preferences
+   * Plan tasks for today based on working hours, buffer time, and existing scheduled tasks
+   * @param {Object} preferences - User's preferences including working hours and buffer time
    * @returns {Object} - Planning result with scheduled and unscheduled tasks
    */
-  async planMyDay(workingHours) {
+  async planMyDay(preferences) {
     try {
-      logger.info('Planning day with working hours:', workingHours);
+      // Extract working hours and buffer time from preferences
+      const workingHours = preferences.workingHours || preferences;
+      const bufferTime = preferences.bufferTime || 0;
+
+      logger.info('Planning day with preferences:', { workingHours, bufferTime });
 
       // Get current date
       const today = new Date();
@@ -577,12 +581,13 @@ class TaskManager {
       const allTasks = await this.getTasks();
 
       // Filter tasks due today
-      console.log(
-        'task.dueDate:',
-        allTasks.map((task) => task.dueDate)
-      );
-      console.log('todayStr:', todayStr);
-      const tasksDueToday = allTasks.filter((task) => task.dueDate === todayStr);
+      const tasksDueToday = allTasks.filter((task) => {
+        if (!task.dueDate) return false;
+        const taskDateStr = task.dueDate.toISOString
+          ? task.dueDate.toISOString().split('T')[0]
+          : task.dueDate;
+        return taskDateStr === todayStr;
+      });
 
       // Filter tasks that need planning
       const unplannedTasks = tasksDueToday.filter((task) => {
@@ -638,11 +643,14 @@ class TaskManager {
       const [endHour, endMinute] = workingHours.endTime.split(':').map(Number);
 
       // Create Date objects for start and end of working hours today
+      // Use local time methods to ensure consistency with user's timezone
       const workStart = new Date(today);
       workStart.setHours(startHour, startMinute, 0, 0);
 
       const workEnd = new Date(today);
       workEnd.setHours(endHour, endMinute, 0, 0);
+
+
 
       // If current time is after work start, use current time as start
       const planningStart = today > workStart ? new Date(today) : new Date(workStart);
@@ -693,9 +701,13 @@ class TaskManager {
 
         // Keep trying until we find a slot or reach the end of the day
         while (!slotFound && currentTime < workEnd) {
-          // Calculate potential end time for this task
+          // Calculate potential end time for this task (including buffer time)
           const potentialEndTime = new Date(currentTime);
           potentialEndTime.setMinutes(potentialEndTime.getMinutes() + durationMinutes);
+
+          // Calculate end time with buffer for scheduling purposes
+          const endTimeWithBuffer = new Date(potentialEndTime);
+          endTimeWithBuffer.setMinutes(endTimeWithBuffer.getMinutes() + bufferTime);
 
           // Check if this slot overlaps with any busy slot
           const overlaps = busySlots.some((slot) => {
@@ -706,7 +718,7 @@ class TaskManager {
             );
           });
 
-          if (!overlaps && potentialEndTime <= workEnd) {
+          if (!overlaps && endTimeWithBuffer <= workEnd) {
             // Slot found! Schedule the task
             slotFound = true;
 
@@ -726,8 +738,9 @@ class TaskManager {
             // Sort busy slots again
             busySlots.sort((a, b) => a.start - b.start);
 
-            // Move current time to the end of this task
+            // Move current time to the end of this task plus buffer time
             currentTime = new Date(potentialEndTime);
+            currentTime.setMinutes(currentTime.getMinutes() + bufferTime);
           } else {
             // Slot not available, try the next available time
 
@@ -745,10 +758,10 @@ class TaskManager {
                 // Sort by start time
                 futureSlots.sort((a, b) => a.start - b.start);
 
-                // Check if there's enough time before the next slot
+                // Check if there's enough time before the next slot (including buffer)
                 const nextBusySlot = futureSlots[0];
                 const timeUntilNextSlot = nextBusySlot.start - currentTime;
-                const timeNeeded = durationMinutes * 60 * 1000; // convert to milliseconds
+                const timeNeeded = (durationMinutes + bufferTime) * 60 * 1000; // convert to milliseconds
 
                 if (timeUntilNextSlot >= timeNeeded) {
                   // There's enough time before the next busy slot
@@ -773,8 +786,9 @@ class TaskManager {
                   // Sort busy slots again
                   busySlots.sort((a, b) => a.start - b.start);
 
-                  // Move current time to the end of this task
+                  // Move current time to the end of this task plus buffer time
                   currentTime = new Date(endTime);
+                  currentTime.setMinutes(currentTime.getMinutes() + bufferTime);
                 } else {
                   // Not enough time, move to after the next busy slot
                   currentTime = new Date(nextBusySlot.end);
@@ -784,7 +798,11 @@ class TaskManager {
                 const potentialEndTime = new Date(currentTime);
                 potentialEndTime.setMinutes(potentialEndTime.getMinutes() + durationMinutes);
 
-                if (potentialEndTime <= workEnd) {
+                // Check if task with buffer fits before end of day
+                const endTimeWithBuffer = new Date(potentialEndTime);
+                endTimeWithBuffer.setMinutes(endTimeWithBuffer.getMinutes() + bufferTime);
+
+                if (endTimeWithBuffer <= workEnd) {
                   slotFound = true;
 
                   // Create a copy of the task with planned time
@@ -800,8 +818,9 @@ class TaskManager {
                     end: new Date(potentialEndTime),
                   });
 
-                  // Move current time to the end of this task
+                  // Move current time to the end of this task plus buffer time
                   currentTime = new Date(potentialEndTime);
+                  currentTime.setMinutes(currentTime.getMinutes() + bufferTime);
                 } else {
                   // Task doesn't fit before end of day
                   break;

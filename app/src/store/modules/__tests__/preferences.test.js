@@ -6,6 +6,7 @@ vi.stubGlobal('window', {
   electron: {
     getPreferences: vi.fn(),
     updateWorkingHours: vi.fn(),
+    updateBufferTime: vi.fn(),
   },
 });
 
@@ -26,6 +27,7 @@ describe('Preferences Store Module', () => {
       startTime: '09:00',
       endTime: '17:00',
     },
+    bufferTime: 15,
   };
 
   // Helper to create a mock commit function
@@ -37,6 +39,7 @@ describe('Preferences Store Module', () => {
       startTime: '10:00',
       endTime: '19:00',
     },
+    bufferTime: 10,
     loading: false,
     error: null,
   });
@@ -88,6 +91,7 @@ describe('Preferences Store Module', () => {
       expect(commit).toHaveBeenCalledWith('setLoading', true);
       expect(commit).toHaveBeenCalledWith('setError', null);
       expect(commit).toHaveBeenCalledWith('setWorkingHours', mockPreferences.workingHours);
+      expect(commit).toHaveBeenCalledWith('setBufferTime', mockPreferences.bufferTime);
       expect(commit).toHaveBeenCalledWith('setLoading', false);
       expect(result).toBe(true);
     });
@@ -135,6 +139,36 @@ describe('Preferences Store Module', () => {
       expect(commit).toHaveBeenCalledWith('setLoading', false);
       expect(result).toBe(false);
     });
+
+    it('updateBufferTime should update buffer time and state', async () => {
+      const commit = createCommit();
+      const bufferTime = 20;
+      window.electron.updateBufferTime.mockResolvedValue(true);
+
+      const result = await preferencesModule.actions.updateBufferTime({ commit }, bufferTime);
+
+      expect(window.electron.updateBufferTime).toHaveBeenCalledWith(bufferTime);
+      expect(commit).toHaveBeenCalledWith('setLoading', true);
+      expect(commit).toHaveBeenCalledWith('setError', null);
+      expect(commit).toHaveBeenCalledWith('setBufferTime', bufferTime);
+      expect(commit).toHaveBeenCalledWith('setLoading', false);
+      expect(result).toBe(true);
+    });
+
+    it('updateBufferTime should handle errors', async () => {
+      const commit = createCommit();
+      const bufferTime = 20;
+      window.electron.updateBufferTime.mockResolvedValue(false);
+
+      const result = await preferencesModule.actions.updateBufferTime({ commit }, bufferTime);
+
+      expect(window.electron.updateBufferTime).toHaveBeenCalledWith(bufferTime);
+      expect(commit).toHaveBeenCalledWith('setLoading', true);
+      expect(commit).toHaveBeenCalledWith('setError', null);
+      expect(commit).toHaveBeenCalledWith('setError', 'Failed to update buffer time');
+      expect(commit).toHaveBeenCalledWith('setLoading', false);
+      expect(result).toBe(false);
+    });
   });
 
   describe('Mutations', () => {
@@ -161,6 +195,14 @@ describe('Preferences Store Module', () => {
       preferencesModule.mutations.setError(state, 'Test error');
 
       expect(state.error).toBe('Test error');
+    });
+
+    it('setBufferTime should update buffer time', () => {
+      const state = createState();
+
+      preferencesModule.mutations.setBufferTime(state, 25);
+
+      expect(state.bufferTime).toBe(25);
     });
   });
 });

@@ -86,10 +86,12 @@ vi.mock('../../models/Task.js', () => {
     this.duration = data.duration !== undefined ? data.duration : 60;
 
     // Convert due_date string to Date object for dueDate
+    // Use the original Date constructor to avoid mock interference
+    const OriginalDate = Date.originalConstructor || Date;
     if (data.due_date) {
-      this.dueDate = new Date(data.due_date);
+      this.dueDate = new OriginalDate(data.due_date);
     } else if (data.dueDate) {
-      this.dueDate = new Date(data.dueDate);
+      this.dueDate = new OriginalDate(data.dueDate);
     } else {
       this.dueDate = null;
     }
@@ -129,8 +131,9 @@ vi.mock('../../models/Task.js', () => {
     }
 
     this.priority = data.priority || PRIORITY.MEDIUM;
-    this.createdAt = data.created_at ? new Date(data.created_at) : new Date();
-    this.updatedAt = data.updated_at ? new Date(data.updated_at) : new Date();
+    this.plannedTime = data.planned_time ? new OriginalDate(data.planned_time) : null;
+    this.createdAt = data.created_at ? new OriginalDate(data.created_at) : new OriginalDate();
+    this.updatedAt = data.updated_at ? new OriginalDate(data.updated_at) : new OriginalDate();
 
     // Use the mock functions for validate and toDatabase
     this.validate = function () {
@@ -919,10 +922,10 @@ describe('TaskManager', () => {
       mockQuery.mockReset();
       mockUpdate.mockReset();
 
-      // Mock current time to be 10:30 AM
+      // Mock current time to be 10:30 AM local
       const originalDate = global.Date;
-      // Mock current time to be 10:30 AM UTC
-      const mockDate = new Date(Date.UTC(2023, 0, 1, 10, 30, 0));
+      // Mock current time to be 10:30 AM local (2:30 AM UTC)
+      const mockDate = new Date(Date.UTC(2023, 0, 1, 2, 30, 0));
       global.Date = class extends Date {
         constructor(date) {
           if (date) {
@@ -936,57 +939,93 @@ describe('TaskManager', () => {
         }
       };
 
-      // Get today's date
-      const today = new Date();
+      // Get today's date using original Date constructor (2:30 AM UTC = 10:30 AM CST)
+      const today = new originalDate('2023-01-01T02:30:00.000Z');
       const todayStr = today.toISOString().split('T')[0];
+
+      // Store task data for both query and queryOne mocks
+      const taskData = [
+        // Task due today, not planned, high priority
+        {
+          id: 'task-1',
+          name: 'High priority task',
+          description: 'Description 1',
+          due_date: '2023-01-01',
+          project_id: 'project-1',
+          dependencies: '[]',
+          status: STATUS.PLANNING,
+          labels: '[]',
+          priority: PRIORITY.HIGH,
+          duration: 60,
+          planned_time: null,
+          created_at: '2023-01-01T00:00:00.000Z',
+          updated_at: '2023-01-01T00:00:00.000Z',
+        },
+        // Task due today, not planned, medium priority
+        {
+          id: 'task-2',
+          name: 'Medium priority task',
+          description: 'Description 2',
+          due_date: '2023-01-01',
+          project_id: 'project-1',
+          dependencies: '[]',
+          status: STATUS.PLANNING,
+          labels: '[]',
+          priority: PRIORITY.MEDIUM,
+          duration: 30,
+          planned_time: null,
+          created_at: '2023-01-01T00:00:00.000Z',
+          updated_at: '2023-01-01T00:00:00.000Z',
+        },
+        // Task due today, already planned, but time has passed
+        {
+          id: 'task-3',
+          name: 'Already planned task',
+          description: 'Description 3',
+          due_date: '2023-01-01',
+          project_id: 'project-1',
+          dependencies: '[]',
+          status: STATUS.PLANNING,
+          labels: '[]',
+          priority: PRIORITY.MEDIUM,
+          planned_time: '2023-01-01T01:00:00.000Z', // Planned for 9:00 AM local (1:00 AM UTC)
+          duration: 45,
+          created_at: '2023-01-01T00:00:00.000Z',
+          updated_at: '2023-01-01T00:00:00.000Z',
+        },
+        // Task not due today
+        {
+          id: 'task-4',
+          name: 'Future task',
+          description: 'Description 4',
+          due_date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+          project_id: 'project-1',
+          dependencies: '[]',
+          status: STATUS.PLANNING,
+          labels: '[]',
+          priority: PRIORITY.LOW,
+          duration: 15,
+          planned_time: null,
+          created_at: '2023-01-01T00:00:00.000Z',
+          updated_at: '2023-01-01T00:00:00.000Z',
+        },
+      ];
 
       // Mock database responses for planMyDay
       mockQuery.mockImplementation((query) => {
         if (query.includes('SELECT * FROM tasks')) {
-          return [
-            // Task due today, not planned, high priority
-            {
-              id: 'task-1',
-              name: 'High priority task',
-              due_date: todayStr.split('T')[0],
-              status: 'planning',
-              priority: 'high',
-              duration: 60,
-              planned_time: null,
-            },
-            // Task due today, not planned, medium priority
-            {
-              id: 'task-2',
-              name: 'Medium priority task',
-              due_date: todayStr.split('T')[0],
-              status: 'planning',
-              priority: 'medium',
-              duration: 30,
-              planned_time: null,
-            },
-            // Task due today, already planned, but time has passed
-            {
-              id: 'task-3',
-              name: 'Already planned task',
-              due_date: todayStr.split('T')[0],
-              status: 'planning',
-              priority: 'medium',
-              planned_time: new Date('2023-01-01T09:00:00').toISOString(), // Planned for 9:00 AM
-              duration: 45,
-            },
-            // Task not due today
-            {
-              id: 'task-4',
-              name: 'Future task',
-              due_date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-              status: 'planning',
-              priority: 'low',
-              duration: 15,
-              planned_time: null,
-            },
-          ];
+          return taskData;
         }
         return [];
+      });
+
+      // Mock queryOne for getTaskById calls during update
+      mockQueryOne.mockImplementation((query, params) => {
+        if (query.includes('SELECT * FROM tasks WHERE id = ?')) {
+          const taskId = params[0];
+          return taskData.find(task => task.id === taskId) || null;
+        }
+        return null;
       });
 
       // Mock update for saving scheduled tasks
@@ -994,18 +1033,19 @@ describe('TaskManager', () => {
     });
 
     it('should schedule tasks based on priority and duration', async () => {
-      // Mock current time to be 10:30 AM
+      // Store original Date constructor for MockTask to use
       const originalDate = global.Date;
-      // Mock current time to be 10:30 AM UTC
-      const mockDate = new Date(Date.UTC(2023, 0, 1, 10, 30, 0));
-      global.Date = class extends Date {
-        constructor(date) {
-          if (date) {
-            return new originalDate(date);
-          }
-          return new Date(mockDate);
-        }
+      global.Date.originalConstructor = originalDate;
 
+      // Mock current time to be 10:30 AM local (2:30 AM UTC)
+      const mockDate = new originalDate('2023-01-01T02:30:00.000Z');
+      global.Date = class extends originalDate {
+        constructor(...args) {
+          if (args.length === 0) {
+            return new originalDate(mockDate);
+          }
+          return new originalDate(...args);
+        }
         static now() {
           return mockDate.getTime();
         }
@@ -1017,8 +1057,12 @@ describe('TaskManager', () => {
         endTime: '17:00',
       };
 
-      // Call planMyDay
-      const result = await taskManager.planMyDay(workingHours);
+      // Call planMyDay with preferences object
+      const preferences = {
+        workingHours,
+        bufferTime: 0, // No buffer for this test
+      };
+      const result = await taskManager.planMyDay(preferences);
 
       // Restore original Date
       global.Date = originalDate;
@@ -1045,12 +1089,178 @@ describe('TaskManager', () => {
         endTime: '17:00',
       };
 
-      const result = await taskManager.planMyDay(workingHours);
+      const preferences = {
+        workingHours,
+        bufferTime: 0,
+      };
+      const result = await taskManager.planMyDay(preferences);
 
       expect(result).toBeDefined();
       expect(result.scheduled).toHaveLength(0);
       expect(result.unscheduled).toHaveLength(0);
       expect(result.message).toContain('No tasks to plan');
+    });
+
+    it('should consider buffer time when scheduling tasks', async () => {
+      // Store original Date constructor for MockTask to use
+      const originalDate = global.Date;
+      global.Date.originalConstructor = originalDate;
+
+      // Mock current time to be 10:00 AM local (2:00 AM UTC)
+      const mockDate = new originalDate('2023-01-01T02:00:00.000Z');
+      global.Date = class extends originalDate {
+        constructor(...args) {
+          if (args.length === 0) {
+            return new originalDate(mockDate);
+          }
+          return new originalDate(...args);
+        }
+        static now() {
+          return mockDate.getTime();
+        }
+      };
+
+
+
+      // Mock database responses for planMyDay with two 30-minute tasks
+      mockQuery.mockImplementation((query) => {
+        if (query.includes('SELECT * FROM tasks')) {
+          return [
+            // Task 1: due today, not planned, high priority, 30 minutes
+            {
+              id: 'task-1',
+              name: 'Task 1',
+              description: 'Description 1',
+              duration: 30,
+              due_date: '2023-01-01',
+              project_id: 'project-1',
+              dependencies: '[]',
+              status: STATUS.PLANNING,
+              labels: '[]',
+              priority: PRIORITY.HIGH,
+              created_at: '2023-01-01T00:00:00.000Z',
+              updated_at: '2023-01-01T00:00:00.000Z',
+              planned_time: null,
+            },
+            // Task 2: due today, not planned, medium priority, 30 minutes
+            {
+              id: 'task-2',
+              name: 'Task 2',
+              description: 'Description 2',
+              duration: 30,
+              due_date: '2023-01-01',
+              project_id: 'project-1',
+              dependencies: '[]',
+              status: STATUS.PLANNING,
+              labels: '[]',
+              priority: PRIORITY.MEDIUM,
+              created_at: '2023-01-01T00:00:00.000Z',
+              updated_at: '2023-01-01T00:00:00.000Z',
+              planned_time: null,
+            },
+          ];
+        }
+        return [];
+      });
+
+      mockUpdate.mockReturnValue({ changes: 1 });
+
+      const preferences = {
+        workingHours: {
+          startTime: '10:00',
+          endTime: '17:00',
+        },
+        bufferTime: 15, // 15 minutes buffer between tasks
+      };
+
+      // Call planMyDay
+      const result = await taskManager.planMyDay(preferences);
+
+      // Restore original Date
+      global.Date = originalDate;
+
+      // Verify results
+      expect(result).toBeDefined();
+      expect(result.scheduled).toHaveLength(2);
+
+      // Verify that tasks are scheduled with buffer time
+      const task1 = result.scheduled.find((t) => t.id === 'task-1');
+      const task2 = result.scheduled.find((t) => t.id === 'task-2');
+
+      expect(task1).toBeDefined();
+      expect(task2).toBeDefined();
+
+      // Task 1 should start at 10:00
+      expect(task1.plannedTime.getHours()).toBe(10);
+      expect(task1.plannedTime.getMinutes()).toBe(0);
+
+      // Task 2 should start at 10:45 (10:00 + 30 min task + 15 min buffer)
+      expect(task2.plannedTime.getHours()).toBe(10);
+      expect(task2.plannedTime.getMinutes()).toBe(45);
+    });
+
+    it('should handle backward compatibility with old workingHours parameter', async () => {
+      // Store original Date constructor for MockTask to use
+      const originalDate = global.Date;
+      global.Date.originalConstructor = originalDate;
+
+      // Mock current time to be 10:00 AM local (2:00 AM UTC)
+      const mockDate = new originalDate('2023-01-01T02:00:00.000Z');
+      global.Date = class extends originalDate {
+        constructor(...args) {
+          if (args.length === 0) {
+            return new originalDate(mockDate);
+          }
+          return new originalDate(...args);
+        }
+        static now() {
+          return mockDate.getTime();
+        }
+      };
+
+
+
+      // Mock database responses for planMyDay
+      mockQuery.mockImplementation((query) => {
+        if (query.includes('SELECT * FROM tasks')) {
+          return [
+            {
+              id: 'task-1',
+              name: 'Task 1',
+              description: 'Description 1',
+              duration: 30,
+              due_date: '2023-01-01',
+              project_id: 'project-1',
+              dependencies: '[]',
+              status: STATUS.PLANNING,
+              labels: '[]',
+              priority: PRIORITY.HIGH,
+              created_at: '2023-01-01T00:00:00.000Z',
+              updated_at: '2023-01-01T00:00:00.000Z',
+              planned_time: null,
+            },
+          ];
+        }
+        return [];
+      });
+
+      mockUpdate.mockReturnValue({ changes: 1 });
+
+      const workingHours = {
+        startTime: '10:00',
+        endTime: '17:00',
+      };
+
+      // Call planMyDay with old format (should default to 0 buffer time)
+      const result = await taskManager.planMyDay(workingHours);
+
+      // Restore original Date
+      global.Date = originalDate;
+
+      // Verify results
+      expect(result).toBeDefined();
+      expect(result.scheduled).toHaveLength(1);
+      expect(result.scheduled[0].id).toBe('task-1');
     });
   });
 });

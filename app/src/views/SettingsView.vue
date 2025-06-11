@@ -82,7 +82,7 @@
 
     <!-- Working Hours Settings -->
     <div class="bg-white p-6 rounded-lg shadow-md mb-6">
-      <h2 class="text-xl font-semibold mb-4">Working Hours</h2>
+      <h2 class="text-xl font-semibold mb-4">Working Hours & Task Scheduling</h2>
 
       <form class="space-y-4" @submit.prevent="saveWorkingHours">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -111,12 +111,30 @@
           </div>
         </div>
 
+        <div class="form-group">
+          <label for="bufferTime" class="block text-sm font-medium text-gray-700 mb-1"
+            >Buffer Time Between Tasks (minutes)</label
+          >
+          <input
+            id="bufferTime"
+            v-model.number="bufferTime"
+            type="number"
+            min="0"
+            max="120"
+            class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            placeholder="10"
+          />
+          <p class="text-xs text-gray-500 mt-1">
+            Time buffer added between scheduled tasks (0-120 minutes)
+          </p>
+        </div>
+
         <div class="flex items-center justify-between">
           <button
             type="submit"
             class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-700"
           >
-            Save Working Hours
+            Save Preferences
           </button>
 
           <div
@@ -160,6 +178,7 @@ export default {
     // Working hours settings
     const startTime = ref('10:00');
     const endTime = ref('19:00');
+    const bufferTime = ref(10);
     const workingHoursSaveStatus = ref('');
     const workingHoursStatusMessage = ref('');
 
@@ -176,6 +195,7 @@ export default {
       store.dispatch('preferences/loadPreferences').then(() => {
         startTime.value = store.getters['preferences/startTime'] || '10:00';
         endTime.value = store.getters['preferences/endTime'] || '19:00';
+        bufferTime.value = store.getters['preferences/bufferTime'] || 10;
       });
     });
 
@@ -210,17 +230,28 @@ export default {
     // Save working hours settings
     const saveWorkingHours = async () => {
       try {
-        const success = await store.dispatch('preferences/updateWorkingHours', {
+        // Validate buffer time
+        if (bufferTime.value < 0 || bufferTime.value > 120) {
+          workingHoursSaveStatus.value = 'error';
+          workingHoursStatusMessage.value = 'Buffer time must be between 0 and 120 minutes.';
+          return;
+        }
+
+        // Save working hours
+        const workingHoursSuccess = await store.dispatch('preferences/updateWorkingHours', {
           startTime: startTime.value,
           endTime: endTime.value,
         });
 
-        if (success) {
+        // Save buffer time
+        const bufferTimeSuccess = await store.dispatch('preferences/updateBufferTime', bufferTime.value);
+
+        if (workingHoursSuccess && bufferTimeSuccess) {
           workingHoursSaveStatus.value = 'success';
-          workingHoursStatusMessage.value = 'Working hours saved successfully!';
+          workingHoursStatusMessage.value = 'Settings saved successfully!';
         } else {
           workingHoursSaveStatus.value = 'error';
-          workingHoursStatusMessage.value = 'Failed to save working hours.';
+          workingHoursStatusMessage.value = 'Failed to save settings.';
         }
       } catch (error) {
         workingHoursSaveStatus.value = 'error';
@@ -244,6 +275,7 @@ export default {
 
       startTime,
       endTime,
+      bufferTime,
       saveWorkingHours,
       workingHoursSaveStatus,
       workingHoursStatusMessage,

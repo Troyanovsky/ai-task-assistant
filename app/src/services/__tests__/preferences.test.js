@@ -12,6 +12,7 @@ vi.mock('electron-store', () => {
             startTime: '10:00',
             endTime: '19:00',
           },
+          bufferTime: 10,
         };
       }
 
@@ -93,6 +94,7 @@ describe('Preferences Service', () => {
           startTime: '10:00',
           endTime: '19:00',
         },
+        bufferTime: 10,
       });
     });
   });
@@ -126,6 +128,54 @@ describe('Preferences Service', () => {
 
     it('should reject invalid object format', () => {
       const result = preferencesService.updateWorkingHours('not an object');
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('updateBufferTime', () => {
+    it('should update buffer time with valid value', () => {
+      const result = preferencesService.updateBufferTime(15);
+
+      expect(result).toBe(true);
+
+      // Verify the preferences were updated
+      const preferences = preferencesService.getPreferences();
+      expect(preferences.bufferTime).toBe(15);
+    });
+
+    it('should accept minimum value (0)', () => {
+      const result = preferencesService.updateBufferTime(0);
+
+      expect(result).toBe(true);
+
+      const preferences = preferencesService.getPreferences();
+      expect(preferences.bufferTime).toBe(0);
+    });
+
+    it('should accept maximum value (120)', () => {
+      const result = preferencesService.updateBufferTime(120);
+
+      expect(result).toBe(true);
+
+      const preferences = preferencesService.getPreferences();
+      expect(preferences.bufferTime).toBe(120);
+    });
+
+    it('should reject negative values', () => {
+      const result = preferencesService.updateBufferTime(-5);
+
+      expect(result).toBe(false);
+    });
+
+    it('should reject values over 120', () => {
+      const result = preferencesService.updateBufferTime(150);
+
+      expect(result).toBe(false);
+    });
+
+    it('should reject non-number values', () => {
+      const result = preferencesService.updateBufferTime('not a number');
 
       expect(result).toBe(false);
     });

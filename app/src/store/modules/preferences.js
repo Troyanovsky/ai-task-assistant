@@ -6,6 +6,7 @@ const state = {
     startTime: '10:00',
     endTime: '19:00',
   },
+  bufferTime: 10,
   loading: false,
   error: null,
 };
@@ -15,6 +16,7 @@ const getters = {
   workingHours: (state) => state.workingHours,
   startTime: (state) => state.workingHours.startTime,
   endTime: (state) => state.workingHours.endTime,
+  bufferTime: (state) => state.bufferTime,
   isLoading: (state) => state.loading,
   error: (state) => state.error,
 };
@@ -28,6 +30,7 @@ const actions = {
     try {
       const preferences = await window.electron.getPreferences();
       commit('setWorkingHours', preferences.workingHours);
+      commit('setBufferTime', preferences.bufferTime);
       return true;
     } catch (error) {
       logger.logError(error, 'Error loading preferences');
@@ -59,12 +62,37 @@ const actions = {
       commit('setLoading', false);
     }
   },
+
+  async updateBufferTime({ commit }, bufferTime) {
+    commit('setLoading', true);
+    commit('setError', null);
+
+    try {
+      const success = await window.electron.updateBufferTime(bufferTime);
+
+      if (success) {
+        commit('setBufferTime', bufferTime);
+        return true;
+      } else {
+        throw new Error('Failed to update buffer time');
+      }
+    } catch (error) {
+      logger.logError(error, 'Error updating buffer time');
+      commit('setError', 'Failed to update buffer time');
+      return false;
+    } finally {
+      commit('setLoading', false);
+    }
+  },
 };
 
 // Mutations
 const mutations = {
   setWorkingHours(state, workingHours) {
     state.workingHours = workingHours;
+  },
+  setBufferTime(state, bufferTime) {
+    state.bufferTime = bufferTime;
   },
   setLoading(state, loading) {
     state.loading = loading;
