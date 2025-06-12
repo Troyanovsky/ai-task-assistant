@@ -34,23 +34,26 @@
       + Add Task
     </div>
 
-    <!-- Task Form Dialog -->
-    <div v-if="showAddTaskForm" class="mb-4 p-3 bg-white rounded shadow-md">
-      <task-form
-        :project-id="selectedProject ? selectedProject.id : null"
-        @save="addTask"
-        @cancel="showAddTaskForm = false"
-      />
-    </div>
-
-    <!-- Task Edit Dialog -->
-    <div v-if="editingTask" class="mb-4 p-3 bg-white rounded shadow-md">
-      <task-form
-        :task="editingTask"
-        :project-id="selectedProject ? selectedProject.id : null"
-        @save="updateTask"
-        @cancel="editingTask = null"
-      />
+    <!-- Task Form Modal -->
+    <div
+      v-if="showAddTaskForm || editingTask"
+      class="fixed inset-0 bg-gray-600/50 flex items-center justify-center z-50 p-4"
+    >
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-6">
+        <task-form
+          v-if="showAddTaskForm"
+          :project-id="selectedProject ? selectedProject.id : null"
+          @save="addTask"
+          @cancel="showAddTaskForm = false"
+        />
+        <task-form
+          v-else-if="editingTask"
+          :task="editingTask"
+          :project-id="selectedProject ? selectedProject.id : null"
+          @save="updateTask"
+          @cancel="editingTask = null"
+        />
+      </div>
     </div>
 
     <!-- Tasks List -->
