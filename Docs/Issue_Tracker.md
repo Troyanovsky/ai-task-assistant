@@ -4,22 +4,12 @@ Issues:
 - P1: Recurrence is not implemented. (Need to design recurrence logic & UI)
 
 **app/src/services/notification.js:**
-
-11. **Singleton**: While using a singleton is a common pattern, consider whether it's truly necessary. Dependency injection might offer more flexibility for testing and future extensions.
-12. **Notification Content**: The `getDefaultMessage` function could be extended to support more dynamic messages or allow customization.
-13. **Electron Notification**: The `ipcMain.emit` calls within `sendNotification` should be reviewed. It's generally recommended to use `webContents.send` for sending messages to the renderer process.
-14. **Notification Scheduling**: Ensure that the notification scheduling mechanism is robust and handles edge cases like system clock changes or app restarts gracefully.
+- **Electron Notification**: The `ipcMain.emit` calls within `sendNotification` should be reviewed. It's generally recommended to use `webContents.send` for sending messages to the renderer process.
+- **Notification Scheduling**: Ensure that the notification scheduling mechanism is robust and handles edge cases like system clock changes or app restarts gracefully.
 
 **app/src/services/project.js:**
-
-15. **Error Handling**: Add more specific error handling for database operations.
-16. **Search**: Consider adding pagination to the `searchProjects` function to handle large datasets.
+- **Error Handling**: Add more specific error handling for database operations.
 
 **app/src/services/task.js:**
-
-17. **Data Validation**: Improve data validation for task properties, especially around date and time formats.
-18. **Circular Dependencies**: Be mindful of potential circular dependencies between `task.js` and `notification.js` when deleting tasks and associated notifications.
-19. **Date Handling**: Standardize date handling across the service to avoid inconsistencies.
-20. **Prioritization**: The `prioritizeTasks` function could be optimized for performance, especially if the number of tasks grows large. Consider using a more efficient sorting algorithm or data structure.
-
-These suggestions aim to improve the codebase's maintainability, robustness, and scalability. They cover aspects from code structure and error handling to data validation and performance optimization.
+- **Data Validation**: Improve data validation for task properties, especially around date and time formats.
+- **Circular Dependencies**: Be mindful of potential circular dependencies between `task.js` and `notification.js` when deleting tasks and associated notifications.

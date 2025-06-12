@@ -110,7 +110,7 @@ export default {
 <style scoped>
 textarea {
   min-height: 42px;
-  max-height: 150px;
+  max-height: 100px;
   overflow-y: auto;
 }
 </style>

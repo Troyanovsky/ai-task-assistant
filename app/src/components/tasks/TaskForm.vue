@@ -240,7 +240,6 @@
 <script>
 import { reactive, onMounted, ref, computed } from 'vue';
 import { TYPE } from '../../models/Notification';
-import { Notification } from '../../models/Notification';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '../../services/logger';
 
@@ -288,9 +287,6 @@ export default {
 
     // Track notifications to be deleted (existing ones)
     const notificationsToDelete = ref([]);
-
-    // Track the planned time notification specifically
-    const plannedTimeNotification = ref(null);
 
     // Check if planned time is after due date
     const isPlannedTimeAfterDueDate = computed(() => {
@@ -499,13 +495,7 @@ export default {
                 };
               });
 
-            // Check if there's a planned time notification
-            const plannedNotification = existingNotifications.find(
-              (n) => n.type === 'PLANNED_TIME'
-            );
-            if (plannedNotification) {
-              plannedTimeNotification.value = plannedNotification;
-            }
+            // Note: Planned time notifications are now handled automatically by the task service
 
             logger.info('Formatted notifications for UI:', notifications.value);
           }
@@ -569,7 +559,6 @@ export default {
 
         // Reset form data immediately
         const taskName = taskData.name; // Keep a reference to the task name for notifications
-        const plannedTimeValue = taskData.plannedTime; // Keep reference to planned time
         formData.name = '';
         formData.description = '';
         formData.dueDate = '';
@@ -586,24 +575,7 @@ export default {
           if (savedTaskId) {
             logger.info(`Task saved with ID: ${savedTaskId}, now saving notifications`);
 
-            // First create planned time notification if set
-            if (plannedTimeValue) {
-              try {
-                const plannedNotificationData = {
-                  task_id: savedTaskId,
-                  taskId: savedTaskId,
-                  time: plannedTimeValue,
-                  type: 'PLANNED_TIME',
-                  message: `It's time to work on: ${taskName}`,
-                };
-
-                logger.info('Saving planned time notification:', plannedNotificationData);
-
-                await window.electron.addNotification(plannedNotificationData);
-              } catch (error) {
-                logger.error('Error saving planned time notification:', error);
-              }
-            }
+            // Note: Planned time notifications are now handled automatically by the task service
 
             // Process the pending notifications with the new task ID
             for (const notification of pendingNotifications) {
@@ -648,50 +620,7 @@ export default {
       }
     };
 
-    // Helper function to handle planned time notification
-    const handlePlannedTimeNotification = async (taskId, taskName, plannedTime) => {
-      if (plannedTime) {
-        try {
-          // Check if we already have a planned time notification
-          if (plannedTimeNotification.value) {
-            // Update existing planned time notification
-            const updateData = {
-              id: plannedTimeNotification.value.id,
-              task_id: taskId,
-              taskId: taskId,
-              time: plannedTime,
-              type: 'PLANNED_TIME',
-              message: `It's time to work on: ${taskName}`,
-            };
-
-            logger.info('Updating planned time notification:', updateData);
-            await window.electron.updateNotification(updateData);
-          } else {
-            // Create new planned time notification
-            const notificationData = {
-              task_id: taskId,
-              taskId: taskId,
-              time: plannedTime,
-              type: 'PLANNED_TIME',
-              message: `It's time to work on: ${taskName}`,
-            };
-
-            logger.info('Creating new planned time notification:', notificationData);
-            await window.electron.addNotification(notificationData);
-          }
-        } catch (error) {
-          logger.error('Error handling planned time notification:', error);
-        }
-      } else if (plannedTimeNotification.value) {
-        // If planned time was removed but we had a notification, delete it
-        try {
-          logger.info(`Deleting planned time notification: ${plannedTimeNotification.value.id}`);
-          await window.electron.deleteNotification(plannedTimeNotification.value.id);
-        } catch (error) {
-          logger.error('Error deleting planned time notification:', error);
-        }
-      }
-    };
+    // Note: Planned time notification handling has been moved to the task service
 
     // Helper function to handle deletion of existing notifications
     const deleteRemovedNotifications = async () => {
@@ -776,7 +705,7 @@ export default {
       logger.info(`Notifications to save: ${notifications.value.length}`);
       logger.info(`Planned time: ${plannedTime}`);
 
-      await handlePlannedTimeNotification(taskId, taskName, plannedTime);
+      // Note: Planned time notifications are now handled automatically by the task service
       await deleteRemovedNotifications();
       await saveReminderNotifications(taskId, taskName);
     };

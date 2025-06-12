@@ -31,6 +31,7 @@ Setting up the AI assistant is simple:
 - API key: lm-studio  
 - API URL: [http://localhost:1234/v1/chat/completions](http://localhost:1234/v1/chat/completions)  
 - Model name: qwen/qwen3-4b 
+(qwen3-4b is tested and works well with thinking mode, but may be slower than non-thinking mode with `/no_think` tag.)  
 
 ### OpenAI Configuration Example
 

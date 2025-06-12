@@ -208,6 +208,22 @@ class TaskManager {
 
       logger.info('Task insert result:', result);
       if (result && result.changes > 0) {
+        // Handle planned time notification for new task if plannedTime is provided
+        if (data.planned_time) {
+          try {
+            await this._handlePlannedTimeNotificationUpdate(
+              data.id,
+              data.name,
+              null, // no old planned time for new task
+              data.planned_time
+            );
+            logger.info(`Planned time notification handled for new task ${data.id}`);
+          } catch (notificationError) {
+            logger.error(`Error handling planned time notification for new task ${data.id}:`, notificationError);
+            // Don't fail the task creation if notification fails
+          }
+        }
+
         // Return the task data with ID so it can be used for notifications
         return data;
       }
@@ -234,6 +250,9 @@ class TaskManager {
         return false;
       }
 
+      // Store the old planned time for comparison
+      const oldPlannedTime = existingTask.plannedTime;
+
       // Preserve project ID from existing task if not provided in update
       if (!taskData.projectId && !taskData.project_id) {
         taskData.projectId = existingTask.projectId;
@@ -246,8 +265,11 @@ class TaskManager {
       });
 
       // Make sure project_id is correctly set for database
-      if (!task.project_id && task.projectId) {
-        task.project_id = task.projectId;
+      const taskDbData = task.toDatabase();
+      if (!taskDbData.project_id && task.projectId) {
+        taskDbData.project_id = task.projectId;
+        // Update the task instance with the corrected data
+        task.projectId = taskDbData.project_id;
       }
 
       // Validate the task
@@ -257,16 +279,16 @@ class TaskManager {
         return false;
       }
 
-      const data = task.toDatabase();
+      const data = taskDbData;
       logger.info('Updating task with database data:', data);
       logger.info('Database due_date:', data.due_date);
       logger.info('Database planned_time:', data.planned_time);
 
       const result = databaseService.update(
-        `UPDATE tasks SET 
+        `UPDATE tasks SET
           name = ?, description = ?, duration = ?, due_date = ?, planned_time = ?,
-          project_id = ?, dependencies = ?, status = ?, labels = ?, 
-          priority = ?, updated_at = ? 
+          project_id = ?, dependencies = ?, status = ?, labels = ?,
+          priority = ?, updated_at = ?
         WHERE id = ?`,
         [
           data.name,
@@ -284,10 +306,119 @@ class TaskManager {
         ]
       );
 
-      return result && result.changes > 0;
+      if (result && result.changes > 0) {
+        // Handle planned time notification changes
+        await this._handlePlannedTimeNotificationUpdate(
+          data.id,
+          data.name,
+          oldPlannedTime,
+          data.planned_time
+        );
+        return true;
+      }
+
+      return false;
     } catch (error) {
       logger.error(`Error updating task ${taskData.id}:`, error);
       return false;
+    }
+  }
+
+  /**
+   * Handle planned time notification updates when a task's planned time changes
+   * @param {string} taskId - Task ID
+   * @param {string} taskName - Task name
+   * @param {string|Date|null} oldPlannedTime - Previous planned time
+   * @param {string|Date|null} newPlannedTime - New planned time
+   * @private
+   */
+  async _handlePlannedTimeNotificationUpdate(taskId, taskName, oldPlannedTime, newPlannedTime) {
+    try {
+      logger.info(`Handling planned time notification update for task ${taskId}`);
+      logger.info(`Old planned time: ${oldPlannedTime}`);
+      logger.info(`New planned time: ${newPlannedTime}`);
+
+      // Get existing planned time notifications for this task
+      const existingNotifications = await notificationService.getNotificationsByTask(taskId);
+      const plannedTimeNotifications = existingNotifications.filter(n => n.type === 'PLANNED_TIME');
+
+      // Case 1: No planned time before or after - nothing to do
+      if (!oldPlannedTime && !newPlannedTime) {
+        return;
+      }
+
+      // Case 2: Had planned time before, but not anymore - delete existing notifications
+      if (oldPlannedTime && !newPlannedTime) {
+        for (const notification of plannedTimeNotifications) {
+          await notificationService.deleteNotification(notification.id);
+          logger.info(`Deleted planned time notification ${notification.id} for task ${taskId}`);
+        }
+        return;
+      }
+
+      // Case 3: No planned time before, but has one now - create new notification
+      if (!oldPlannedTime && newPlannedTime) {
+        const notificationData = {
+          task_id: taskId,
+          taskId: taskId,
+          time: newPlannedTime,
+          type: 'PLANNED_TIME',
+          message: `It's time to work on: ${taskName}`,
+        };
+
+        await notificationService.addNotification(notificationData);
+        logger.info(`Created new planned time notification for task ${taskId} at ${newPlannedTime}`);
+        return;
+      }
+
+      // Case 4: Had planned time before and has one now - update existing or create new
+      if (oldPlannedTime && newPlannedTime) {
+        // Convert times to comparable format
+        const oldTime = new Date(oldPlannedTime).getTime();
+        const newTime = new Date(newPlannedTime).getTime();
+
+        // If times are the same, no need to update
+        if (oldTime === newTime) {
+          return;
+        }
+
+        // Update existing notification or create new one if none exists
+        if (plannedTimeNotifications.length > 0) {
+          // Update the first notification and delete any extras
+          const notificationToUpdate = plannedTimeNotifications[0];
+          const updateData = {
+            id: notificationToUpdate.id,
+            task_id: taskId,
+            taskId: taskId,
+            time: newPlannedTime,
+            type: 'PLANNED_TIME',
+            message: `It's time to work on: ${taskName}`,
+          };
+
+          await notificationService.updateNotification(updateData);
+          logger.info(`Updated planned time notification ${notificationToUpdate.id} for task ${taskId} to ${newPlannedTime}`);
+
+          // Delete any extra notifications (there should only be one planned time notification per task)
+          for (let i = 1; i < plannedTimeNotifications.length; i++) {
+            await notificationService.deleteNotification(plannedTimeNotifications[i].id);
+            logger.info(`Deleted duplicate planned time notification ${plannedTimeNotifications[i].id} for task ${taskId}`);
+          }
+        } else {
+          // No existing notification, create a new one
+          const notificationData = {
+            task_id: taskId,
+            taskId: taskId,
+            time: newPlannedTime,
+            type: 'PLANNED_TIME',
+            message: `It's time to work on: ${taskName}`,
+          };
+
+          await notificationService.addNotification(notificationData);
+          logger.info(`Created new planned time notification for task ${taskId} at ${newPlannedTime}`);
+        }
+      }
+    } catch (error) {
+      logger.error(`Error handling planned time notification update for task ${taskId}:`, error);
     }
   }
 
