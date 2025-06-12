@@ -117,14 +117,116 @@ class ProjectManager {
   }
 
   /**
-   * Delete a project
+   * Check if a project can be safely deleted
    * @param {string} id - Project ID
+   * @returns {Object} - Validation result with canDelete flag and details
+   */
+  async validateProjectDeletion(id) {
+    try {
+      const project = await this.getProjectById(id);
+      if (!project) {
+        return {
+          canDelete: false,
+          reason: 'Project not found',
+          details: null
+        };
+      }
+
+      // Get all tasks belonging to this project
+      const taskManager = (await import('./task.js')).default;
+      const projectTasks = await taskManager.getTasksByProject(id);
+
+      // Count tasks by status
+      const taskCounts = {
+        total: projectTasks.length,
+        planning: projectTasks.filter(t => t.status === 'planning').length,
+        doing: projectTasks.filter(t => t.status === 'doing').length,
+        done: projectTasks.filter(t => t.status === 'done').length
+      };
+
+      return {
+        canDelete: true,
+        reason: null,
+        details: {
+          projectName: project.name,
+          taskCounts,
+          tasks: projectTasks.map(t => ({ id: t.id, name: t.name, status: t.status }))
+        }
+      };
+    } catch (error) {
+      logger.error(`Error validating project deletion for ${id}:`, error);
+      return {
+        canDelete: false,
+        reason: 'Error during validation',
+        details: null
+      };
+    }
+  }
+
+  /**
+   * Delete a project and all its associated data
+   * @param {string} id - Project ID
+   * @param {boolean} force - Force deletion without validation (default: false)
    * @returns {boolean} - Success status
    */
-  async deleteProject(id) {
+  async deleteProject(id, force = false) {
     try {
+      // Validate deletion unless forced
+      if (!force) {
+        const validation = await this.validateProjectDeletion(id);
+        if (!validation.canDelete) {
+          logger.error(`Cannot delete project ${id}: ${validation.reason}`);
+          return false;
+        }
+
+        // Log what will be deleted
+        if (validation.details && validation.details.taskCounts.total > 0) {
+          logger.info(`Preparing to delete project "${validation.details.projectName}" with ${validation.details.taskCounts.total} tasks:`);
+          logger.info(`- Planning: ${validation.details.taskCounts.planning}`);
+          logger.info(`- Doing: ${validation.details.taskCounts.doing}`);
+          logger.info(`- Done: ${validation.details.taskCounts.done}`);
+        }
+      }
+
+      // Get project and tasks for deletion
+      const project = await this.getProjectById(id);
+      if (!project) {
+        logger.error(`Project ${id} not found for deletion`);
+        return false;
+      }
+
+      const taskManager = (await import('./task.js')).default;
+      const projectTasks = await taskManager.getTasksByProject(id);
+
+      logger.info(`Found ${projectTasks.length} tasks to delete for project ${id}`);
+
+      // Delete all tasks and their associated data
+      // This will handle notifications, recurrence rules, and other task-related cleanup
+      let deletedTasksCount = 0;
+      for (const task of projectTasks) {
+        try {
+          const taskDeleted = await taskManager.deleteTask(task.id);
+          if (taskDeleted) {
+            deletedTasksCount++;
+          } else {
+            logger.warn(`Failed to delete task ${task.id} for project ${id}`);
+          }
+        } catch (taskError) {
+          logger.error(`Error deleting task ${task.id} for project ${id}:`, taskError);
+          // Continue with other tasks even if one fails
+        }
+      }
+
+      // Now delete the project itself
       const result = databaseService.delete('DELETE FROM projects WHERE id = ?', [id]);
-      return result && result.changes > 0;
+
+      if (result && result.changes > 0) {
+        logger.info(`Successfully deleted project ${id} and ${deletedTasksCount}/${projectTasks.length} associated tasks`);
+        return true;
+      } else {
+        logger.error(`Failed to delete project ${id} from database`);
+        return false;
+      }
     } catch (error) {
       logger.error(`Error deleting project ${id}:`, error);
       return false;

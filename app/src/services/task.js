@@ -436,7 +436,7 @@ class TaskManager {
   }
 
   /**
-   * Delete a task
+   * Delete a task and all its associated data
    * @param {string} id - Task ID
    * @returns {boolean} - Success status
    */
@@ -455,14 +455,47 @@ class TaskManager {
         for (const notification of notifications) {
           await notificationService.deleteNotification(notification.id);
         }
+        logger.info(`Deleted ${notifications.length} notifications for task ${id}`);
       } catch (notificationError) {
         logger.error(`Error deleting notifications for task ${id}:`, notificationError);
         // Continue with task deletion even if notification deletion fails
       }
 
+      // Delete associated recurrence rules
+      try {
+        const recurrenceRules = databaseService.query(
+          'SELECT * FROM recurrence_rules WHERE task_id = ?',
+          [id]
+        );
+
+        for (const rule of recurrenceRules) {
+          const deleteResult = databaseService.delete(
+            'DELETE FROM recurrence_rules WHERE id = ?',
+            [rule.id]
+          );
+          if (deleteResult && deleteResult.changes > 0) {
+            logger.info(`Deleted recurrence rule ${rule.id} for task ${id}`);
+          }
+        }
+
+        if (recurrenceRules.length > 0) {
+          logger.info(`Deleted ${recurrenceRules.length} recurrence rules for task ${id}`);
+        }
+      } catch (recurrenceError) {
+        logger.error(`Error deleting recurrence rules for task ${id}:`, recurrenceError);
+        // Continue with task deletion even if recurrence rule deletion fails
+      }
+
       // Delete the task
       const result = databaseService.delete('DELETE FROM tasks WHERE id = ?', [id]);
-      return result && result.changes > 0;
+
+      if (result && result.changes > 0) {
+        logger.info(`Successfully deleted task ${id} and all associated data`);
+        return true;
+      } else {
+        logger.error(`Failed to delete task ${id} from database`);
+        return false;
+      }
     } catch (error) {
       logger.error(`Error deleting task ${id}:`, error);
       return false;

@@ -75,7 +75,7 @@
                 >
                   Edit Task
                 </a>
-                <div class="relative">
+                <div v-if="availableProjects.length > 0" class="relative">
                   <a
                     class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
                     @click.stop="showMoveOptions = !showMoveOptions"

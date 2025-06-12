@@ -418,27 +418,51 @@ describe('TaskManager', () => {
   });
 
   describe('deleteTask', () => {
-    it('should delete a task and its associated notifications successfully', async () => {
+    it('should delete a task and its associated notifications and recurrence rules successfully', async () => {
       // Mock notifications for the task
       const mockNotifications = [
         { id: 'notif-1', taskId: 'task-1' },
         { id: 'notif-2', taskId: 'task-1' },
       ];
 
+      // Mock recurrence rules for the task
+      const mockRecurrenceRules = [
+        { id: 'rule-1', task_id: 'task-1', frequency: 'daily' },
+        { id: 'rule-2', task_id: 'task-1', frequency: 'weekly' },
+      ];
+
       // Setup mocks
       databaseService.queryOne.mockReturnValue(mockTasks[0]); // Mock getTaskById
       notificationService.getNotificationsByTask.mockResolvedValue(mockNotifications);
       notificationService.deleteNotification.mockResolvedValue(true);
-      databaseService.delete.mockReturnValue({ changes: 1 });
+
+      // Mock recurrence rules query and deletion
+      databaseService.query.mockReturnValue(mockRecurrenceRules);
+      databaseService.delete
+        .mockReturnValueOnce({ changes: 1 }) // First recurrence rule deletion
+        .mockReturnValueOnce({ changes: 1 }) // Second recurrence rule deletion
+        .mockReturnValueOnce({ changes: 1 }); // Task deletion
 
       const result = await taskManager.deleteTask('task-1');
 
-      // Verify notifications were fetched
+      // Verify notifications were fetched and deleted
       expect(notificationService.getNotificationsByTask).toHaveBeenCalledWith('task-1');
-
-      // Verify each notification was deleted
       expect(notificationService.deleteNotification).toHaveBeenCalledWith('notif-1');
       expect(notificationService.deleteNotification).toHaveBeenCalledWith('notif-2');
+
+      // Verify recurrence rules were fetched and deleted
+      expect(databaseService.query).toHaveBeenCalledWith(
+        'SELECT * FROM recurrence_rules WHERE task_id = ?',
+        ['task-1']
+      );
+      expect(databaseService.delete).toHaveBeenCalledWith(
+        'DELETE FROM recurrence_rules WHERE id = ?',
+        ['rule-1']
+      );
+      expect(databaseService.delete).toHaveBeenCalledWith(
+        'DELETE FROM recurrence_rules WHERE id = ?',
+        ['rule-2']
+      );
 
       // Verify task was deleted
       expect(databaseService.delete).toHaveBeenCalledWith('DELETE FROM tasks WHERE id = ?', [
@@ -448,10 +472,11 @@ describe('TaskManager', () => {
       expect(result).toBe(true);
     });
 
-    it('should handle case with no associated notifications', async () => {
-      // Mock no notifications for the task
+    it('should handle case with no associated notifications or recurrence rules', async () => {
+      // Mock no notifications or recurrence rules for the task
       databaseService.queryOne.mockReturnValue(mockTasks[0]); // Mock getTaskById
       notificationService.getNotificationsByTask.mockResolvedValue([]);
+      databaseService.query.mockReturnValue([]); // No recurrence rules
       databaseService.delete.mockReturnValue({ changes: 1 });
 
       const result = await taskManager.deleteTask('task-1');
@@ -461,6 +486,12 @@ describe('TaskManager', () => {
 
       // Verify no notifications were deleted
       expect(notificationService.deleteNotification).not.toHaveBeenCalled();
+
+      // Verify recurrence rules were fetched
+      expect(databaseService.query).toHaveBeenCalledWith(
+        'SELECT * FROM recurrence_rules WHERE task_id = ?',
+        ['task-1']
+      );
 
       // Verify task was deleted
       expect(databaseService.delete).toHaveBeenCalledWith('DELETE FROM tasks WHERE id = ?', [
@@ -498,11 +529,38 @@ describe('TaskManager', () => {
       notificationService.getNotificationsByTask.mockRejectedValue(
         new Error('Failed to get notifications')
       );
+      databaseService.query.mockReturnValue([]); // No recurrence rules
       databaseService.delete.mockReturnValue({ changes: 1 });
 
       const result = await taskManager.deleteTask('task-1');
 
       // Verify task was still deleted despite notification error
+      expect(databaseService.delete).toHaveBeenCalledWith('DELETE FROM tasks WHERE id = ?', [
+        'task-1',
+      ]);
+
+      expect(result).toBe(true);
+    });
+
+    it('should continue with task deletion even if recurrence rule deletion fails', async () => {
+      // Mock recurrence rules for the task
+      const mockRecurrenceRules = [
+        { id: 'rule-1', task_id: 'task-1', frequency: 'daily' },
+      ];
+
+      // Setup mocks
+      databaseService.queryOne.mockReturnValue(mockTasks[0]); // Mock getTaskById
+      notificationService.getNotificationsByTask.mockResolvedValue([]);
+      databaseService.query.mockReturnValue(mockRecurrenceRules);
+      databaseService.delete
+        .mockImplementationOnce(() => {
+          throw new Error('Recurrence rule deletion error');
+        })
+        .mockReturnValueOnce({ changes: 1 }); // Task deletion succeeds
+
+      const result = await taskManager.deleteTask('task-1');
+
+      // Verify task was still deleted despite recurrence rule error
       expect(databaseService.delete).toHaveBeenCalledWith('DELETE FROM tasks WHERE id = ?', [
         'task-1',
       ]);
