@@ -144,6 +144,63 @@ class DataIntegrityService {
   }
 
   /**
+   * Deletes orphaned notifications.
+   * @param {Array} orphanedNotifications - Array of orphaned notification records.
+   * @param {Object} results - Object to store cleanup results.
+   * @private
+   */
+  _deleteOrphanedNotifications(orphanedNotifications, results) {
+    for (const notification of orphanedNotifications) {
+      try {
+        const result = databaseService.delete('DELETE FROM notifications WHERE id = ?', [notification.id]);
+        if (result && result.changes > 0) {
+          results.deletedNotifications++;
+        }
+      } catch (error) {
+        results.errors.push(`Failed to delete notification ${notification.id}: ${error.message}`);
+      }
+    }
+  }
+
+  /**
+   * Deletes orphaned recurrence rules.
+   * @param {Array} orphanedRecurrenceRules - Array of orphaned recurrence rule records.
+   * @param {Object} results - Object to store cleanup results.
+   * @private
+   */
+  _deleteOrphanedRecurrenceRules(orphanedRecurrenceRules, results) {
+    for (const rule of orphanedRecurrenceRules) {
+      try {
+        const result = databaseService.delete('DELETE FROM recurrence_rules WHERE id = ?', [rule.id]);
+        if (result && result.changes > 0) {
+          results.deletedRecurrenceRules++;
+        }
+      } catch (error) {
+        results.errors.push(`Failed to delete recurrence rule ${rule.id}: ${error.message}`);
+      }
+    }
+  }
+
+  /**
+   * Deletes orphaned tasks.
+   * @param {Array} orphanedTasks - Array of orphaned task records.
+   * @param {Object} results - Object to store cleanup results.
+   * @private
+   */
+  _deleteOrphanedTasks(orphanedTasks, results) {
+    for (const task of orphanedTasks) {
+      try {
+        const result = databaseService.delete('DELETE FROM tasks WHERE id = ?', [task.id]);
+        if (result && result.changes > 0) {
+          results.deletedTasks++;
+        }
+      } catch (error) {
+        results.errors.push(`Failed to delete task ${task.id}: ${error.message}`);
+      }
+    }
+  }
+
+  /**
    * Clean up orphaned data (use with caution!)
    * @param {Object} options - Cleanup options
    * @returns {Object} - Cleanup results
@@ -166,40 +223,13 @@ class DataIntegrityService {
 
       if (!options.dryRun) {
         // Delete orphaned notifications
-        for (const notification of orphanedNotifications) {
-          try {
-            const result = databaseService.delete('DELETE FROM notifications WHERE id = ?', [notification.id]);
-            if (result && result.changes > 0) {
-              results.deletedNotifications++;
-            }
-          } catch (error) {
-            results.errors.push(`Failed to delete notification ${notification.id}: ${error.message}`);
-          }
-        }
+        this._deleteOrphanedNotifications(orphanedNotifications, results);
 
         // Delete orphaned recurrence rules
-        for (const rule of orphanedRecurrenceRules) {
-          try {
-            const result = databaseService.delete('DELETE FROM recurrence_rules WHERE id = ?', [rule.id]);
-            if (result && result.changes > 0) {
-              results.deletedRecurrenceRules++;
-            }
-          } catch (error) {
-            results.errors.push(`Failed to delete recurrence rule ${rule.id}: ${error.message}`);
-          }
-        }
+        this._deleteOrphanedRecurrenceRules(orphanedRecurrenceRules, results);
 
         // Delete orphaned tasks
-        for (const task of orphanedTasks) {
-          try {
-            const result = databaseService.delete('DELETE FROM tasks WHERE id = ?', [task.id]);
-            if (result && result.changes > 0) {
-              results.deletedTasks++;
-            }
-          } catch (error) {
-            results.errors.push(`Failed to delete task ${task.id}: ${error.message}`);
-          }
-        }
+        this._deleteOrphanedTasks(orphanedTasks, results);
 
         logger.info(`Cleanup completed: ${results.deletedTasks} tasks, ${results.deletedNotifications} notifications, ${results.deletedRecurrenceRules} recurrence rules deleted`);
       } else {

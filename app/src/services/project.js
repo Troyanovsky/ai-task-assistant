@@ -74,7 +74,7 @@ class ProjectManager {
   async addProject(project) {
     try {
       if (!project.validate()) {
-        logger.error('Invalid project data');
+        logger.error('Invalid project data', project.name);
         return false;
       }
 
