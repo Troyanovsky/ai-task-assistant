@@ -131,7 +131,7 @@
 </template>
 
 <script>
-import { ref, computed, watch, onMounted, onBeforeUnmount, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useStore } from 'vuex';
 import { Task } from '../../models/Task.js';
 import TaskItem from './TaskItem.vue';
@@ -168,6 +168,10 @@ export default {
     const missedPlannedTimeCheckInterval = ref(null);
     const planningResult = ref(null);
     const planningInProgress = ref(false);
+
+    // Store references to wrapped listener functions for proper cleanup
+    const wrappedTasksRefreshListener = ref(null);
+    const wrappedNotificationsRefreshListener = ref(null);
     const filters = ref({
       status: 'all',
       priority: 'all',
@@ -245,13 +249,68 @@ export default {
 
     // Tasks to display based on selection
     const displayedTasks = computed(() => {
+      let tasksToDisplay = [];
       if (props.smartProjectType === 'today') {
-        return todayTasks.value;
+        tasksToDisplay = [...todayTasks.value];
       } else if (props.smartProjectType === 'overdue') {
-        return overdueTasks.value;
+        tasksToDisplay = [...overdueTasks.value];
       } else {
-        return filteredTasks.value;
+        tasksToDisplay = [...filteredTasks.value];
       }
+
+      // Sort tasks: Planning/Doing first, then Done
+      return tasksToDisplay.sort((a, b) => {
+        // Group tasks: non-done (planning/doing) vs done
+        const aIsDone = a.status === 'done';
+        const bIsDone = b.status === 'done';
+        
+        // Non-done tasks come before done tasks
+        if (!aIsDone && bIsDone) return -1;
+        if (aIsDone && !bIsDone) return 1;
+
+        // For non-done tasks (both planning/doing)
+        if (!aIsDone && !bIsDone) {
+          // Tasks with due date/planned time come first
+          const aHasDate = a.dueDate || a.plannedTime;
+          const bHasDate = b.dueDate || b.plannedTime;
+          
+          if (aHasDate && !bHasDate) return -1;
+          if (!aHasDate && bHasDate) return 1;
+          
+          // Compare by due date (if available)
+          if (a.dueDate && b.dueDate && a.dueDate !== b.dueDate) {
+            return a.dueDate.localeCompare(b.dueDate);
+          }
+          
+          // Compare by planned time (if available)
+          if (a.plannedTime && b.plannedTime && a.plannedTime !== b.plannedTime) {
+            return new Date(a.plannedTime) - new Date(b.plannedTime);
+          }
+          
+          // For tasks without dates, sort by priority DESC
+          const priorityOrder = { high: 3, medium: 2, low: 1 };
+          return priorityOrder[b.priority] - priorityOrder[a.priority];
+        }
+        
+        // For done tasks
+        if (aIsDone && bIsDone) {
+          // Compare by due date (if available)
+          if (a.dueDate && b.dueDate && a.dueDate !== b.dueDate) {
+            return a.dueDate.localeCompare(b.dueDate);
+          }
+          
+          // Compare by planned time (if available)
+          if (a.plannedTime && b.plannedTime && a.plannedTime !== b.plannedTime) {
+            return new Date(a.plannedTime) - new Date(b.plannedTime);
+          }
+          
+          // Finally, sort by priority DESC
+          const priorityOrder = { high: 3, medium: 2, low: 1 };
+          return priorityOrder[b.priority] - priorityOrder[a.priority];
+        }
+        
+        return 0;
+      });
     });
 
     // Function to check if planned time is in the past but task is not started or completed
@@ -321,13 +380,14 @@ export default {
       // Listen for task refresh events from main process
       try {
         if (window.electron && window.electron.receive) {
-          window.electron.receive('tasks:refresh', async () => {
+          // Set up tasks refresh listener
+          wrappedTasksRefreshListener.value = window.electron.receive('tasks:refresh', async () => {
             logger.info('Received tasks:refresh event');
             await fetchTasks();
           });
 
-          // Listen for notification changes to refresh tasks
-          window.electron.receive('notifications:refresh', async () => {
+          // Set up notifications refresh listener
+          wrappedNotificationsRefreshListener.value = window.electron.receive('notifications:refresh', async () => {
             logger.info('Received notifications:refresh event');
             await fetchTasks();
           });
@@ -345,9 +405,16 @@ export default {
 
       // Remove event listeners when component is unmounted
       try {
-        if (window.electron && window.electron.removeAllListeners) {
-          window.electron.removeAllListeners('tasks:refresh');
-          window.electron.removeAllListeners('notifications:refresh');
+        if (window.electron && window.electron.removeListener) {
+          // Remove specific listeners using their wrapped function references
+          if (wrappedTasksRefreshListener.value) {
+            window.electron.removeListener('tasks:refresh', wrappedTasksRefreshListener.value);
+            wrappedTasksRefreshListener.value = null;
+          }
+          if (wrappedNotificationsRefreshListener.value) {
+            window.electron.removeListener('notifications:refresh', wrappedNotificationsRefreshListener.value);
+            wrappedNotificationsRefreshListener.value = null;
+          }
         }
       } catch (error) {
         logger.logError(error, 'Error removing task refresh listeners');

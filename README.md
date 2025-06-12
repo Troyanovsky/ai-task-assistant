@@ -46,6 +46,7 @@ Setting up the AI assistant is simple:
 - **AI Assistant**: Chat naturally to manage your tasks/projects/notifications
 - **Smart Scheduling**: Automatically plan your daily schedule
 - **Customizable Settings**: Configure AI settings and define your working hours
+- **Progress Bar**
 
 ## Roadmap
 
@@ -55,7 +56,6 @@ Setting up the AI assistant is simple:
 - **Voice Input**: Speak directly to your AI assistant
 - **Advanced AI Features**: Task breakdown and more intelligent assistance
 - **Keyboard Shortcuts**: Boost your productivity
-- **Progress Tracking**: Daily progress bar
 - **Drag & Drop**: Easily move tasks between projects
 
 ### Future Enhancements

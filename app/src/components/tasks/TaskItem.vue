@@ -368,23 +368,34 @@ export default {
       }
     };
 
+    // Store reference to the wrapped listener function for proper cleanup
+    const wrappedNotificationListener = ref(null);
+
     onMounted(async () => {
       await fetchNotifications();
 
-      // Listen for notification changes
-      window.electron.receive('notifications:changed', async (taskId) => {
+      // Create a specific listener function for this component
+      const handleNotificationChange = async (taskId) => {
         if (taskId === props.task.id) {
           await fetchNotifications();
         }
-      });
+      };
+
+      // Listen for notification changes and store the wrapped function reference
+      wrappedNotificationListener.value = window.electron.receive('notifications:changed', handleNotificationChange);
 
       // Add click event listener to close dropdowns
       document.addEventListener('click', closeDropdowns);
     });
 
     onBeforeUnmount(() => {
-      // Remove event listeners when component is unmounted
-      window.electron.removeAllListeners('notifications:changed');
+      // Remove only this component's specific notification listener
+      if (wrappedNotificationListener.value) {
+        window.electron.removeListener('notifications:changed', wrappedNotificationListener.value);
+        wrappedNotificationListener.value = null;
+      }
+
+      // Remove click event listener
       document.removeEventListener('click', closeDropdowns);
     });
 

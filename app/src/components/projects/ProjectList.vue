@@ -116,6 +116,9 @@ export default {
     const editingProject = ref(null);
     const selectedSmartProject = ref(null);
 
+    // Store reference to the wrapped listener function for proper cleanup
+    const wrappedProjectsRefreshListener = ref(null);
+
     // Get data from store using getters
     const projects = computed(() => store.getters['projects/allProjects']);
     const selectedProject = computed(() => store.getters['projects/selectedProject']);
@@ -142,7 +145,7 @@ export default {
       // Listen for project refresh events from main process
       try {
         if (window.electron && window.electron.receive) {
-          window.electron.receive('projects:refresh', async () => {
+          wrappedProjectsRefreshListener.value = window.electron.receive('projects:refresh', async () => {
             logger.info('Received projects:refresh event');
             await fetchProjects();
           });
@@ -155,10 +158,11 @@ export default {
     });
 
     onBeforeUnmount(() => {
-      // Remove event listener when component is unmounted
+      // Remove specific event listener when component is unmounted
       try {
-        if (window.electron && window.electron.removeAllListeners) {
-          window.electron.removeAllListeners('projects:refresh');
+        if (window.electron && wrappedProjectsRefreshListener.value) {
+          window.electron.removeListener('projects:refresh', wrappedProjectsRefreshListener.value);
+          wrappedProjectsRefreshListener.value = null;
         }
       } catch (error) {
         logger.logError(error, 'Error removing project refresh listener');

@@ -99,8 +99,8 @@ contextBridge.exposeInMainWorld(
     // Event handling
     receive: (channel, func) => {
       const validChannels = [
-        'projects:refresh', 
-        'tasks:refresh', 
+        'projects:refresh',
+        'tasks:refresh',
         'ai:chatHistoryUpdate',
         'notification:received',
         'notifications:changed',
@@ -108,13 +108,31 @@ contextBridge.exposeInMainWorld(
         'preferences:refresh'
       ];
       if (validChannels.includes(channel)) {
-        ipcRenderer.on(channel, (event, ...args) => func(...args));
+        // Create a wrapper function that we can reference for removal
+        const wrappedFunc = (event, ...args) => func(...args);
+        ipcRenderer.on(channel, wrappedFunc);
+        // Return the wrapped function so it can be used for removal
+        return wrappedFunc;
+      }
+    },
+    removeListener: (channel, func) => {
+      const validChannels = [
+        'projects:refresh',
+        'tasks:refresh',
+        'ai:chatHistoryUpdate',
+        'notification:received',
+        'notifications:changed',
+        'notifications:refresh',
+        'preferences:refresh'
+      ];
+      if (validChannels.includes(channel) && func) {
+        ipcRenderer.removeListener(channel, func);
       }
     },
     removeAllListeners: (channel) => {
       const validChannels = [
-        'projects:refresh', 
-        'tasks:refresh', 
+        'projects:refresh',
+        'tasks:refresh',
         'ai:chatHistoryUpdate',
         'notification:received',
         'notifications:changed',

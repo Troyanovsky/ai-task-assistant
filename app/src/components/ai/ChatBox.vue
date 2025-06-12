@@ -81,6 +81,9 @@ export default {
       }
     );
 
+    // Store reference to the wrapped listener function for proper cleanup
+    const wrappedChatHistoryListener = ref(null);
+
     // Handle real-time chat history updates
     const handleChatHistoryUpdate = (updatedHistory) => {
       if (updatedHistory && Array.isArray(updatedHistory)) {
@@ -94,12 +97,15 @@ export default {
       store.dispatch('ai/loadSettings');
 
       // Listen for real-time chat history updates
-      window.electron.receive('ai:chatHistoryUpdate', handleChatHistoryUpdate);
+      wrappedChatHistoryListener.value = window.electron.receive('ai:chatHistoryUpdate', handleChatHistoryUpdate);
     });
 
     onBeforeUnmount(() => {
-      // Remove event listener when component is unmounted
-      window.electron.removeAllListeners('ai:chatHistoryUpdate');
+      // Remove specific event listener when component is unmounted
+      if (wrappedChatHistoryListener.value) {
+        window.electron.removeListener('ai:chatHistoryUpdate', wrappedChatHistoryListener.value);
+        wrappedChatHistoryListener.value = null;
+      }
     });
 
     return {

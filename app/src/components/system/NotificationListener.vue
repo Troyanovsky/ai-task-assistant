@@ -5,7 +5,7 @@
 </template>
 
 <script>
-import { onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import logger from '../../services/logger.js';
@@ -15,6 +15,9 @@ export default {
   setup() {
     const router = useRouter();
     const store = useStore();
+
+    // Store reference to the wrapped listener function for proper cleanup
+    const wrappedNotificationListener = ref(null);
 
     // Handle notification events
     const handleNotification = (notification) => {
@@ -45,7 +48,7 @@ export default {
       try {
         // Register notification listener if electron is available
         if (window.electron) {
-          window.electron.receive('notification:received', handleNotification);
+          wrappedNotificationListener.value = window.electron.receive('notification:received', handleNotification);
           logger.info('Notification listener registered');
         } else {
           logger.warn('Electron API not available - notifications will not work');
@@ -57,9 +60,10 @@ export default {
 
     onUnmounted(() => {
       try {
-        // Remove notification listener if electron is available
-        if (window.electron) {
-          window.electron.removeAllListeners('notification:received');
+        // Remove specific notification listener if electron is available
+        if (window.electron && wrappedNotificationListener.value) {
+          window.electron.removeListener('notification:received', wrappedNotificationListener.value);
+          wrappedNotificationListener.value = null;
           logger.info('Notification listener removed');
         }
       } catch (error) {
