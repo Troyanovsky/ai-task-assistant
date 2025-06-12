@@ -97,7 +97,10 @@ export default {
       store.dispatch('ai/loadSettings');
 
       // Listen for real-time chat history updates
-      wrappedChatHistoryListener.value = window.electron.receive('ai:chatHistoryUpdate', handleChatHistoryUpdate);
+      wrappedChatHistoryListener.value = window.electron.receive(
+        'ai:chatHistoryUpdate',
+        handleChatHistoryUpdate
+      );
     });
 
     onBeforeUnmount(() => {

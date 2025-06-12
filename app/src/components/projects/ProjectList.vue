@@ -145,10 +145,13 @@ export default {
       // Listen for project refresh events from main process
       try {
         if (window.electron && window.electron.receive) {
-          wrappedProjectsRefreshListener.value = window.electron.receive('projects:refresh', async () => {
-            logger.info('Received projects:refresh event');
-            await fetchProjects();
-          });
+          wrappedProjectsRefreshListener.value = window.electron.receive(
+            'projects:refresh',
+            async () => {
+              logger.info('Received projects:refresh event');
+              await fetchProjects();
+            }
+          );
         } else {
           logger.warn('Electron API not available - project refresh events will not work');
         }

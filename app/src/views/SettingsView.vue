@@ -244,7 +244,10 @@ export default {
         });
 
         // Save buffer time
-        const bufferTimeSuccess = await store.dispatch('preferences/updateBufferTime', bufferTime.value);
+        const bufferTimeSuccess = await store.dispatch(
+          'preferences/updateBufferTime',
+          bufferTime.value
+        );
 
         if (workingHoursSuccess && bufferTimeSuccess) {
           workingHoursSaveStatus.value = 'success';

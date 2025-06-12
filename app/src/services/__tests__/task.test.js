@@ -1023,7 +1023,7 @@ describe('TaskManager', () => {
       mockQueryOne.mockImplementation((query, params) => {
         if (query.includes('SELECT * FROM tasks WHERE id = ?')) {
           const taskId = params[0];
-          return taskData.find(task => task.id === taskId) || null;
+          return taskData.find((task) => task.id === taskId) || null;
         }
         return null;
       });
@@ -1120,8 +1120,6 @@ describe('TaskManager', () => {
         }
       };
 
-
-
       // Mock database responses for planMyDay with two 30-minute tasks
       mockQuery.mockImplementation((query) => {
         if (query.includes('SELECT * FROM tasks')) {
@@ -1217,8 +1215,6 @@ describe('TaskManager', () => {
           return mockDate.getTime();
         }
       };
-
-
 
       // Mock database responses for planMyDay
       mockQuery.mockImplementation((query) => {

@@ -382,7 +382,10 @@ export default {
       };
 
       // Listen for notification changes and store the wrapped function reference
-      wrappedNotificationListener.value = window.electron.receive('notifications:changed', handleNotificationChange);
+      wrappedNotificationListener.value = window.electron.receive(
+        'notifications:changed',
+        handleNotificationChange
+      );
 
       // Add click event listener to close dropdowns
       document.addEventListener('click', closeDropdowns);

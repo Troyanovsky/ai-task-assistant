@@ -263,7 +263,7 @@ export default {
         // Group tasks: non-done (planning/doing) vs done
         const aIsDone = a.status === 'done';
         const bIsDone = b.status === 'done';
-        
+
         // Non-done tasks come before done tasks
         if (!aIsDone && bIsDone) return -1;
         if (aIsDone && !bIsDone) return 1;
@@ -273,42 +273,42 @@ export default {
           // Tasks with due date/planned time come first
           const aHasDate = a.dueDate || a.plannedTime;
           const bHasDate = b.dueDate || b.plannedTime;
-          
+
           if (aHasDate && !bHasDate) return -1;
           if (!aHasDate && bHasDate) return 1;
-          
+
           // Compare by due date (if available)
           if (a.dueDate && b.dueDate && a.dueDate !== b.dueDate) {
             return a.dueDate.localeCompare(b.dueDate);
           }
-          
+
           // Compare by planned time (if available)
           if (a.plannedTime && b.plannedTime && a.plannedTime !== b.plannedTime) {
             return new Date(a.plannedTime) - new Date(b.plannedTime);
           }
-          
+
           // For tasks without dates, sort by priority DESC
           const priorityOrder = { high: 3, medium: 2, low: 1 };
           return priorityOrder[b.priority] - priorityOrder[a.priority];
         }
-        
+
         // For done tasks
         if (aIsDone && bIsDone) {
           // Compare by due date (if available)
           if (a.dueDate && b.dueDate && a.dueDate !== b.dueDate) {
             return a.dueDate.localeCompare(b.dueDate);
           }
-          
+
           // Compare by planned time (if available)
           if (a.plannedTime && b.plannedTime && a.plannedTime !== b.plannedTime) {
             return new Date(a.plannedTime) - new Date(b.plannedTime);
           }
-          
+
           // Finally, sort by priority DESC
           const priorityOrder = { high: 3, medium: 2, low: 1 };
           return priorityOrder[b.priority] - priorityOrder[a.priority];
         }
-        
+
         return 0;
       });
     });
@@ -387,10 +387,13 @@ export default {
           });
 
           // Set up notifications refresh listener
-          wrappedNotificationsRefreshListener.value = window.electron.receive('notifications:refresh', async () => {
-            logger.info('Received notifications:refresh event');
-            await fetchTasks();
-          });
+          wrappedNotificationsRefreshListener.value = window.electron.receive(
+            'notifications:refresh',
+            async () => {
+              logger.info('Received notifications:refresh event');
+              await fetchTasks();
+            }
+          );
         } else {
           logger.warn('Electron API not available - task refresh events will not work');
         }
@@ -412,7 +415,10 @@ export default {
             wrappedTasksRefreshListener.value = null;
           }
           if (wrappedNotificationsRefreshListener.value) {
-            window.electron.removeListener('notifications:refresh', wrappedNotificationsRefreshListener.value);
+            window.electron.removeListener(
+              'notifications:refresh',
+              wrappedNotificationsRefreshListener.value
+            );
             wrappedNotificationsRefreshListener.value = null;
           }
         }

@@ -219,7 +219,10 @@ class TaskManager {
             );
             logger.info(`Planned time notification handled for new task ${data.id}`);
           } catch (notificationError) {
-            logger.error(`Error handling planned time notification for new task ${data.id}:`, notificationError);
+            logger.error(
+              `Error handling planned time notification for new task ${data.id}:`,
+              notificationError
+            );
             // Don't fail the task creation if notification fails
           }
         }
@@ -340,7 +343,9 @@ class TaskManager {
 
       // Get existing planned time notifications for this task
       const existingNotifications = await notificationService.getNotificationsByTask(taskId);
-      const plannedTimeNotifications = existingNotifications.filter(n => n.type === 'PLANNED_TIME');
+      const plannedTimeNotifications = existingNotifications.filter(
+        (n) => n.type === 'PLANNED_TIME'
+      );
 
       // Case 1: No planned time before or after - nothing to do
       if (!oldPlannedTime && !newPlannedTime) {
@@ -367,7 +372,9 @@ class TaskManager {
         };
 
         await notificationService.addNotification(notificationData);
-        logger.info(`Created new planned time notification for task ${taskId} at ${newPlannedTime}`);
+        logger.info(
+          `Created new planned time notification for task ${taskId} at ${newPlannedTime}`
+        );
         return;
       }
 
@@ -396,12 +403,16 @@ class TaskManager {
           };
 
           await notificationService.updateNotification(updateData);
-          logger.info(`Updated planned time notification ${notificationToUpdate.id} for task ${taskId} to ${newPlannedTime}`);
+          logger.info(
+            `Updated planned time notification ${notificationToUpdate.id} for task ${taskId} to ${newPlannedTime}`
+          );
 
           // Delete any extra notifications (there should only be one planned time notification per task)
           for (let i = 1; i < plannedTimeNotifications.length; i++) {
             await notificationService.deleteNotification(plannedTimeNotifications[i].id);
-            logger.info(`Deleted duplicate planned time notification ${plannedTimeNotifications[i].id} for task ${taskId}`);
+            logger.info(
+              `Deleted duplicate planned time notification ${plannedTimeNotifications[i].id} for task ${taskId}`
+            );
           }
         } else {
           // No existing notification, create a new one
@@ -414,7 +425,9 @@ class TaskManager {
           };
 
           await notificationService.addNotification(notificationData);
-          logger.info(`Created new planned time notification for task ${taskId} at ${newPlannedTime}`);
+          logger.info(
+            `Created new planned time notification for task ${taskId} at ${newPlannedTime}`
+          );
         }
       }
     } catch (error) {
@@ -705,7 +718,8 @@ class TaskManager {
       logger.info('Planning day with preferences:', { workingHours, bufferTime });
 
       // Get tasks that need scheduling
-      const { tasksToSchedule, today, planningStart, workEnd } = await this._getTasksToSchedule(workingHours);
+      const { tasksToSchedule, today, planningStart, workEnd } =
+        await this._getTasksToSchedule(workingHours);
 
       // If no tasks to plan, return early
       if (tasksToSchedule.length === 0) {
@@ -841,26 +855,26 @@ class TaskManager {
       if (!task.plannedTime) return false;
 
       const plannedDate = new Date(task.plannedTime);
-      const isToday = (
+      const isToday =
         plannedDate.getFullYear() === today.getFullYear() &&
         plannedDate.getMonth() === today.getMonth() &&
-        plannedDate.getDate() === today.getDate()
-      );
+        plannedDate.getDate() === today.getDate();
 
       if (!isToday) return false;
 
       // Exclude tasks with past planned times that need rescheduling
       // (i.e., tasks that are not in progress or done)
       const plannedTimePassed = new Date(task.plannedTime) < today;
-      const needsRescheduling = plannedTimePassed &&
-        task.status !== STATUS.DOING &&
-        task.status !== STATUS.DONE;
+      const needsRescheduling =
+        plannedTimePassed && task.status !== STATUS.DOING && task.status !== STATUS.DONE;
 
       // Only include tasks that don't need rescheduling
       return !needsRescheduling;
     });
 
-    logger.info(`Found ${plannedTasks.length} already planned tasks for today (excluding tasks needing rescheduling)`);
+    logger.info(
+      `Found ${plannedTasks.length} already planned tasks for today (excluding tasks needing rescheduling)`
+    );
 
     // Create timeline of busy slots from existing planned tasks
     const busySlots = plannedTasks.map((task) => {

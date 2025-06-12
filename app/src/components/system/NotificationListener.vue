@@ -48,7 +48,10 @@ export default {
       try {
         // Register notification listener if electron is available
         if (window.electron) {
-          wrappedNotificationListener.value = window.electron.receive('notification:received', handleNotification);
+          wrappedNotificationListener.value = window.electron.receive(
+            'notification:received',
+            handleNotification
+          );
           logger.info('Notification listener registered');
         } else {
           logger.warn('Electron API not available - notifications will not work');
@@ -62,7 +65,10 @@ export default {
       try {
         // Remove specific notification listener if electron is available
         if (window.electron && wrappedNotificationListener.value) {
-          window.electron.removeListener('notification:received', wrappedNotificationListener.value);
+          window.electron.removeListener(
+            'notification:received',
+            wrappedNotificationListener.value
+          );
           wrappedNotificationListener.value = null;
           logger.info('Notification listener removed');
         }
