@@ -950,7 +950,6 @@ class TaskManager {
         const scheduledTask = this._scheduleTaskInSlot(task, slot, busySlots, bufferTime);
         scheduledTasks.push(scheduledTask);
         currentTime = new Date(slot.end);
-        currentTime.setMinutes(currentTime.getMinutes() + bufferTime);
       } else {
         remainingTasks.push(task);
       }
@@ -1056,7 +1055,7 @@ class TaskManager {
    */
   _findAnyAvailableSlot(task, planningStart, workEnd, busySlots, bufferTime) {
     const durationMinutes = task.duration !== null ? task.duration : 30;
-    const totalTimeNeeded = bufferTime + durationMinutes; // Buffer + task duration
+    const totalTimeNeeded = durationMinutes; // Removed buffer time from total calculation
     const now = new Date();
 
     // Ensure we never schedule before the current time
@@ -1070,7 +1069,7 @@ class TaskManager {
       const firstSlot = sortedSlots[0];
       const gapDuration = (firstSlot.start - effectivePlanningStart) / (1000 * 60); // Convert to minutes
 
-      if (gapDuration >= totalTimeNeeded) {
+      if (gapDuration >= totalTimeNeeded + bufferTime) { // Added buffer time here
         const taskStartTime = new Date(effectivePlanningStart);
         taskStartTime.setMinutes(taskStartTime.getMinutes() + bufferTime);
 
@@ -1096,7 +1095,7 @@ class TaskManager {
       const effectiveGapStart = gapStart < now ? now : gapStart;
       const gapDuration = (gapEnd - effectiveGapStart) / (1000 * 60); // Convert to minutes
 
-      if (gapDuration >= totalTimeNeeded) {
+      if (gapDuration >= totalTimeNeeded + bufferTime) { // Added buffer time here
         const taskStartTime = new Date(effectiveGapStart);
         taskStartTime.setMinutes(taskStartTime.getMinutes() + bufferTime);
 
@@ -1122,7 +1121,7 @@ class TaskManager {
       const effectiveGapStart = gapStart < now ? now : gapStart;
       const gapDuration = (workEnd - effectiveGapStart) / (1000 * 60); // Convert to minutes
 
-      if (gapDuration >= totalTimeNeeded) {
+      if (gapDuration >= totalTimeNeeded + bufferTime) { // Added buffer time here
         const taskStartTime = new Date(effectiveGapStart);
         taskStartTime.setMinutes(taskStartTime.getMinutes() + bufferTime);
 
@@ -1142,7 +1141,7 @@ class TaskManager {
     if (sortedSlots.length === 0) {
       const totalWorkTime = (workEnd - effectivePlanningStart) / (1000 * 60); // Convert to minutes
 
-      if (totalWorkTime >= totalTimeNeeded) {
+      if (totalWorkTime >= totalTimeNeeded + bufferTime) { // Added buffer time here
         const taskStartTime = new Date(effectivePlanningStart);
         taskStartTime.setMinutes(taskStartTime.getMinutes() + bufferTime);
 

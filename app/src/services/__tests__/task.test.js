@@ -1226,7 +1226,7 @@ describe('TaskManager', () => {
           startTime: '10:00',
           endTime: '17:00',
         },
-        bufferTime: 15, // 15 minutes buffer between tasks
+        bufferTime: 15, // 15 minutes buffer before tasks
       };
 
       // Call planMyDay
@@ -1250,9 +1250,9 @@ describe('TaskManager', () => {
       expect(task1.plannedTime.getHours()).toBe(10);
       expect(task1.plannedTime.getMinutes()).toBe(15);
 
-      // Task 2 should start at 11:15 (10:15 + 30 min task + 15 min buffer + 15 min buffer for task 2)
+      // Task 2 should start at 11:00 (10:15 + 30 min task + 15 min buffer)
       expect(task2.plannedTime.getHours()).toBe(11);
-      expect(task2.plannedTime.getMinutes()).toBe(15);
+      expect(task2.plannedTime.getMinutes()).toBe(0);
     });
 
     it('should handle backward compatibility with old workingHours parameter', async () => {
