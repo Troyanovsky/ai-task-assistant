@@ -195,9 +195,8 @@ export function setupIpcHandlers(mainWindow, aiService) {
 
   ipcMain.handle('notifications:delete', async (_, notificationId) => {
     try {
-      // First get the notification to know which task it belongs to
-      const notifications = await notificationService.getNotifications();
-      const notification = notifications.find(n => n.id === notificationId);
+      // Get the specific notification to know which task it belongs to
+      const notification = await notificationService.getNotificationById(notificationId);
       const taskId = notification ? notification.taskId || notification.task_id : null;
       
       const result = await notificationService.deleteNotification(notificationId);

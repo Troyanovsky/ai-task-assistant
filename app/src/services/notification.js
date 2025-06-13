@@ -74,6 +74,25 @@ class NotificationManager {
   }
 
   /**
+   * Get a single notification by ID
+   * @param {string} id - Notification ID
+   * @returns {Notification|null} - Notification instance or null if not found
+   */
+  async getNotificationById(id) {
+    try {
+      logger.info(`Fetching notification ${id}`);
+      const notification = databaseService.queryOne(
+        'SELECT * FROM notifications WHERE id = ?',
+        [id]
+      );
+      return notification ? Notification.fromDatabase(notification) : null;
+    } catch (error) {
+      logger.logError(error, `Error getting notification ${id}`);
+      return null;
+    }
+  }
+
+  /**
    * Get upcoming notifications (scheduled for the future)
    * @returns {Array} - Array of Notification instances
    */
