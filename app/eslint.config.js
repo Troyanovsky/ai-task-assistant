@@ -4,6 +4,14 @@ import pluginVue from 'eslint-plugin-vue';
 import prettierConfig from 'eslint-config-prettier';
 
 export default [
+  {
+    ignores: [
+      'node_modules/',
+      'dist/',
+      'build/',
+      '**/*.test.js'
+    ]
+  },
   // Recommended JavaScript rules
   pluginJs.configs.recommended,
 
@@ -12,7 +20,6 @@ export default [
 
   {
     files: ['**/*.{js,vue,cjs}'],
-    ignores: ['node_modules/', 'dist/', 'build/'],
     languageOptions: {
       ecmaVersion: 2021,
       sourceType: 'module',

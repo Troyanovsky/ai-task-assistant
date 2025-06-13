@@ -13,7 +13,7 @@
     "electron:build": "vite build && electron-builder",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint . --fix --ignore-pattern '**/*.test.js'",
+    "lint": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{js,vue}\""
   },
   "dependencies": {
