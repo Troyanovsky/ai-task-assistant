@@ -39,7 +39,12 @@
           </h2>
         </div>
         <div class="flex-1 overflow-y-auto p-4">
-          <task-list :selected-project="selectedProject" :smart-project-type="smartProjectType" />
+          <!-- Smart Projects -->
+          <today-smart-project v-if="smartProjectType === 'today'" />
+          <overdue-smart-project v-else-if="smartProjectType === 'overdue'" />
+
+          <!-- Normal Projects -->
+          <project-task-list v-else :selected-project="selectedProject" />
         </div>
       </div>
 
@@ -55,14 +60,18 @@
 import { computed, ref } from 'vue';
 import { useStore } from 'vuex';
 import ProjectList from '../components/projects/ProjectList.vue';
-import TaskList from '../components/tasks/TaskList.vue';
+import ProjectTaskList from '../components/tasks/ProjectTaskList.vue';
+import TodaySmartProject from '../components/smart/TodaySmartProject.vue';
+import OverdueSmartProject from '../components/smart/OverdueSmartProject.vue';
 import ChatBox from '../components/ai/ChatBox.vue';
 
 export default {
   name: 'HomeView',
   components: {
     ProjectList,
-    TaskList,
+    ProjectTaskList,
+    TodaySmartProject,
+    OverdueSmartProject,
     ChatBox,
   },
   setup() {
