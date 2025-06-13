@@ -271,6 +271,7 @@
 <script>
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useStore } from 'vuex';
+import logger from '@/services/logger';
 
 export default {
   name: 'TaskItem',
@@ -364,7 +365,7 @@ export default {
         const regularNotifications = notifications.filter((n) => n.type !== 'PLANNED_TIME');
         notificationCount.value = regularNotifications ? regularNotifications.length : 0;
       } catch (error) {
-        console.error('Error fetching task notifications:', error);
+        logger.error('Error fetching task notifications:', error);
       }
     };
 
@@ -455,7 +456,7 @@ export default {
       // Ensure we're working with a valid date
       const date = new Date(dateTimeString);
       if (isNaN(date)) {
-        console.error(`Invalid date string: ${dateTimeString}`);
+        logger.error(`Invalid date string: ${dateTimeString}`);
         return 'Invalid date';
       }
 

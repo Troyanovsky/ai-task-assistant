@@ -116,6 +116,35 @@ export default {
     // Base component references
     const baseComponent = ref(null);
 
+    // Helper function to filter today's tasks
+    const filterTodayTasks = (tasks) => {
+      const today = new Date();
+      const todayDateStr = today.toISOString().split('T')[0];
+      
+      return tasks.filter(task => {
+        if (task.dueDate === todayDateStr) return true;
+        if (task.plannedTime) {
+          const plannedDate = new Date(task.plannedTime);
+          return (
+            plannedDate.getFullYear() === today.getFullYear() &&
+            plannedDate.getMonth() === today.getMonth() &&
+            plannedDate.getDate() === today.getDate()
+          );
+        }
+        return false;
+      });
+    };
+
+    // Helper function to refresh tasks
+    const refreshTasks = async () => {
+      try {
+        await store.dispatch('tasks/fetchTasks', { fetchAll: false });
+        currentTasks.value = filterTodayTasks(store.getters['tasks/allTasks']);
+      } catch (error) {
+        logger.error('Error refreshing tasks:', error);
+      }
+    };
+
     const totalTodayTasks = computed(() => currentTasks.value.length);
     const completedTodayTasks = computed(
       () => currentTasks.value.filter((task) => task.status === 'done').length
@@ -213,28 +242,31 @@ export default {
     };
 
     const handleTasksUpdated = (tasks) => {
-      currentTasks.value = tasks;
+      currentTasks.value = filterTodayTasks(tasks);
     };
 
     const updateTaskStatus = async (taskId, newStatus) => {
-      await store.dispatch('tasks/updateTaskStatus', {
-        taskId,
-        status: newStatus,
-        projectId: null,
-      });
-
-      // Refresh all tasks for smart projects
-      await store.dispatch('tasks/fetchTasks');
+      try {
+        await store.dispatch('tasks/updateTaskStatus', {
+          taskId,
+          status: newStatus,
+          projectId: null,
+        });
+        await refreshTasks();
+      } catch (error) {
+        logger.error('Error updating task status:', error);
+      }
     };
 
     const updateTask = async (taskData) => {
-      logger.info('updateTask called with data:', taskData);
-      await store.dispatch('tasks/updateTask', taskData);
-      editingTask.value = null;
-
-      // Refresh all tasks for smart projects
-      logger.info('Refreshing tasks for smart project');
-      await store.dispatch('tasks/fetchTasks');
+      try {
+        logger.info('updateTask called with data:', taskData);
+        await store.dispatch('tasks/updateTask', taskData);
+        editingTask.value = null;
+        await refreshTasks();
+      } catch (error) {
+        logger.error('Error updating task:', error);
+      }
     };
 
     const editTask = (task) => {
@@ -242,24 +274,23 @@ export default {
     };
 
     const deleteTask = async (taskId) => {
-      if (confirm('Are you sure you want to delete this task?')) {
-        await store.dispatch('tasks/deleteTask', {
-          taskId,
-          projectId: null,
-        });
-
-        // Refresh all tasks for smart projects
-        await store.dispatch('tasks/fetchTasks');
+      try {
+        if (confirm('Are you sure you want to delete this task?')) {
+          await store.dispatch('tasks/deleteTask', {
+            taskId,
+            projectId: null,
+          });
+          await refreshTasks();
+        }
+      } catch (error) {
+        logger.error('Error deleting task:', error);
       }
     };
 
     const moveTask = async (task) => {
       try {
         await store.dispatch('tasks/updateTask', task);
-
-        // Refresh all tasks for smart projects
-        await store.dispatch('tasks/fetchTasks');
-
+        await refreshTasks();
         logger.info(`Task ${task.id} moved to project ${task.projectId}`);
       } catch (error) {
         logger.error('Error moving task:', error);
@@ -267,8 +298,13 @@ export default {
     };
 
     const loadAllTasks = async () => {
-      showingAllTasks.value = true;
-      await store.dispatch('tasks/fetchAllTasks');
+      try {
+        showingAllTasks.value = true;
+        await store.dispatch('tasks/fetchTasks', { fetchAll: true });
+        currentTasks.value = filterTodayTasks(store.getters['tasks/allTasks']);
+      } catch (error) {
+        logger.error('Error loading all tasks:', error);
+      }
     };
 
     const planMyDay = async () => {
@@ -289,7 +325,7 @@ export default {
         logger.info('Day planning result:', result);
 
         // Refresh tasks to show updated planned times
-        await store.dispatch('tasks/fetchTasks');
+        await refreshTasks();
       } catch (error) {
         logger.error('Error planning day:', error);
         planningResult.value = {

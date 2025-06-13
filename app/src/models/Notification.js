@@ -3,6 +3,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import logger from '@/services/logger';
 
 // Notification type constants
 export const TYPE = {
@@ -33,15 +34,15 @@ class Notification {
    */
   validate() {
     if (!this.taskId) {
-      console.error('Notification validation failed: missing taskId');
+      logger.error('Notification validation failed: missing taskId');
       return false;
     }
     if (!this.time) {
-      console.error('Notification validation failed: missing time');
+      logger.error('Notification validation failed: missing time');
       return false;
     }
     if (!Object.values(TYPE).includes(this.type)) {
-      console.error(`Notification validation failed: invalid type ${this.type}`);
+      logger.error(`Notification validation failed: invalid type ${this.type}`);
       return false;
     }
     return true;

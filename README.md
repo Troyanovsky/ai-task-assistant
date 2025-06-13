@@ -1,5 +1,7 @@
 # FokusZeit - AI Task Assistant
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Troyanovsky/fokuszeit-ai-task-assistant)
+
 ![fokuszeit_screenshot](Docs/assets/fokuszeit_screenshot.png)
 
 FokusZeit is an intelligent productivity to-do app that uses AI to manage your tasks and projects. It offloads task creation, editing, and planning to an LLM, making your workflow smoother and more efficient. Compatible with OpenAI and local LLM APIs.

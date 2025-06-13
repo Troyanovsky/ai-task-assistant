@@ -1,4 +1,6 @@
 // Initial state
+import logger from '@/services/logger';
+
 const state = {
   chatHistory: [],
   isProcessing: false,
@@ -37,7 +39,7 @@ const actions = {
         throw new Error(result.error || 'Failed to configure AI service');
       }
     } catch (error) {
-      console.error('Error configuring AI service:', error);
+      logger.error('Error configuring AI service:', error);
       commit('setError', 'Failed to configure AI service');
       commit('setConfigured', false);
       return false;
@@ -59,7 +61,7 @@ const actions = {
         throw new Error(result.error || 'Failed to process message');
       }
     } catch (error) {
-      console.error('Error processing message:', error);
+      logger.error('Error processing message:', error);
       commit('setError', error.message || 'Failed to process message');
     } finally {
       commit('setProcessing', false);
@@ -71,7 +73,7 @@ const actions = {
       const chatHistory = await window.electron.getChatHistory();
       commit('setChatHistory', chatHistory);
     } catch (error) {
-      console.error('Error loading chat history:', error);
+      logger.error('Error loading chat history:', error);
     }
   },
 
@@ -85,7 +87,7 @@ const actions = {
         commit('setConfigured', result.isConfigured);
       }
     } catch (error) {
-      console.error('Error loading AI settings:', error);
+      logger.error('Error loading AI settings:', error);
     }
   },
 
@@ -94,7 +96,7 @@ const actions = {
       await window.electron.clearChatHistory();
       commit('clearChatHistory');
     } catch (error) {
-      console.error('Error clearing chat history:', error);
+      logger.error('Error clearing chat history:', error);
     }
   },
 };

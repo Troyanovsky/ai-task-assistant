@@ -88,7 +88,7 @@ export default {
           size: Math.random() * 15 + 5, // Even larger particles for visibility
           color: colors[Math.floor(Math.random() * colors.length)],
           speedX: Math.random() * 12 - 6,
-          speedY: Math.random() * 4 - 10, // More upward initial motion
+          speedY: Math.random() * 4 - 8, // More upward initial motion
           rotation: Math.random() * 360,
           rotationSpeed: Math.random() * 15 - 7.5,
         });
