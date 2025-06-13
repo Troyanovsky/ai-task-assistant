@@ -35,28 +35,28 @@ describe('Integration Tests - Cascading Deletions', () => {
           name: 'Task 1',
           status: 'planning',
           project_id: 'project-1',
-          toDatabase: () => ({ id: 'task-1', name: 'Task 1', project_id: 'project-1' })
+          toDatabase: () => ({ id: 'task-1', name: 'Task 1', project_id: 'project-1' }),
         },
         {
           id: 'task-2',
           name: 'Task 2',
           status: 'doing',
           project_id: 'project-1',
-          toDatabase: () => ({ id: 'task-2', name: 'Task 2', project_id: 'project-1' })
-        }
+          toDatabase: () => ({ id: 'task-2', name: 'Task 2', project_id: 'project-1' }),
+        },
       ];
 
       // Mock notifications for tasks
       const mockNotifications = [
         { id: 'notif-1', taskId: 'task-1' },
         { id: 'notif-2', taskId: 'task-1' },
-        { id: 'notif-3', taskId: 'task-2' }
+        { id: 'notif-3', taskId: 'task-2' },
       ];
 
       // Mock recurrence rules for tasks
       const mockRecurrenceRules = [
         { id: 'rule-1', task_id: 'task-1' },
-        { id: 'rule-2', task_id: 'task-2' }
+        { id: 'rule-2', task_id: 'task-2' },
       ];
 
       // Setup database mocks
@@ -109,11 +109,17 @@ describe('Integration Tests - Cascading Deletions', () => {
       );
 
       // Verify all tasks were deleted
-      expect(databaseService.delete).toHaveBeenCalledWith('DELETE FROM tasks WHERE id = ?', ['task-1']);
-      expect(databaseService.delete).toHaveBeenCalledWith('DELETE FROM tasks WHERE id = ?', ['task-2']);
+      expect(databaseService.delete).toHaveBeenCalledWith('DELETE FROM tasks WHERE id = ?', [
+        'task-1',
+      ]);
+      expect(databaseService.delete).toHaveBeenCalledWith('DELETE FROM tasks WHERE id = ?', [
+        'task-2',
+      ]);
 
       // Verify project was deleted
-      expect(databaseService.delete).toHaveBeenCalledWith('DELETE FROM projects WHERE id = ?', ['project-1']);
+      expect(databaseService.delete).toHaveBeenCalledWith('DELETE FROM projects WHERE id = ?', [
+        'project-1',
+      ]);
     });
 
     it('should handle partial failures gracefully', async () => {
@@ -132,8 +138,8 @@ describe('Integration Tests - Cascading Deletions', () => {
           name: 'Task 1',
           status: 'planning',
           project_id: 'project-1',
-          toDatabase: () => ({ id: 'task-1', name: 'Task 1', project_id: 'project-1' })
-        }
+          toDatabase: () => ({ id: 'task-1', name: 'Task 1', project_id: 'project-1' }),
+        },
       ];
 
       // Setup mocks
@@ -149,7 +155,9 @@ describe('Integration Tests - Cascading Deletions', () => {
 
       // Mock notification deletion failure
       notificationService.getNotificationsByTask.mockResolvedValue([{ id: 'notif-1' }]);
-      notificationService.deleteNotification.mockRejectedValue(new Error('Notification deletion failed'));
+      notificationService.deleteNotification.mockRejectedValue(
+        new Error('Notification deletion failed')
+      );
 
       // Mock successful task and project deletion
       databaseService.delete
@@ -163,7 +171,9 @@ describe('Integration Tests - Cascading Deletions', () => {
       expect(result).toBe(true);
 
       // Verify project was still deleted
-      expect(databaseService.delete).toHaveBeenCalledWith('DELETE FROM projects WHERE id = ?', ['project-1']);
+      expect(databaseService.delete).toHaveBeenCalledWith('DELETE FROM projects WHERE id = ?', [
+        'project-1',
+      ]);
     });
   });
 
@@ -184,8 +194,8 @@ describe('Integration Tests - Cascading Deletions', () => {
           name: 'Orphaned Task',
           status: 'planning',
           project_id: 'project-1',
-          toDatabase: () => ({ id: 'task-1', name: 'Orphaned Task', project_id: 'project-1' })
-        }
+          toDatabase: () => ({ id: 'task-1', name: 'Orphaned Task', project_id: 'project-1' }),
+        },
       ];
 
       // Setup mocks

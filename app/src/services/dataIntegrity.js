@@ -48,11 +48,11 @@ class DataIntegrityService {
         LEFT JOIN projects p ON t.project_id = p.id 
         WHERE p.id IS NULL
       `);
-      
+
       if (orphanedTasks.length > 0) {
         logger.warn(`Found ${orphanedTasks.length} orphaned tasks`);
       }
-      
+
       return orphanedTasks;
     } catch (error) {
       logger.error('Error finding orphaned tasks:', error);
@@ -72,11 +72,11 @@ class DataIntegrityService {
         LEFT JOIN tasks t ON n.task_id = t.id 
         WHERE t.id IS NULL
       `);
-      
+
       if (orphanedNotifications.length > 0) {
         logger.warn(`Found ${orphanedNotifications.length} orphaned notifications`);
       }
-      
+
       return orphanedNotifications;
     } catch (error) {
       logger.error('Error finding orphaned notifications:', error);
@@ -96,11 +96,11 @@ class DataIntegrityService {
         LEFT JOIN tasks t ON r.task_id = t.id 
         WHERE t.id IS NULL
       `);
-      
+
       if (orphanedRules.length > 0) {
         logger.warn(`Found ${orphanedRules.length} orphaned recurrence rules`);
       }
-      
+
       return orphanedRules;
     } catch (error) {
       logger.error('Error finding orphaned recurrence rules:', error);
@@ -115,17 +115,18 @@ class DataIntegrityService {
   async performIntegrityCheck() {
     try {
       logger.info('Starting comprehensive data integrity check...');
-      
+
       const results = {
         orphanedTasks: await this.findOrphanedTasks(),
         orphanedNotifications: await this.findOrphanedNotifications(),
         orphanedRecurrenceRules: await this.findOrphanedRecurrenceRules(),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
-      const totalOrphaned = results.orphanedTasks.length + 
-                           results.orphanedNotifications.length + 
-                           results.orphanedRecurrenceRules.length;
+      const totalOrphaned =
+        results.orphanedTasks.length +
+        results.orphanedNotifications.length +
+        results.orphanedRecurrenceRules.length;
 
       if (totalOrphaned === 0) {
         logger.info('✅ Data integrity check passed - no orphaned records found');
@@ -138,7 +139,7 @@ class DataIntegrityService {
       logger.error('Error during integrity check:', error);
       return {
         error: error.message,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     }
   }
@@ -152,7 +153,9 @@ class DataIntegrityService {
   _deleteOrphanedNotifications(orphanedNotifications, results) {
     for (const notification of orphanedNotifications) {
       try {
-        const result = databaseService.delete('DELETE FROM notifications WHERE id = ?', [notification.id]);
+        const result = databaseService.delete('DELETE FROM notifications WHERE id = ?', [
+          notification.id,
+        ]);
         if (result && result.changes > 0) {
           results.deletedNotifications++;
         }
@@ -171,7 +174,9 @@ class DataIntegrityService {
   _deleteOrphanedRecurrenceRules(orphanedRecurrenceRules, results) {
     for (const rule of orphanedRecurrenceRules) {
       try {
-        const result = databaseService.delete('DELETE FROM recurrence_rules WHERE id = ?', [rule.id]);
+        const result = databaseService.delete('DELETE FROM recurrence_rules WHERE id = ?', [
+          rule.id,
+        ]);
         if (result && result.changes > 0) {
           results.deletedRecurrenceRules++;
         }
@@ -208,12 +213,12 @@ class DataIntegrityService {
   async cleanupOrphanedData(options = { dryRun: true }) {
     try {
       logger.info(`Starting orphaned data cleanup (dry run: ${options.dryRun})...`);
-      
+
       const results = {
         deletedTasks: 0,
         deletedNotifications: 0,
         deletedRecurrenceRules: 0,
-        errors: []
+        errors: [],
       };
 
       // Find orphaned data
@@ -231,9 +236,13 @@ class DataIntegrityService {
         // Delete orphaned tasks
         this._deleteOrphanedTasks(orphanedTasks, results);
 
-        logger.info(`Cleanup completed: ${results.deletedTasks} tasks, ${results.deletedNotifications} notifications, ${results.deletedRecurrenceRules} recurrence rules deleted`);
+        logger.info(
+          `Cleanup completed: ${results.deletedTasks} tasks, ${results.deletedNotifications} notifications, ${results.deletedRecurrenceRules} recurrence rules deleted`
+        );
       } else {
-        logger.info(`Dry run completed: would delete ${orphanedTasks.length} tasks, ${orphanedNotifications.length} notifications, ${orphanedRecurrenceRules.length} recurrence rules`);
+        logger.info(
+          `Dry run completed: would delete ${orphanedTasks.length} tasks, ${orphanedNotifications.length} notifications, ${orphanedRecurrenceRules.length} recurrence rules`
+        );
       }
 
       return results;
@@ -244,7 +253,7 @@ class DataIntegrityService {
         deletedTasks: 0,
         deletedNotifications: 0,
         deletedRecurrenceRules: 0,
-        errors: [error.message]
+        errors: [error.message],
       };
     }
   }
@@ -258,19 +267,23 @@ class DataIntegrityService {
       const stats = {
         projects: databaseService.queryOne('SELECT COUNT(*) as count FROM projects')?.count || 0,
         tasks: databaseService.queryOne('SELECT COUNT(*) as count FROM tasks')?.count || 0,
-        notifications: databaseService.queryOne('SELECT COUNT(*) as count FROM notifications')?.count || 0,
-        recurrenceRules: databaseService.queryOne('SELECT COUNT(*) as count FROM recurrence_rules')?.count || 0,
-        timestamp: new Date().toISOString()
+        notifications:
+          databaseService.queryOne('SELECT COUNT(*) as count FROM notifications')?.count || 0,
+        recurrenceRules:
+          databaseService.queryOne('SELECT COUNT(*) as count FROM recurrence_rules')?.count || 0,
+        timestamp: new Date().toISOString(),
       };
 
-      logger.info(`Database stats: ${stats.projects} projects, ${stats.tasks} tasks, ${stats.notifications} notifications, ${stats.recurrenceRules} recurrence rules`);
-      
+      logger.info(
+        `Database stats: ${stats.projects} projects, ${stats.tasks} tasks, ${stats.notifications} notifications, ${stats.recurrenceRules} recurrence rules`
+      );
+
       return stats;
     } catch (error) {
       logger.error('Error getting database stats:', error);
       return {
         error: error.message,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     }
   }

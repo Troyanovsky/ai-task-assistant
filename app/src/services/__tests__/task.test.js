@@ -544,9 +544,7 @@ describe('TaskManager', () => {
 
     it('should continue with task deletion even if recurrence rule deletion fails', async () => {
       // Mock recurrence rules for the task
-      const mockRecurrenceRules = [
-        { id: 'rule-1', task_id: 'task-1', frequency: 'daily' },
-      ];
+      const mockRecurrenceRules = [{ id: 'rule-1', task_id: 'task-1', frequency: 'daily' }];
 
       // Setup mocks
       databaseService.queryOne.mockReturnValue(mockTasks[0]); // Mock getTaskById

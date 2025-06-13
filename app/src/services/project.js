@@ -128,7 +128,7 @@ class ProjectManager {
         return {
           canDelete: false,
           reason: 'Project not found',
-          details: null
+          details: null,
         };
       }
 
@@ -139,9 +139,9 @@ class ProjectManager {
       // Count tasks by status
       const taskCounts = {
         total: projectTasks.length,
-        planning: projectTasks.filter(t => t.status === 'planning').length,
-        doing: projectTasks.filter(t => t.status === 'doing').length,
-        done: projectTasks.filter(t => t.status === 'done').length
+        planning: projectTasks.filter((t) => t.status === 'planning').length,
+        doing: projectTasks.filter((t) => t.status === 'doing').length,
+        done: projectTasks.filter((t) => t.status === 'done').length,
       };
 
       return {
@@ -150,15 +150,15 @@ class ProjectManager {
         details: {
           projectName: project.name,
           taskCounts,
-          tasks: projectTasks.map(t => ({ id: t.id, name: t.name, status: t.status }))
-        }
+          tasks: projectTasks.map((t) => ({ id: t.id, name: t.name, status: t.status })),
+        },
       };
     } catch (error) {
       logger.error(`Error validating project deletion for ${id}:`, error);
       return {
         canDelete: false,
         reason: 'Error during validation',
-        details: null
+        details: null,
       };
     }
   }
@@ -181,7 +181,9 @@ class ProjectManager {
 
         // Log what will be deleted
         if (validation.details && validation.details.taskCounts.total > 0) {
-          logger.info(`Preparing to delete project "${validation.details.projectName}" with ${validation.details.taskCounts.total} tasks:`);
+          logger.info(
+            `Preparing to delete project "${validation.details.projectName}" with ${validation.details.taskCounts.total} tasks:`
+          );
           logger.info(`- Planning: ${validation.details.taskCounts.planning}`);
           logger.info(`- Doing: ${validation.details.taskCounts.doing}`);
           logger.info(`- Done: ${validation.details.taskCounts.done}`);
@@ -221,7 +223,9 @@ class ProjectManager {
       const result = databaseService.delete('DELETE FROM projects WHERE id = ?', [id]);
 
       if (result && result.changes > 0) {
-        logger.info(`Successfully deleted project ${id} and ${deletedTasksCount}/${projectTasks.length} associated tasks`);
+        logger.info(
+          `Successfully deleted project ${id} and ${deletedTasksCount}/${projectTasks.length} associated tasks`
+        );
         return true;
       } else {
         logger.error(`Failed to delete project ${id} from database`);

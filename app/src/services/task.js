@@ -469,10 +469,9 @@ class TaskManager {
         );
 
         for (const rule of recurrenceRules) {
-          const deleteResult = databaseService.delete(
-            'DELETE FROM recurrence_rules WHERE id = ?',
-            [rule.id]
-          );
+          const deleteResult = databaseService.delete('DELETE FROM recurrence_rules WHERE id = ?', [
+            rule.id,
+          ]);
           if (deleteResult && deleteResult.changes > 0) {
             logger.info(`Deleted recurrence rule ${rule.id} for task ${id}`);
           }
@@ -1069,7 +1068,8 @@ class TaskManager {
       const firstSlot = sortedSlots[0];
       const gapDuration = (firstSlot.start - effectivePlanningStart) / (1000 * 60); // Convert to minutes
 
-      if (gapDuration >= totalTimeNeeded + bufferTime) { // Added buffer time here
+      if (gapDuration >= totalTimeNeeded + bufferTime) {
+        // Added buffer time here
         const taskStartTime = new Date(effectivePlanningStart);
         taskStartTime.setMinutes(taskStartTime.getMinutes() + bufferTime);
 
@@ -1095,7 +1095,8 @@ class TaskManager {
       const effectiveGapStart = gapStart < now ? now : gapStart;
       const gapDuration = (gapEnd - effectiveGapStart) / (1000 * 60); // Convert to minutes
 
-      if (gapDuration >= totalTimeNeeded + bufferTime) { // Added buffer time here
+      if (gapDuration >= totalTimeNeeded + bufferTime) {
+        // Added buffer time here
         const taskStartTime = new Date(effectiveGapStart);
         taskStartTime.setMinutes(taskStartTime.getMinutes() + bufferTime);
 
@@ -1121,7 +1122,8 @@ class TaskManager {
       const effectiveGapStart = gapStart < now ? now : gapStart;
       const gapDuration = (workEnd - effectiveGapStart) / (1000 * 60); // Convert to minutes
 
-      if (gapDuration >= totalTimeNeeded + bufferTime) { // Added buffer time here
+      if (gapDuration >= totalTimeNeeded + bufferTime) {
+        // Added buffer time here
         const taskStartTime = new Date(effectiveGapStart);
         taskStartTime.setMinutes(taskStartTime.getMinutes() + bufferTime);
 
@@ -1141,7 +1143,8 @@ class TaskManager {
     if (sortedSlots.length === 0) {
       const totalWorkTime = (workEnd - effectivePlanningStart) / (1000 * 60); // Convert to minutes
 
-      if (totalWorkTime >= totalTimeNeeded + bufferTime) { // Added buffer time here
+      if (totalWorkTime >= totalTimeNeeded + bufferTime) {
+        // Added buffer time here
         const taskStartTime = new Date(effectivePlanningStart);
         taskStartTime.setMinutes(taskStartTime.getMinutes() + bufferTime);
 

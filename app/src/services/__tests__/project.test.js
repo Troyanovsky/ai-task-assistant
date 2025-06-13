@@ -244,12 +244,12 @@ describe('ProjectManager', () => {
       const mockTasks = [
         { id: 'task-1', name: 'Task 1', status: 'planning' },
         { id: 'task-2', name: 'Task 2', status: 'doing' },
-        { id: 'task-3', name: 'Task 3', status: 'done' }
+        { id: 'task-3', name: 'Task 3', status: 'done' },
       ];
 
       // Mock the task manager import and method
       const mockTaskManager = {
-        getTasksByProject: vi.fn().mockResolvedValue(mockTasks)
+        getTasksByProject: vi.fn().mockResolvedValue(mockTasks),
       };
 
       // Mock dynamic import
@@ -282,13 +282,13 @@ describe('ProjectManager', () => {
       // Mock tasks for the project
       const mockTasks = [
         { id: 'task-1', name: 'Task 1', status: 'planning' },
-        { id: 'task-2', name: 'Task 2', status: 'doing' }
+        { id: 'task-2', name: 'Task 2', status: 'doing' },
       ];
 
       // Mock the task manager
       const mockTaskManager = {
         getTasksByProject: vi.fn().mockResolvedValue(mockTasks),
-        deleteTask: vi.fn().mockResolvedValue(true)
+        deleteTask: vi.fn().mockResolvedValue(true),
       };
 
       // Mock dynamic import
@@ -317,7 +317,7 @@ describe('ProjectManager', () => {
 
       // Mock no tasks
       const mockTaskManager = {
-        getTasksByProject: vi.fn().mockResolvedValue([])
+        getTasksByProject: vi.fn().mockResolvedValue([]),
       };
 
       vi.doMock('../task.js', () => ({ default: mockTaskManager }));
@@ -335,14 +335,15 @@ describe('ProjectManager', () => {
 
       const mockTasks = [
         { id: 'task-1', name: 'Task 1', status: 'planning' },
-        { id: 'task-2', name: 'Task 2', status: 'doing' }
+        { id: 'task-2', name: 'Task 2', status: 'doing' },
       ];
 
       const mockTaskManager = {
         getTasksByProject: vi.fn().mockResolvedValue(mockTasks),
-        deleteTask: vi.fn()
-          .mockResolvedValueOnce(true)  // First task succeeds
-          .mockResolvedValueOnce(false) // Second task fails
+        deleteTask: vi
+          .fn()
+          .mockResolvedValueOnce(true) // First task succeeds
+          .mockResolvedValueOnce(false), // Second task fails
       };
 
       vi.doMock('../task.js', () => ({ default: mockTaskManager }));
