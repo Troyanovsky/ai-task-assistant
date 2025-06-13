@@ -1,5 +1,5 @@
 // Initial state
-import logger from '@/services/logger';
+import logger from '../../services/logger';
 
 const state = {
   chatHistory: [],

@@ -3,7 +3,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import logger from '@/services/logger';
+import logger from '../services/logger.js';
 
 // Notification type constants
 export const TYPE = {

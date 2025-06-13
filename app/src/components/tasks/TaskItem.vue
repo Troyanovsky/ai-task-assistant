@@ -271,7 +271,7 @@
 <script>
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useStore } from 'vuex';
-import logger from '@/services/logger';
+import logger from '../../services/logger.js';
 
 export default {
   name: 'TaskItem',
