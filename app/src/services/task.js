@@ -1205,6 +1205,49 @@ class TaskManager {
     }
     return message;
   }
+
+  /**
+   * Reschedule all overdue tasks to today's date.
+   * @returns {number} - The number of tasks rescheduled.
+   */
+  async rescheduleOverdueTasksToToday() {
+    try {
+      logger.info('Attempting to reschedule all overdue tasks to today.');
+      const overdueTasks = await this.getOverdueTasks();
+      logger.info(`Found ${overdueTasks.length} overdue tasks to reschedule.`);
+
+      if (overdueTasks.length === 0) {
+        return 0;
+      }
+
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+      let rescheduledCount = 0;
+
+      for (const task of overdueTasks) {
+        // Only reschedule tasks that are not already done
+        if (task.status !== STATUS.DONE) {
+          const updatedTaskData = { ...task.toDatabase(), dueDate: todayStr };
+          // Ensure projectId is correctly set for update if it was missing or null
+          if (!updatedTaskData.project_id && task.projectId) {
+            updatedTaskData.project_id = task.projectId;
+          }
+          const success = await this.updateTask(updatedTaskData);
+          if (success) {
+            rescheduledCount++;
+            logger.info(`Rescheduled task ${task.id} to today: ${todayStr}`);
+          } else {
+            logger.warn(`Failed to reschedule task ${task.id}.`);
+          }
+        }
+      }
+      logger.info(`Successfully rescheduled ${rescheduledCount} overdue tasks.`);
+      return rescheduledCount;
+    } catch (error) {
+      logger.error('Error rescheduling overdue tasks:', error);
+      return 0;
+    }
+  }
 }
 
 // Create singleton instance

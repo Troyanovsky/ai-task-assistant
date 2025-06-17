@@ -129,6 +129,19 @@ export function setupIpcHandlers(mainWindow, aiService) {
     }
   });
 
+  ipcMain.handle('tasks:rescheduleOverdue', async () => {
+    try {
+      const result = await taskManager.rescheduleOverdueTasksToToday();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('tasks:refresh');
+      }
+      return result;
+    } catch (error) {
+      logger.logError(error, 'IPC Error - rescheduleOverdueTasks');
+      return false;
+    }
+  });
+
   ipcMain.handle('tasks:planMyDay', async () => {
     try {
       // Get user preferences for working hours and buffer time

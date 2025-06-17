@@ -8,6 +8,15 @@
       ⚠️ Urgent: {{ displayedTasks.length }} overdue task{{ displayedTasks.length > 1 ? 's' : '' }}
     </div>
 
+    <!-- Reschedule Overdue Tasks Button -->
+    <div
+      v-if="displayedTasks.length > 0"
+      class="p-3 rounded cursor-pointer bg-white border-gray-200 border hover:bg-gray-50 text-center text-blue-500 mb-4"
+      @click="rescheduleOverdueTasks"
+    >
+      📅 Reschedule All To Today
+    </div>
+
     <!-- Tasks List -->
     <div v-if="displayedTasks.length > 0" class="space-y-3">
       <template v-for="task in displayedTasks" :key="task.id">
@@ -212,6 +221,19 @@ export default {
       }
     };
 
+    const rescheduleOverdueTasks = async () => {
+      if (confirm('Are you sure you want to reschedule all overdue tasks to today?')) {
+        try {
+          await window.electron.rescheduleOverdueTasksToToday();
+          await refreshTasks(); // Refresh tasks after rescheduling
+          alert('All overdue tasks have been rescheduled to today!');
+        } catch (error) {
+          logger.error('Error rescheduling overdue tasks:', error);
+          alert('Failed to reschedule overdue tasks. Please try again.');
+        }
+      }
+    };
+
     return {
       editingTask,
       allTasks,
@@ -228,6 +250,7 @@ export default {
       deleteTask,
       moveTask,
       loadAllTasks,
+      rescheduleOverdueTasks,
     };
   },
 };
