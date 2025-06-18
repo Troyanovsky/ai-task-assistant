@@ -81,10 +81,9 @@ class NotificationManager {
   async getNotificationById(id) {
     try {
       logger.info(`Fetching notification ${id}`);
-      const notification = databaseService.queryOne(
-        'SELECT * FROM notifications WHERE id = ?',
-        [id]
-      );
+      const notification = databaseService.queryOne('SELECT * FROM notifications WHERE id = ?', [
+        id,
+      ]);
       return notification ? Notification.fromDatabase(notification) : null;
     } catch (error) {
       logger.logError(error, `Error getting notification ${id}`);

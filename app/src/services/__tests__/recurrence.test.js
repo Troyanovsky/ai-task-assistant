@@ -305,9 +305,7 @@ describe('RecurrenceService', () => {
         created_at: new Date().toISOString(),
       };
 
-      databaseService.queryOne
-        .mockReturnValueOnce(taskData)
-        .mockReturnValueOnce(ruleData);
+      databaseService.queryOne.mockReturnValueOnce(taskData).mockReturnValueOnce(ruleData);
 
       databaseService.delete.mockReturnValue({ changes: 1 });
 

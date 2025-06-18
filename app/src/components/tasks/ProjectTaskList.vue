@@ -264,7 +264,7 @@ export default {
         await store.dispatch('tasks/fetchTasksByProject', props.selectedProject.id);
 
         // Batch fetch recurrence rules for all tasks
-        const taskIds = tasks.value.map(task => task.id);
+        const taskIds = tasks.value.map((task) => task.id);
         if (taskIds.length > 0) {
           await store.dispatch('recurrence/fetchRecurrenceRulesForTasks', taskIds);
         }

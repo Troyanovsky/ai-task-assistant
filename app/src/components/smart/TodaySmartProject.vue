@@ -18,14 +18,14 @@
         deleteTask,
         moveTask,
         loadAllTasks,
-        setEditingTask
+        setEditingTask,
       }"
     >
       <!-- Progress Bar for Today's Tasks -->
       <today-progress
         v-if="tasks.length > 0"
         :total-tasks="tasks.length"
-        :completed-tasks="tasks.filter(task => task.status === 'done').length"
+        :completed-tasks="tasks.filter((task) => task.status === 'done').length"
         class="mb-4"
       />
 
@@ -83,7 +83,9 @@
         v-if="editingTask"
         class="fixed inset-0 bg-gray-600/50 flex items-center justify-center z-50 p-4"
       >
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-6">
+        <div
+          class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-6"
+        >
           <task-form
             :task="editingTask"
             :project-id="editingTask.projectId"
@@ -98,7 +100,9 @@
         v-if="planningResult"
         class="fixed inset-0 bg-gray-600/50 flex items-center justify-center z-50 p-4"
       >
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-6">
+        <div
+          class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-6"
+        >
           <plan-day-result
             :result="planningResult"
             :working-hours="workingHours"
@@ -133,10 +137,6 @@ export default {
     const store = useStore();
     const planningResult = ref(null);
     const planningInProgress = ref(false);
-
-
-
-
 
     const planMyDay = async () => {
       try {

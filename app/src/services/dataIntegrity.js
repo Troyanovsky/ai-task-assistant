@@ -195,9 +195,9 @@ class DataIntegrityService {
       `);
 
       inconsistentRules.push(
-        ...invalidIntervalRules.map(rule => ({ ...rule, issue: 'Invalid interval' })),
-        ...invalidCountRules.map(rule => ({ ...rule, issue: 'Invalid count' })),
-        ...pastEndDateRules.map(rule => ({ ...rule, issue: 'Past end date' }))
+        ...invalidIntervalRules.map((rule) => ({ ...rule, issue: 'Invalid interval' })),
+        ...invalidCountRules.map((rule) => ({ ...rule, issue: 'Invalid count' })),
+        ...pastEndDateRules.map((rule) => ({ ...rule, issue: 'Past end date' }))
       );
 
       if (inconsistentRules.length > 0) {
@@ -246,7 +246,9 @@ class DataIntegrityService {
         logger.info(`  - Orphaned recurrence rules: ${results.orphanedRecurrenceRules.length}`);
         logger.info(`  - Expired recurrence rules: ${results.expiredRecurrenceRules.length}`);
         logger.info(`  - Invalid recurrence rules: ${results.invalidRecurrenceRules.length}`);
-        logger.info(`  - Inconsistent recurrence rules: ${results.inconsistentRecurrenceRules.length}`);
+        logger.info(
+          `  - Inconsistent recurrence rules: ${results.inconsistentRecurrenceRules.length}`
+        );
       }
 
       return results;

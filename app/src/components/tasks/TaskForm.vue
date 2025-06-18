@@ -766,8 +766,6 @@ export default {
       await saveReminderNotifications(taskId, taskName);
     };
 
-
-
     // Helper function to process recurrence rule for existing tasks
     const processRecurrenceRule = async (taskId) => {
       try {
@@ -783,7 +781,9 @@ export default {
         // If there's no pending recurrence data but there's an existing rule, delete it
         if (!pendingRecurrenceData.value && existingRecurrenceRule.value) {
           logger.info('Deleting existing recurrence rule');
-          const success = await window.electron.deleteRecurrenceRule(existingRecurrenceRule.value.id);
+          const success = await window.electron.deleteRecurrenceRule(
+            existingRecurrenceRule.value.id
+          );
           if (success) {
             logger.info('Successfully deleted recurrence rule');
           } else {

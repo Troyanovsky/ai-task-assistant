@@ -31,9 +31,7 @@
         </div>
 
         <div>
-          <label for="interval" class="block text-sm font-medium text-gray-700 mb-1">
-            Every
-          </label>
+          <label for="interval" class="block text-sm font-medium text-gray-700 mb-1"> Every </label>
           <div class="flex items-center space-x-2">
             <input
               id="interval"
@@ -53,22 +51,12 @@
         <label class="block text-sm font-medium text-gray-700 mb-2">End Condition</label>
         <div class="space-y-2">
           <label class="flex items-center">
-            <input
-              v-model="endCondition"
-              type="radio"
-              value="never"
-              class="mr-2"
-            />
+            <input v-model="endCondition" type="radio" value="never" class="mr-2" />
             <span class="text-sm">Never ends</span>
           </label>
-          
+
           <label class="flex items-center">
-            <input
-              v-model="endCondition"
-              type="radio"
-              value="date"
-              class="mr-2"
-            />
+            <input v-model="endCondition" type="radio" value="date" class="mr-2" />
             <span class="text-sm mr-2">End by date:</span>
             <input
               v-model="formData.endDate"
@@ -78,14 +66,9 @@
               class="px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
             />
           </label>
-          
+
           <label class="flex items-center">
-            <input
-              v-model="endCondition"
-              type="radio"
-              value="count"
-              class="mr-2"
-            />
+            <input v-model="endCondition" type="radio" value="count" class="mr-2" />
             <span class="text-sm mr-2">End after:</span>
             <input
               v-model.number="formData.count"
@@ -158,7 +141,7 @@ export default {
       if (!hasRecurrence.value) return '';
 
       let text = `Repeats every ${formData.interval} ${intervalLabel.value}`;
-      
+
       if (endCondition.value === 'date' && formData.endDate) {
         const endDate = new Date(formData.endDate);
         text += ` until ${endDate.toLocaleDateString()}`;
@@ -194,11 +177,15 @@ export default {
     };
 
     // Watch for form changes
-    watch([formData, endCondition], () => {
-      if (hasRecurrence.value) {
-        emitRecurrenceChange();
-      }
-    }, { deep: true });
+    watch(
+      [formData, endCondition],
+      () => {
+        if (hasRecurrence.value) {
+          emitRecurrenceChange();
+        }
+      },
+      { deep: true }
+    );
 
     // Initialize with existing rule if provided
     onMounted(() => {
@@ -206,7 +193,7 @@ export default {
         hasRecurrence.value = true;
         formData.frequency = props.initialRule.frequency;
         formData.interval = props.initialRule.interval;
-        
+
         if (props.initialRule.endDate) {
           endCondition.value = 'date';
           formData.endDate = new Date(props.initialRule.endDate).toISOString().split('T')[0];

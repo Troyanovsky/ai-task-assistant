@@ -56,7 +56,7 @@ const mutations = {
   // Set multiple recurrence rules at once
   setRecurrenceRules(state, rules) {
     state.recurrenceRules = {};
-    rules.forEach(rule => {
+    rules.forEach((rule) => {
       if (rule && rule.taskId) {
         state.recurrenceRules[rule.taskId] = rule;
       }
@@ -107,12 +107,11 @@ const actions = {
       });
 
       const results = await Promise.all(promises);
-      
+
       // Update state with all results
       results.forEach(({ taskId, rule }) => {
         commit('setRecurrenceRule', { taskId, rule });
       });
-
     } catch (error) {
       logger.error('Error fetching recurrence rules for tasks:', error);
       commit('setError', 'Failed to fetch recurrence rules');

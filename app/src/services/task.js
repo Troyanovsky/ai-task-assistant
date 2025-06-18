@@ -547,7 +547,7 @@ class TaskManager {
             // Return both success status and new task data
             return {
               success: true,
-              newTask: newTaskData
+              newTask: newTaskData,
             };
           }
         } catch (recurrenceError) {

@@ -4,7 +4,7 @@
  * next occurrence calculations, and task cloning logic
  */
 
-import { RecurrenceRule, FREQUENCY } from '../models/RecurrenceRule.js';
+import { RecurrenceRule } from '../models/RecurrenceRule.js';
 import { Task, STATUS } from '../models/Task.js';
 import databaseService from './database.js';
 import logger from './logger.js';
@@ -19,7 +19,7 @@ class RecurrenceService {
   async addRecurrenceRule(ruleData) {
     try {
       const rule = new RecurrenceRule(ruleData);
-      
+
       if (!rule.validate()) {
         logger.error('Invalid recurrence rule data');
         return false;
@@ -59,10 +59,9 @@ class RecurrenceService {
    */
   async getRecurrenceRuleByTaskId(taskId) {
     try {
-      const data = databaseService.queryOne(
-        'SELECT * FROM recurrence_rules WHERE task_id = ?',
-        [taskId]
-      );
+      const data = databaseService.queryOne('SELECT * FROM recurrence_rules WHERE task_id = ?', [
+        taskId,
+      ]);
 
       if (data) {
         return RecurrenceRule.fromDatabase(data);
@@ -81,10 +80,9 @@ class RecurrenceService {
    */
   async getRecurrenceRuleById(ruleId) {
     try {
-      const data = databaseService.queryOne(
-        'SELECT * FROM recurrence_rules WHERE id = ?',
-        [ruleId]
-      );
+      const data = databaseService.queryOne('SELECT * FROM recurrence_rules WHERE id = ?', [
+        ruleId,
+      ]);
 
       if (data) {
         return RecurrenceRule.fromDatabase(data);
@@ -111,7 +109,7 @@ class RecurrenceService {
       }
 
       existingRule.update(updateData);
-      
+
       if (!existingRule.validate()) {
         logger.error('Invalid recurrence rule data after update');
         return false;
@@ -122,14 +120,7 @@ class RecurrenceService {
         `UPDATE recurrence_rules SET
           task_id = ?, frequency = ?, interval = ?, end_date = ?, count = ?
         WHERE id = ?`,
-        [
-          data.task_id,
-          data.frequency,
-          data.interval,
-          data.end_date,
-          data.count,
-          data.id,
-        ]
+        [data.task_id, data.frequency, data.interval, data.end_date, data.count, data.id]
       );
 
       if (result && result.changes > 0) {
@@ -150,10 +141,7 @@ class RecurrenceService {
    */
   async deleteRecurrenceRule(ruleId) {
     try {
-      const result = databaseService.delete(
-        'DELETE FROM recurrence_rules WHERE id = ?',
-        [ruleId]
-      );
+      const result = databaseService.delete('DELETE FROM recurrence_rules WHERE id = ?', [ruleId]);
 
       if (result && result.changes > 0) {
         logger.info(`Recurrence rule ${ruleId} deleted successfully`);
@@ -173,10 +161,9 @@ class RecurrenceService {
    */
   async deleteRecurrenceRuleByTaskId(taskId) {
     try {
-      const result = databaseService.delete(
-        'DELETE FROM recurrence_rules WHERE task_id = ?',
-        [taskId]
-      );
+      const result = databaseService.delete('DELETE FROM recurrence_rules WHERE task_id = ?', [
+        taskId,
+      ]);
 
       if (result && result.changes > 0) {
         logger.info(`Recurrence rule for task ${taskId} deleted successfully`);
@@ -214,7 +201,9 @@ class RecurrenceService {
         updatedAt: new Date(),
       };
 
-      logger.info(`Cloned task ${originalTask.id} to new task ${clonedTaskData.id} with due date ${newDueDate}`);
+      logger.info(
+        `Cloned task ${originalTask.id} to new task ${clonedTaskData.id} with due date ${newDueDate}`
+      );
       return clonedTaskData;
     } catch (error) {
       logger.error(`Error cloning task ${originalTask.id}:`, error);
@@ -281,93 +270,160 @@ class RecurrenceService {
     try {
       logger.info(`Processing task completion for recurrence: ${taskId}`);
 
-      // Get the completed task
-      const taskData = databaseService.queryOne('SELECT * FROM tasks WHERE id = ?', [taskId]);
-      if (!taskData) {
-        logger.error(`Task ${taskId} not found`);
-        return null;
-      }
+      const completedTask = await this._getCompletedTask(taskId);
+      if (!completedTask) return null;
 
-      const completedTask = Task.fromDatabase(taskData);
+      const recurrenceRule = await this._getRecurrenceRuleForTask(taskId);
+      if (!recurrenceRule) return null;
 
-      // Get recurrence rule for this task
-      const recurrenceRule = await this.getRecurrenceRuleByTaskId(taskId);
-      if (!recurrenceRule) {
-        logger.info(`No recurrence rule found for task ${taskId}`);
-        return null;
-      }
+      const nextOccurrenceDate = await this._calculateNextOccurrence(completedTask, recurrenceRule);
+      if (!nextOccurrenceDate) return null;
 
-      // Calculate next occurrence based on the completed task's due date
-      const baseDate = completedTask.dueDate ? new Date(completedTask.dueDate) : new Date();
-      const nextOccurrenceDate = recurrenceRule.getNextOccurrence(baseDate);
-
-      if (!nextOccurrenceDate) {
-        logger.info(`No next occurrence calculated for task ${taskId}`);
-        await this.deleteRecurrenceRule(recurrenceRule.id);
-        return null;
-      }
-
-      // Check if recurrence should continue
-      if (!this.shouldContinueRecurrence(recurrenceRule, nextOccurrenceDate)) {
-        await this.deleteRecurrenceRule(recurrenceRule.id);
-        return null;
-      }
-
-      // Clone the task with new due date
-      const clonedTaskData = this.cloneTaskForRecurrence(completedTask, nextOccurrenceDate);
-      if (!clonedTaskData) {
-        logger.error(`Failed to clone task ${taskId}`);
-        return null;
-      }
-
-      // Create the new task in database
-      const newTask = new Task(clonedTaskData);
-      const newTaskDbData = newTask.toDatabase();
-
-      const insertResult = databaseService.insert(
-        `INSERT INTO tasks (
-          id, name, description, duration, due_date, planned_time, project_id,
-          dependencies, status, labels, priority, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          newTaskDbData.id,
-          newTaskDbData.name,
-          newTaskDbData.description,
-          newTaskDbData.duration,
-          newTaskDbData.due_date,
-          newTaskDbData.planned_time,
-          newTaskDbData.project_id,
-          newTaskDbData.dependencies,
-          newTaskDbData.status,
-          newTaskDbData.labels,
-          newTaskDbData.priority,
-          newTaskDbData.created_at,
-          newTaskDbData.updated_at,
-        ]
-      );
-
-      if (!insertResult || insertResult.changes === 0) {
-        logger.error(`Failed to insert new recurring task for ${taskId}`);
-        return null;
-      }
-
-      // Update recurrence rule to point to new task and decrement count if applicable
-      const updateData = { taskId: newTaskDbData.id };
-      if (recurrenceRule.count !== null && recurrenceRule.count > 0) {
-        updateData.count = recurrenceRule.count - 1;
-      }
-
-      const updateSuccess = await this.updateRecurrenceRule(recurrenceRule.id, updateData);
-      if (!updateSuccess) {
-        logger.error(`Failed to update recurrence rule ${recurrenceRule.id}`);
-        // Don't fail the whole operation, just log the error
-      }
-
-      logger.info(`Successfully created recurring task ${newTaskDbData.id} from completed task ${taskId}`);
-      return newTaskDbData;
+      const newTaskData = await this._createRecurringTask(completedTask, nextOccurrenceDate, recurrenceRule);
+      return newTaskData;
     } catch (error) {
       logger.error(`Error processing task completion for recurrence ${taskId}:`, error);
       return null;
+    }
+  }
+
+  /**
+   * Get completed task from database
+   * @param {string} taskId - Task ID
+   * @returns {Task|null} - Task instance or null
+   * @private
+   */
+  async _getCompletedTask(taskId) {
+    const taskData = databaseService.queryOne('SELECT * FROM tasks WHERE id = ?', [taskId]);
+    if (!taskData) {
+      logger.error(`Task ${taskId} not found`);
+      return null;
+    }
+    return Task.fromDatabase(taskData);
+  }
+
+  /**
+   * Get recurrence rule for task
+   * @param {string} taskId - Task ID
+   * @returns {RecurrenceRule|null} - Recurrence rule or null
+   * @private
+   */
+  async _getRecurrenceRuleForTask(taskId) {
+    const recurrenceRule = await this.getRecurrenceRuleByTaskId(taskId);
+    if (!recurrenceRule) {
+      logger.info(`No recurrence rule found for task ${taskId}`);
+      return null;
+    }
+    return recurrenceRule;
+  }
+
+  /**
+   * Calculate next occurrence date
+   * @param {Task} completedTask - Completed task
+   * @param {RecurrenceRule} recurrenceRule - Recurrence rule
+   * @returns {Date|null} - Next occurrence date or null
+   * @private
+   */
+  async _calculateNextOccurrence(completedTask, recurrenceRule) {
+    const baseDate = completedTask.dueDate ? new Date(completedTask.dueDate) : new Date();
+    const nextOccurrenceDate = recurrenceRule.getNextOccurrence(baseDate);
+
+    if (!nextOccurrenceDate) {
+      logger.info(`No next occurrence calculated for task ${completedTask.id}`);
+      await this.deleteRecurrenceRule(recurrenceRule.id);
+      return null;
+    }
+
+    if (!this.shouldContinueRecurrence(recurrenceRule, nextOccurrenceDate)) {
+      await this.deleteRecurrenceRule(recurrenceRule.id);
+      return null;
+    }
+
+    return nextOccurrenceDate;
+  }
+
+  /**
+   * Create new recurring task
+   * @param {Task} completedTask - Completed task
+   * @param {Date} nextOccurrenceDate - Next occurrence date
+   * @param {RecurrenceRule} recurrenceRule - Recurrence rule
+   * @returns {Object|null} - New task data or null
+   * @private
+   */
+  async _createRecurringTask(completedTask, nextOccurrenceDate, recurrenceRule) {
+    const clonedTaskData = this.cloneTaskForRecurrence(completedTask, nextOccurrenceDate);
+    if (!clonedTaskData) {
+      logger.error(`Failed to clone task ${completedTask.id}`);
+      return null;
+    }
+
+    const newTaskData = await this._insertNewTask(clonedTaskData);
+    if (!newTaskData) return null;
+
+    await this._updateRecurrenceRuleForNewTask(recurrenceRule, newTaskData.id);
+
+    logger.info(
+      `Successfully created recurring task ${newTaskData.id} from completed task ${completedTask.id}`
+    );
+    return newTaskData;
+  }
+
+  /**
+   * Insert new task into database
+   * @param {Object} clonedTaskData - Cloned task data
+   * @returns {Object|null} - New task data or null
+   * @private
+   */
+  async _insertNewTask(clonedTaskData) {
+    const newTask = new Task(clonedTaskData);
+    const newTaskDbData = newTask.toDatabase();
+
+    const insertResult = databaseService.insert(
+      `INSERT INTO tasks (
+        id, name, description, duration, due_date, planned_time, project_id,
+        dependencies, status, labels, priority, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        newTaskDbData.id,
+        newTaskDbData.name,
+        newTaskDbData.description,
+        newTaskDbData.duration,
+        newTaskDbData.due_date,
+        newTaskDbData.planned_time,
+        newTaskDbData.project_id,
+        newTaskDbData.dependencies,
+        newTaskDbData.status,
+        newTaskDbData.labels,
+        newTaskDbData.priority,
+        newTaskDbData.created_at,
+        newTaskDbData.updated_at,
+      ]
+    );
+
+    if (!insertResult || insertResult.changes === 0) {
+      logger.error(`Failed to insert new recurring task`);
+      return null;
+    }
+
+    return newTaskDbData;
+  }
+
+  /**
+   * Update recurrence rule for new task
+   * @param {RecurrenceRule} recurrenceRule - Recurrence rule
+   * @param {string} newTaskId - New task ID
+   * @private
+   */
+  async _updateRecurrenceRuleForNewTask(recurrenceRule, newTaskId) {
+    const updateData = { taskId: newTaskId };
+    if (recurrenceRule.count !== null && recurrenceRule.count > 0) {
+      updateData.count = recurrenceRule.count - 1;
+    }
+
+    const updateSuccess = await this.updateRecurrenceRule(recurrenceRule.id, updateData);
+    if (!updateSuccess) {
+      logger.error(`Failed to update recurrence rule ${recurrenceRule.id}`);
+      // Don't fail the whole operation, just log the error
     }
   }
 
@@ -377,8 +433,10 @@ class RecurrenceService {
    */
   async getAllRecurrenceRules() {
     try {
-      const rules = databaseService.query('SELECT * FROM recurrence_rules ORDER BY created_at DESC');
-      return rules.map(rule => RecurrenceRule.fromDatabase(rule));
+      const rules = databaseService.query(
+        'SELECT * FROM recurrence_rules ORDER BY created_at DESC'
+      );
+      return rules.map((rule) => RecurrenceRule.fromDatabase(rule));
     } catch (error) {
       logger.error('Error getting all recurrence rules:', error);
       return [];
@@ -394,7 +452,7 @@ class RecurrenceService {
       const rules = await this.getAllRecurrenceRules();
       const now = new Date();
 
-      return rules.filter(rule => {
+      return rules.filter((rule) => {
         // Check if rule has expired due to end date
         if (rule.endDate && now > rule.endDate) {
           return true;
@@ -463,8 +521,8 @@ class RecurrenceService {
       };
 
       // Count by frequency
-      allRules.forEach(rule => {
-        if (stats.byFrequency.hasOwnProperty(rule.frequency)) {
+      allRules.forEach((rule) => {
+        if (Object.prototype.hasOwnProperty.call(stats.byFrequency, rule.frequency)) {
           stats.byFrequency[rule.frequency]++;
         }
       });
