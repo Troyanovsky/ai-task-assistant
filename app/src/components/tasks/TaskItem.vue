@@ -291,11 +291,14 @@ export default {
       type: Boolean,
       default: false,
     },
+    notificationCount: {
+      type: Number,
+      default: 0,
+    },
   },
   emits: ['status-change', 'edit', 'delete', 'move'],
   setup(props, { emit }) {
     const store = useStore();
-    const notificationCount = ref(0);
     const showDropdown = ref(false);
     const showMoveOptions = ref(false);
 
@@ -363,49 +366,12 @@ export default {
       }
     });
 
-    // Function to fetch notifications count
-    const fetchNotifications = async () => {
-      try {
-        // Fetch notifications for this task
-        const notifications = await window.electron.getNotificationsByTask(props.task.id);
-        // Exclude planned time notifications from the count shown in UI
-        const regularNotifications = notifications.filter((n) => n.type !== 'PLANNED_TIME');
-        notificationCount.value = regularNotifications ? regularNotifications.length : 0;
-      } catch (error) {
-        logger.error('Error fetching task notifications:', error);
-      }
-    };
-
-    // Store reference to the wrapped listener function for proper cleanup
-    const wrappedNotificationListener = ref(null);
-
     onMounted(async () => {
-      await fetchNotifications();
-
-      // Create a specific listener function for this component
-      const handleNotificationChange = async (taskId) => {
-        if (taskId === props.task.id) {
-          await fetchNotifications();
-        }
-      };
-
-      // Listen for notification changes and store the wrapped function reference
-      wrappedNotificationListener.value = window.electron.receive(
-        'notifications:changed',
-        handleNotificationChange
-      );
-
       // Add click event listener to close dropdowns
       document.addEventListener('click', closeDropdowns);
     });
 
     onBeforeUnmount(() => {
-      // Remove only this component's specific notification listener
-      if (wrappedNotificationListener.value) {
-        window.electron.removeListener('notifications:changed', wrappedNotificationListener.value);
-        wrappedNotificationListener.value = null;
-      }
-
       // Remove click event listener
       document.removeEventListener('click', closeDropdowns);
     });
@@ -506,7 +472,6 @@ export default {
     return {
       statusClasses,
       priorityClasses,
-      notificationCount,
       showDropdown,
       showMoveOptions,
       projects,

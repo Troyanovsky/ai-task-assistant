@@ -46,6 +46,7 @@
           v-if="!isTaskBeingEdited(task)"
           :task="task"
           :is-missed-planned-time="isMissedPlannedTime(task)"
+          :notification-count="getNotificationCount(task.id)"
           @status-change="updateTaskStatus"
           @edit="editTask"
           @delete="deleteTask"
@@ -116,11 +117,15 @@ export default {
     // Store references to wrapped listener functions for proper cleanup
     const wrappedTasksRefreshListener = ref(null);
     const wrappedNotificationsRefreshListener = ref(null);
+    const wrappedNotificationsChangedListener = ref(null);
     const filters = ref({
       status: 'all',
       priority: 'all',
       search: '',
     });
+
+    // Track notification counts for each task
+    const taskNotificationCounts = ref({});
 
     // Get tasks for the selected project
     const tasks = computed(() => {
@@ -234,6 +239,25 @@ export default {
       return editingTask.value && task && editingTask.value.id === task.id;
     };
 
+    // Function to fetch notification counts for all tasks
+    const fetchNotificationCounts = async () => {
+      if (!tasks.value || tasks.value.length === 0) return;
+
+      const counts = {};
+      for (const task of tasks.value) {
+        try {
+          const notifications = await window.electron.getNotificationsByTask(task.id);
+          // Exclude planned time notifications from the count shown in UI
+          const regularNotifications = notifications.filter((n) => n.type !== 'PLANNED_TIME');
+          counts[task.id] = regularNotifications ? regularNotifications.length : 0;
+        } catch (error) {
+          logger.error(`Error fetching notifications for task ${task.id}:`, error);
+          counts[task.id] = 0;
+        }
+      }
+      taskNotificationCounts.value = counts;
+    };
+
     // Function to fetch tasks for the current project
     const fetchTasks = async () => {
       if (props.selectedProject) {
@@ -244,6 +268,9 @@ export default {
         if (taskIds.length > 0) {
           await store.dispatch('recurrence/fetchRecurrenceRulesForTasks', taskIds);
         }
+
+        // Fetch notification counts for all tasks
+        await fetchNotificationCounts();
       }
     };
 
@@ -253,6 +280,8 @@ export default {
 
       if (props.selectedProject) {
         await store.dispatch('tasks/fetchAllTasksByProject', props.selectedProject.id);
+        // Fetch notification counts for all tasks
+        await fetchNotificationCounts();
       }
     };
 
@@ -299,6 +328,16 @@ export default {
               await fetchTasks();
             }
           );
+
+          // Set up notifications changed listener
+          wrappedNotificationsChangedListener.value = window.electron.receive(
+            'notifications:changed',
+            async (taskId) => {
+              logger.info(`Received notifications:changed event for task ${taskId}`);
+              // Refresh notification counts for all tasks to keep UI in sync
+              await fetchNotificationCounts();
+            }
+          );
         } else {
           logger.warn('Electron API not available - task refresh events will not work');
         }
@@ -326,6 +365,13 @@ export default {
             );
             wrappedNotificationsRefreshListener.value = null;
           }
+          if (wrappedNotificationsChangedListener.value) {
+            window.electron.removeListener(
+              'notifications:changed',
+              wrappedNotificationsChangedListener.value
+            );
+            wrappedNotificationsChangedListener.value = null;
+          }
         }
       } catch (error) {
         logger.logError(error, 'Error removing task refresh listeners');
@@ -339,6 +385,8 @@ export default {
         showingAllTasks.value = false;
         if (newProject) {
           await store.dispatch('tasks/fetchTasksByProject', newProject.id);
+          // Fetch notification counts for all tasks
+          await fetchNotificationCounts();
         }
       },
       { immediate: true }
@@ -418,6 +466,11 @@ export default {
       store.dispatch('tasks/filterTasks', newFilters);
     };
 
+    // Helper function to get notification count for a specific task
+    const getNotificationCount = (taskId) => {
+      return taskNotificationCounts.value[taskId] || 0;
+    };
+
     return {
       tasks,
       filteredTasks,
@@ -438,6 +491,7 @@ export default {
       updateFilters,
       loadAllTasks,
       isMissedPlannedTime,
+      getNotificationCount,
     };
   },
 };
