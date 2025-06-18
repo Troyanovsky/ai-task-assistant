@@ -165,9 +165,9 @@ class Task {
    * @returns {Task} - Task instance
    */
   static fromDatabase(data) {
-    logger.info('Creating Task from database data:', data);
+    // logger.info('Creating Task from database data:', data);
     const task = new Task(data);
-    logger.info('Task created with projectId:', task.projectId);
+    // logger.info('Task created with projectId:', task.projectId);
     return task;
   }
 
