@@ -218,6 +218,13 @@
         </div>
       </div>
 
+      <!-- Recurrence Section -->
+      <RecurrenceForm
+        :task-id="task ? task.id : null"
+        :initial-rule="existingRecurrenceRule"
+        @recurrence-change="handleRecurrenceChange"
+      />
+
       <div class="flex justify-end space-x-2">
         <button
           type="button"
@@ -242,9 +249,13 @@ import { reactive, onMounted, ref, computed } from 'vue';
 import { TYPE } from '../../models/Notification';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '../../services/logger';
+import RecurrenceForm from '../recurrence/RecurrenceForm.vue';
 
 export default {
   name: 'TaskForm',
+  components: {
+    RecurrenceForm,
+  },
   props: {
     task: {
       type: Object,
@@ -287,6 +298,10 @@ export default {
 
     // Track notifications to be deleted (existing ones)
     const notificationsToDelete = ref([]);
+
+    // Recurrence-related data
+    const existingRecurrenceRule = ref(null);
+    const pendingRecurrenceData = ref(null);
 
     // Check if planned time is after due date
     const isPlannedTimeAfterDueDate = computed(() => {
@@ -429,6 +444,12 @@ export default {
       return taskData;
     };
 
+    // Handle recurrence changes from the RecurrenceForm
+    const handleRecurrenceChange = (ruleData) => {
+      pendingRecurrenceData.value = ruleData;
+      logger.info('Recurrence data changed:', ruleData);
+    };
+
     onMounted(async () => {
       if (props.task) {
         formData.name = props.task.name;
@@ -502,6 +523,16 @@ export default {
         } catch (error) {
           logger.error('Error fetching notifications:', error);
         }
+
+        // Fetch existing recurrence rule for the task
+        try {
+          logger.info(`Fetching recurrence rule for task: ${props.task.id}`);
+          const recurrenceRule = await window.electron.getRecurrenceRuleByTask(props.task.id);
+          existingRecurrenceRule.value = recurrenceRule;
+          logger.info('Existing recurrence rule:', recurrenceRule);
+        } catch (error) {
+          logger.error('Error fetching recurrence rule:', error);
+        }
       }
     });
 
@@ -552,6 +583,9 @@ export default {
 
         // Process notifications for existing task
         await processNotifications(props.task.id, taskData.name, taskData.plannedTime);
+
+        // Process recurrence rule for existing task
+        await processRecurrenceRule(props.task.id);
       } else {
         // For new tasks, we need to wait for the task ID
         // Save the task data and store notifications for later
@@ -569,6 +603,9 @@ export default {
         // Clear notifications UI
         notifications.value = [];
         notificationsToDelete.value = [];
+
+        // Store recurrence data for later processing
+        const pendingRecurrence = pendingRecurrenceData.value;
 
         // Emit save event with a callback to process notifications
         emit('save', taskData, async (savedTaskId) => {
@@ -613,6 +650,25 @@ export default {
                 }
               } catch (error) {
                 logger.error('Error saving notification for new task:', error);
+              }
+            }
+
+            // Process recurrence rule for new task
+            if (pendingRecurrence) {
+              try {
+                const recurrenceData = {
+                  ...pendingRecurrence,
+                  taskId: savedTaskId,
+                };
+                logger.info('Saving recurrence rule for new task:', recurrenceData);
+                const success = await window.electron.addRecurrenceRule(recurrenceData);
+                if (success) {
+                  logger.info('Successfully created recurrence rule for new task');
+                } else {
+                  logger.error('Failed to create recurrence rule for new task');
+                }
+              } catch (error) {
+                logger.error('Error saving recurrence rule for new task:', error);
               }
             }
           }
@@ -710,9 +766,71 @@ export default {
       await saveReminderNotifications(taskId, taskName);
     };
 
+
+
+    // Helper function to process recurrence rule for existing tasks
+    const processRecurrenceRule = async (taskId) => {
+      try {
+        logger.info(`Processing recurrence rule for task ID: ${taskId}`);
+        logger.info('Pending recurrence data:', pendingRecurrenceData.value);
+        logger.info('Existing recurrence rule:', existingRecurrenceRule.value);
+
+        // If there's no pending recurrence data and no existing rule, nothing to do
+        if (!pendingRecurrenceData.value && !existingRecurrenceRule.value) {
+          return;
+        }
+
+        // If there's no pending recurrence data but there's an existing rule, delete it
+        if (!pendingRecurrenceData.value && existingRecurrenceRule.value) {
+          logger.info('Deleting existing recurrence rule');
+          const success = await window.electron.deleteRecurrenceRule(existingRecurrenceRule.value.id);
+          if (success) {
+            logger.info('Successfully deleted recurrence rule');
+          } else {
+            logger.error('Failed to delete recurrence rule');
+          }
+          return;
+        }
+
+        // If there's pending recurrence data
+        if (pendingRecurrenceData.value) {
+          const recurrenceData = {
+            ...pendingRecurrenceData.value,
+            taskId: taskId,
+          };
+
+          // If there's an existing rule, update it
+          if (existingRecurrenceRule.value) {
+            logger.info('Updating existing recurrence rule');
+            const success = await window.electron.updateRecurrenceRule(
+              existingRecurrenceRule.value.id,
+              recurrenceData
+            );
+            if (success) {
+              logger.info('Successfully updated recurrence rule');
+            } else {
+              logger.error('Failed to update recurrence rule');
+            }
+          } else {
+            // Otherwise, create a new rule
+            logger.info('Creating new recurrence rule');
+            const success = await window.electron.addRecurrenceRule(recurrenceData);
+            if (success) {
+              logger.info('Successfully created recurrence rule');
+            } else {
+              logger.error('Failed to create recurrence rule');
+            }
+          }
+        }
+      } catch (error) {
+        logger.error('Error processing recurrence rule:', error);
+      }
+    };
+
     return {
       formData,
       notifications,
+      existingRecurrenceRule,
       currentDate,
       currentTime,
       isPlannedTimeAfterDueDate,
@@ -721,6 +839,7 @@ export default {
       addNewNotification,
       removeNotification,
       saveTask,
+      handleRecurrenceChange,
     };
   },
 };

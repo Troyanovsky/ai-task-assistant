@@ -19,12 +19,15 @@ class RecurrenceRule {
    */
   constructor(data = {}) {
     this.id = data.id || uuidv4();
-    this.taskId = data.task_id || '';
+    // Support both taskId and task_id for flexibility
+    this.taskId = data.taskId || data.task_id || '';
     this.frequency = data.frequency || FREQUENCY.DAILY;
-    this.interval = data.interval || 1;
-    this.endDate = data.end_date ? new Date(data.end_date) : null;
-    this.count = data.count || null;
-    this.createdAt = data.created_at ? new Date(data.created_at) : new Date();
+    this.interval = data.interval !== undefined ? data.interval : 1;
+    // Handle both endDate and end_date - convert string dates to Date objects
+    this.endDate = this._parseDate(data.endDate) || this._parseDate(data.end_date) || null;
+    this.count = data.count !== undefined ? data.count : null;
+    // Handle both createdAt and created_at
+    this.createdAt = data.createdAt || (data.created_at ? new Date(data.created_at) : new Date());
   }
 
   /**
@@ -41,6 +44,7 @@ class RecurrenceRule {
     if (this.interval <= 0) {
       return false;
     }
+    // Count should be null or a positive number
     if (this.count !== null && this.count <= 0) {
       return false;
     }
@@ -80,7 +84,7 @@ class RecurrenceRule {
     if (data.taskId !== undefined) this.taskId = data.taskId;
     if (data.frequency !== undefined) this.frequency = data.frequency;
     if (data.interval !== undefined) this.interval = data.interval;
-    if (data.endDate !== undefined) this.endDate = data.endDate;
+    if (data.endDate !== undefined) this.endDate = this._parseDate(data.endDate);
     if (data.count !== undefined) this.count = data.count;
   }
 
@@ -118,6 +122,22 @@ class RecurrenceRule {
     }
 
     return nextDate;
+  }
+
+  /**
+   * Helper method to parse date values
+   * @param {string|Date|null} dateValue - Date value to parse
+   * @returns {Date|null} - Parsed Date object or null
+   * @private
+   */
+  _parseDate(dateValue) {
+    if (!dateValue) return null;
+    if (dateValue instanceof Date) return dateValue;
+    if (typeof dateValue === 'string') {
+      const parsed = new Date(dateValue);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    }
+    return null;
   }
 }
 

@@ -262,6 +262,9 @@
             </svg>
             {{ notificationCount }}
           </span>
+
+          <!-- Recurrence Indicator -->
+          <RecurrenceIndicator :task-id="task.id" />
         </div>
       </div>
     </div>
@@ -272,9 +275,13 @@
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useStore } from 'vuex';
 import logger from '../../services/logger.js';
+import RecurrenceIndicator from '../recurrence/RecurrenceIndicator.vue';
 
 export default {
   name: 'TaskItem',
+  components: {
+    RecurrenceIndicator,
+  },
   props: {
     task: {
       type: Object,

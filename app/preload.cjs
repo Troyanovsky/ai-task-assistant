@@ -87,6 +87,13 @@ contextBridge.exposeInMainWorld(
     addNotification: (notification) => ipcRenderer.invoke('notifications:add', notification),
     updateNotification: (notification) => ipcRenderer.invoke('notifications:update', notification),
     deleteNotification: (notificationId) => ipcRenderer.invoke('notifications:delete', notificationId),
+
+    getRecurrenceRuleByTask: (taskId) => ipcRenderer.invoke('recurrence:getByTask', taskId),
+    getRecurrenceRuleById: (ruleId) => ipcRenderer.invoke('recurrence:getById', ruleId),
+    addRecurrenceRule: (ruleData) => ipcRenderer.invoke('recurrence:add', ruleData),
+    updateRecurrenceRule: (ruleId, updateData) => ipcRenderer.invoke('recurrence:update', ruleId, updateData),
+    deleteRecurrenceRule: (ruleId) => ipcRenderer.invoke('recurrence:delete', ruleId),
+    deleteRecurrenceRuleByTask: (taskId) => ipcRenderer.invoke('recurrence:deleteByTask', taskId),
     
     getPreferences: () => ipcRenderer.invoke('preferences:get'),
     updateWorkingHours: (workingHours) => ipcRenderer.invoke('preferences:updateWorkingHours', workingHours),
@@ -106,7 +113,9 @@ contextBridge.exposeInMainWorld(
         'notification:received',
         'notifications:changed',
         'notifications:refresh',
-        'preferences:refresh'
+        'preferences:refresh',
+        'recurrence:changed',
+        'task:recurring-created'
       ];
       if (validChannels.includes(channel)) {
         // Create a wrapper function that we can reference for removal
@@ -124,7 +133,9 @@ contextBridge.exposeInMainWorld(
         'notification:received',
         'notifications:changed',
         'notifications:refresh',
-        'preferences:refresh'
+        'preferences:refresh',
+        'recurrence:changed',
+        'task:recurring-created'
       ];
       if (validChannels.includes(channel) && func) {
         ipcRenderer.removeListener(channel, func);
@@ -138,7 +149,9 @@ contextBridge.exposeInMainWorld(
         'notification:received',
         'notifications:changed',
         'notifications:refresh',
-        'preferences:refresh'
+        'preferences:refresh',
+        'recurrence:changed',
+        'task:recurring-created'
       ];
       if (validChannels.includes(channel)) {
         ipcRenderer.removeAllListeners(channel);

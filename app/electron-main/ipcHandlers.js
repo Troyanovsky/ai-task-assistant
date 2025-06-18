@@ -4,6 +4,7 @@ import projectManager from '../src/services/project.js';
 import taskManager from '../src/services/task.js';
 import notificationService from '../src/services/notification.js';
 import preferencesService from '../src/services/preferences.js';
+import recurrenceService from '../src/services/recurrence.js';
 import logger from './logger.js';
 
 /**
@@ -122,7 +123,22 @@ export function setupIpcHandlers(mainWindow, aiService) {
 
   ipcMain.handle('tasks:updateStatus', async (_, taskId, status) => {
     try {
-      return await taskManager.updateTaskStatus(taskId, status);
+      const result = await taskManager.updateTaskStatus(taskId, status);
+
+      // If a new recurring task was created, notify the frontend
+      if (result && typeof result === 'object' && result.newTask) {
+        // Emit task refresh event to update the UI
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('tasks:refresh');
+          mainWindow.webContents.send('task:recurring-created', {
+            originalTaskId: taskId,
+            newTask: result.newTask
+          });
+        }
+        return result.success;
+      }
+
+      return result;
     } catch (error) {
       logger.logError(error, `IPC Error - updateTaskStatus for ${taskId}`);
       return false;
@@ -230,6 +246,88 @@ export function setupIpcHandlers(mainWindow, aiService) {
     // Forward notification to renderer process
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('notification:received', notification);
+    }
+  });
+
+  // Recurrence operations
+  ipcMain.handle('recurrence:add', async (_, ruleData) => {
+    try {
+      const result = await recurrenceService.addRecurrenceRule(ruleData);
+      if (result) {
+        // Emit recurrence changed event with the task ID
+        mainWindow.webContents.send('recurrence:changed', ruleData.taskId || ruleData.task_id);
+      }
+      return result;
+    } catch (error) {
+      logger.logError(error, 'IPC Error - addRecurrenceRule');
+      return false;
+    }
+  });
+
+  ipcMain.handle('recurrence:getByTask', async (_, taskId) => {
+    try {
+      return await recurrenceService.getRecurrenceRuleByTaskId(taskId);
+    } catch (error) {
+      logger.logError(error, `IPC Error - getRecurrenceRuleByTaskId for ${taskId}`);
+      return null;
+    }
+  });
+
+  ipcMain.handle('recurrence:getById', async (_, ruleId) => {
+    try {
+      return await recurrenceService.getRecurrenceRuleById(ruleId);
+    } catch (error) {
+      logger.logError(error, `IPC Error - getRecurrenceRuleById for ${ruleId}`);
+      return null;
+    }
+  });
+
+  ipcMain.handle('recurrence:update', async (_, ruleId, updateData) => {
+    try {
+      const result = await recurrenceService.updateRecurrenceRule(ruleId, updateData);
+      if (result) {
+        // Get the rule to find the task ID for the event
+        const rule = await recurrenceService.getRecurrenceRuleById(ruleId);
+        if (rule) {
+          mainWindow.webContents.send('recurrence:changed', rule.taskId);
+        }
+      }
+      return result;
+    } catch (error) {
+      logger.logError(error, `IPC Error - updateRecurrenceRule for ${ruleId}`);
+      return false;
+    }
+  });
+
+  ipcMain.handle('recurrence:delete', async (_, ruleId) => {
+    try {
+      // Get the rule to find the task ID before deletion
+      const rule = await recurrenceService.getRecurrenceRuleById(ruleId);
+      const taskId = rule ? rule.taskId : null;
+
+      const result = await recurrenceService.deleteRecurrenceRule(ruleId);
+      if (result && taskId) {
+        // Emit recurrence changed event with the task ID
+        mainWindow.webContents.send('recurrence:changed', taskId);
+      }
+      return result;
+    } catch (error) {
+      logger.logError(error, `IPC Error - deleteRecurrenceRule for ${ruleId}`);
+      return false;
+    }
+  });
+
+  ipcMain.handle('recurrence:deleteByTask', async (_, taskId) => {
+    try {
+      const result = await recurrenceService.deleteRecurrenceRuleByTaskId(taskId);
+      if (result) {
+        // Emit recurrence changed event with the task ID
+        mainWindow.webContents.send('recurrence:changed', taskId);
+      }
+      return result;
+    } catch (error) {
+      logger.logError(error, `IPC Error - deleteRecurrenceRuleByTaskId for ${taskId}`);
+      return false;
     }
   });
 

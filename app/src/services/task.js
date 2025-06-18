@@ -6,6 +6,7 @@
 import databaseService from './database.js';
 import { Task, STATUS, PRIORITY } from '../models/Task.js';
 import notificationService from './notification.js';
+import recurrenceService from './recurrence.js';
 
 // Determine which logger to use based on the environment
 let logger;
@@ -505,7 +506,7 @@ class TaskManager {
    * Update task status
    * @param {string} id - Task ID
    * @param {string} status - New status
-   * @returns {boolean} - Success status
+   * @returns {boolean|Object} - Success status or new task data if recurrence created
    */
   async updateTaskStatus(id, status) {
     try {
@@ -522,13 +523,40 @@ class TaskManager {
         return false;
       }
 
+      // Store the old status for comparison
+      const oldStatus = task.status;
+
       // Update status
       const result = databaseService.update(
         'UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?',
         [status, new Date().toISOString(), id]
       );
 
-      return result && result.changes > 0;
+      if (!result || result.changes === 0) {
+        return false;
+      }
+
+      // Handle recurrence if task was just completed
+      if (oldStatus !== STATUS.DONE && status === STATUS.DONE) {
+        try {
+          logger.info(`Task ${id} completed, checking for recurrence`);
+          const newTaskData = await recurrenceService.processTaskCompletion(id);
+
+          if (newTaskData) {
+            logger.info(`Created recurring task ${newTaskData.id} from completed task ${id}`);
+            // Return both success status and new task data
+            return {
+              success: true,
+              newTask: newTaskData
+            };
+          }
+        } catch (recurrenceError) {
+          logger.error(`Error processing recurrence for task ${id}:`, recurrenceError);
+          // Don't fail the status update if recurrence processing fails
+        }
+      }
+
+      return true;
     } catch (error) {
       logger.error(`Error updating task status for ${id}:`, error);
       return false;
@@ -635,17 +663,14 @@ class TaskManager {
    */
   async getOverdueTasks() {
     try {
-      // Get yesterday's date (to exclude today)
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      yesterday.setHours(23, 59, 59, 999); // End of yesterday
-
+      // Get today's date to find tasks due before today
+      const today = new Date();
       // Format date as YYYY-MM-DD for SQLite comparison
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      const todayStr = today.toISOString().split('T')[0];
 
       const tasks = databaseService.query(
         'SELECT * FROM tasks WHERE due_date < ? AND status != ? ORDER BY due_date ASC',
-        [yesterdayStr, STATUS.DONE]
+        [todayStr, STATUS.DONE]
       );
 
       return tasks.map((task) => Task.fromDatabase(task));
