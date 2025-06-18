@@ -8,7 +8,7 @@
 </template>
 
 <script>
-import { onMounted } from 'vue';
+import { onMounted, onBeforeUnmount, ref } from 'vue';
 import { useStore } from 'vuex';
 import NotificationListener from './components/system/NotificationListener.vue';
 import logger from './services/logger.js';
@@ -20,6 +20,9 @@ export default {
   },
   setup() {
     const store = useStore();
+
+    // Store reference to the wrapped listener function for proper cleanup
+    const wrappedRecurrenceListener = ref(null);
 
     onMounted(() => {
       logger.info('App mounted, initializing data');
@@ -33,6 +36,38 @@ export default {
       store
         .dispatch('tasks/fetchTasks')
         .catch((error) => logger.logError(error, 'Failed to fetch tasks'));
+
+      // Set up global recurrence change listener
+      try {
+        if (window.electron && window.electron.receive) {
+          wrappedRecurrenceListener.value = window.electron.receive(
+            'recurrence:changed',
+            (taskId) => {
+              logger.info(`Received recurrence:changed event for task ${taskId}`);
+              // Dispatch to the recurrence store to handle the change
+              store.dispatch('recurrence/handleRecurrenceChange', taskId);
+            }
+          );
+          logger.info('Global recurrence listener registered');
+        } else {
+          logger.warn('Electron API not available - recurrence events will not work');
+        }
+      } catch (error) {
+        logger.logError(error, 'Error setting up global recurrence listener');
+      }
+    });
+
+    onBeforeUnmount(() => {
+      // Clean up global recurrence listener
+      try {
+        if (window.electron && wrappedRecurrenceListener.value) {
+          window.electron.removeListener('recurrence:changed', wrappedRecurrenceListener.value);
+          wrappedRecurrenceListener.value = null;
+          logger.info('Global recurrence listener removed');
+        }
+      } catch (error) {
+        logger.logError(error, 'Error removing global recurrence listener');
+      }
     });
 
     return {};

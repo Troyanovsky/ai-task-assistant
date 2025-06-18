@@ -23,7 +23,8 @@
 </template>
 
 <script>
-import { computed, onMounted, ref, onBeforeUnmount } from 'vue';
+import { computed, onMounted } from 'vue';
+import { useStore } from 'vuex';
 import { FREQUENCY } from '../../models/RecurrenceRule.js';
 import logger from '../../services/logger.js';
 
@@ -36,7 +37,12 @@ export default {
     },
   },
   setup(props) {
-    const recurrenceRule = ref(null);
+    const store = useStore();
+
+    // Get recurrence rule from store (reactive)
+    const recurrenceRule = computed(() => {
+      return store.getters['recurrence/getRecurrenceRuleByTaskId'](props.taskId);
+    });
 
     // Computed text for recurrence display
     const recurrenceText = computed(() => {
@@ -70,42 +76,12 @@ export default {
       return tooltip;
     });
 
-    // Fetch recurrence rule for the task
-    const fetchRecurrenceRule = async () => {
+    onMounted(async () => {
+      // Fetch recurrence rule for this task if not already in store
       try {
-        const rule = await window.electron.getRecurrenceRuleByTask(props.taskId);
-        recurrenceRule.value = rule;
+        await store.dispatch('recurrence/fetchRecurrenceRuleByTaskId', props.taskId);
       } catch (error) {
         logger.error('Error fetching recurrence rule:', error);
-        recurrenceRule.value = null;
-      }
-    };
-
-    // Handle recurrence changes
-    const handleRecurrenceChange = async (taskId) => {
-      if (taskId === props.taskId) {
-        await fetchRecurrenceRule();
-      }
-    };
-
-    // Store reference to the wrapped listener function for proper cleanup
-    const wrappedRecurrenceListener = ref(null);
-
-    onMounted(async () => {
-      await fetchRecurrenceRule();
-
-      // Listen for recurrence changes
-      wrappedRecurrenceListener.value = window.electron.receive(
-        'recurrence:changed',
-        handleRecurrenceChange
-      );
-    });
-
-    onBeforeUnmount(() => {
-      // Remove the specific recurrence listener
-      if (wrappedRecurrenceListener.value) {
-        window.electron.removeListener('recurrence:changed', wrappedRecurrenceListener.value);
-        wrappedRecurrenceListener.value = null;
       }
     });
 
