@@ -247,12 +247,12 @@ describe('NotificationManager', () => {
         message: 'Test notification',
       });
 
-      const mockTask = { name: 'Test Task' };
+      const mockTask = { name: 'Test Task', status: 'planning' };
       databaseService.queryOne.mockReturnValue(mockTask);
 
       notificationService.sendNotification(notification);
 
-      expect(databaseService.queryOne).toHaveBeenCalledWith('SELECT name FROM tasks WHERE id = ?', [
+      expect(databaseService.queryOne).toHaveBeenCalledWith('SELECT name, status FROM tasks WHERE id = ?', [
         'task1',
       ]);
 
@@ -277,7 +277,7 @@ describe('NotificationManager', () => {
         type: TYPE.REMINDER,
       });
 
-      const mockTask = { name: 'Test Task' };
+      const mockTask = { name: 'Test Task', status: 'planning' };
       databaseService.queryOne.mockReturnValue(mockTask);
 
       notificationService.sendNotification(notification);
@@ -303,12 +303,65 @@ describe('NotificationManager', () => {
 
       notificationService.sendNotification(notification);
 
-      expect(databaseService.queryOne).toHaveBeenCalledWith('SELECT name FROM tasks WHERE id = ?', [
+      expect(databaseService.queryOne).toHaveBeenCalledWith('SELECT name, status FROM tasks WHERE id = ?', [
         'task1',
       ]);
 
       expect(ElectronNotification).not.toHaveBeenCalled();
       expect(BrowserWindow.getAllWindows()[0].webContents.send).not.toHaveBeenCalled();
+    });
+
+    it('should not send notification if task is marked as DONE', () => {
+      const notification = new Notification({
+        id: 'notif1',
+        taskId: 'task1',
+        time: new Date(Date.now() + 1000),
+        type: TYPE.REMINDER,
+        message: 'Test notification',
+      });
+
+      const mockTask = { name: 'Test Task', status: 'done' };
+      databaseService.queryOne.mockReturnValue(mockTask);
+
+      notificationService.sendNotification(notification);
+
+      expect(databaseService.queryOne).toHaveBeenCalledWith('SELECT name, status FROM tasks WHERE id = ?', [
+        'task1',
+      ]);
+
+      expect(ElectronNotification).not.toHaveBeenCalled();
+      expect(BrowserWindow.getAllWindows()[0].webContents.send).not.toHaveBeenCalled();
+    });
+
+    it('should send notification if task is not marked as DONE', () => {
+      const notification = new Notification({
+        id: 'notif1',
+        taskId: 'task1',
+        time: new Date(Date.now() + 1000),
+        type: TYPE.REMINDER,
+        message: 'Test notification',
+      });
+
+      const mockTask = { name: 'Test Task', status: 'planning' };
+      databaseService.queryOne.mockReturnValue(mockTask);
+
+      notificationService.sendNotification(notification);
+
+      expect(databaseService.queryOne).toHaveBeenCalledWith('SELECT name, status FROM tasks WHERE id = ?', [
+        'task1',
+      ]);
+
+      expect(ElectronNotification).toHaveBeenCalledWith({
+        title: 'Task: Test Task',
+        body: 'Test notification',
+        silent: false,
+        timeoutType: 'default',
+      });
+
+      expect(BrowserWindow.getAllWindows()[0].webContents.send).toHaveBeenCalledWith(
+        'notification:received',
+        notification
+      );
     });
 
     describe('loadScheduledNotifications', () => {

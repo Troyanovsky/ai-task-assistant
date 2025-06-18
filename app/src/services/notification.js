@@ -5,6 +5,7 @@
 
 import databaseService from './database.js';
 import { Notification, TYPE } from '../models/Notification.js';
+import { STATUS } from '../models/Task.js';
 import { ipcMain, Notification as ElectronNotification, BrowserWindow } from 'electron';
 import logger from '../../electron-main/logger.js';
 
@@ -297,12 +298,18 @@ class NotificationManager {
   sendNotification(notification) {
     try {
       // Get the task details to include in the notification
-      const task = databaseService.queryOne('SELECT name FROM tasks WHERE id = ?', [
+      const task = databaseService.queryOne('SELECT name, status FROM tasks WHERE id = ?', [
         notification.taskId,
       ]);
 
       if (!task) {
         logger.error(`Task ${notification.taskId} not found for notification`);
+        return;
+      }
+
+      // Check if task is marked as DONE - if so, don't send the notification
+      if (task.status === STATUS.DONE) {
+        logger.info(`Task ${notification.taskId} (${task.name}) is marked as DONE, skipping notification`);
         return;
       }
 

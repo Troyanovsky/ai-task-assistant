@@ -536,6 +536,9 @@ class TaskManager {
         return false;
       }
 
+      // Handle notification management based on status changes
+      await this._handleNotificationStatusChange(id, oldStatus, status);
+
       // Handle recurrence if task was just completed
       if (oldStatus !== STATUS.DONE && status === STATUS.DONE) {
         try {
@@ -560,6 +563,48 @@ class TaskManager {
     } catch (error) {
       logger.error(`Error updating task status for ${id}:`, error);
       return false;
+    }
+  }
+
+  /**
+   * Handle notification management when task status changes
+   * @param {string} taskId - Task ID
+   * @param {string} oldStatus - Previous status
+   * @param {string} newStatus - New status
+   * @private
+   */
+  async _handleNotificationStatusChange(taskId, oldStatus, newStatus) {
+    try {
+      // Get all notifications for this task
+      const notifications = await notificationService.getNotificationsByTask(taskId);
+
+      // Case 1: Task was marked as DONE - cancel all scheduled notifications
+      if (oldStatus !== STATUS.DONE && newStatus === STATUS.DONE) {
+        logger.info(`Task ${taskId} marked as DONE, cancelling ${notifications.length} notifications`);
+        for (const notification of notifications) {
+          notificationService.cancelNotification(notification.id);
+        }
+      }
+
+      // Case 2: Task was changed from DONE to another status - re-schedule notifications
+      else if (oldStatus === STATUS.DONE && newStatus !== STATUS.DONE) {
+        logger.info(`Task ${taskId} changed from DONE to ${newStatus}, re-scheduling ${notifications.length} notifications`);
+        for (const notification of notifications) {
+          // Only re-schedule notifications that are in the future
+          const notificationTime = new Date(notification.time);
+          const now = new Date();
+
+          if (notificationTime > now) {
+            notificationService.scheduleNotification(notification);
+            logger.info(`Re-scheduled notification ${notification.id} for ${notificationTime.toLocaleString()}`);
+          } else {
+            logger.info(`Notification ${notification.id} time has passed, not re-scheduling`);
+          }
+        }
+      }
+    } catch (error) {
+      logger.error(`Error handling notification status change for task ${taskId}:`, error);
+      // Don't fail the status update if notification handling fails
     }
   }
 

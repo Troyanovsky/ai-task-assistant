@@ -611,6 +611,49 @@ describe('TaskManager', () => {
 
       expect(result).toBe(false);
     });
+
+    it('should cancel notifications when task is marked as DONE', async () => {
+      const mockTask = { ...mockTasks[0], status: STATUS.PLANNING };
+      databaseService.queryOne.mockReturnValue(mockTask);
+      databaseService.update.mockReturnValue({ changes: 1 });
+
+      const mockNotifications = [
+        { id: 'notif1', taskId: 'task-1', time: new Date(Date.now() + 60000) },
+        { id: 'notif2', taskId: 'task-1', time: new Date(Date.now() + 120000) },
+      ];
+      notificationService.getNotificationsByTask.mockResolvedValue(mockNotifications);
+      notificationService.cancelNotification = vi.fn();
+
+      const result = await taskManager.updateTaskStatus('task-1', STATUS.DONE);
+
+      expect(result).toBe(true);
+      expect(notificationService.getNotificationsByTask).toHaveBeenCalledWith('task-1');
+      expect(notificationService.cancelNotification).toHaveBeenCalledTimes(2);
+      expect(notificationService.cancelNotification).toHaveBeenCalledWith('notif1');
+      expect(notificationService.cancelNotification).toHaveBeenCalledWith('notif2');
+    });
+
+    it('should re-schedule notifications when task is changed from DONE to another status', async () => {
+      const mockTask = { ...mockTasks[0], status: STATUS.DONE };
+      databaseService.queryOne.mockReturnValue(mockTask);
+      databaseService.update.mockReturnValue({ changes: 1 });
+
+      const futureTime = new Date(Date.now() + 60000);
+      const pastTime = new Date(Date.now() - 60000);
+      const mockNotifications = [
+        { id: 'notif1', taskId: 'task-1', time: futureTime },
+        { id: 'notif2', taskId: 'task-1', time: pastTime },
+      ];
+      notificationService.getNotificationsByTask.mockResolvedValue(mockNotifications);
+      notificationService.scheduleNotification = vi.fn();
+
+      const result = await taskManager.updateTaskStatus('task-1', STATUS.PLANNING);
+
+      expect(result).toBe(true);
+      expect(notificationService.getNotificationsByTask).toHaveBeenCalledWith('task-1');
+      expect(notificationService.scheduleNotification).toHaveBeenCalledTimes(1);
+      expect(notificationService.scheduleNotification).toHaveBeenCalledWith(mockNotifications[0]);
+    });
   });
 
   describe('getTasksByStatus', () => {
